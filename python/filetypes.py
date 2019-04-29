@@ -29,7 +29,8 @@ class FDS(object):
                     f.seek(chunk_size,1)
                     chunk_dict[chunk_name] = [chunk_location, chunk_size]
         print('File {} contains the following chunks:'.format(self.filepath))
-        [print(key) for key in chunk_dict.keys()]
+        for key in chunk_dict.keys():
+            print(key)
         return chunk_dict
 
     def read_oct_volume(self):
