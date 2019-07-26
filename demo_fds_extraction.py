@@ -1,4 +1,4 @@
-from file_io.file_readers import FDS
+from file_io.fds import FDS
 
 filepath = 'sample_files/file.fds'
 fds = FDS(filepath)
