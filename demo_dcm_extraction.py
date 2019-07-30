@@ -1,7 +1,7 @@
 from file_io.dcm import Dicom
 
 
-filepath = '/home/mark/Downloads/0077_Test_DICOMPatient__245_Grid_OD_2017-11-02_15-39-49_M_1977-02-04_Main Report_Stack001_20190515183143693.dcm'
+filepath = 'sample_dcm.dcm'
 file = Dicom(filepath)
 oct_volumes  = file.read_oct_volume() # returns an OCT volume with additional metadata if available
 
