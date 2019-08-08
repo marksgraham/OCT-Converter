@@ -1,7 +1,7 @@
 from file_io.dcm import Dicom
 
 
-filepath = 'sample_dcm.dcm'
+filepath = '../sample_files/sample_dcm.dcm'
 file = Dicom(filepath)
 oct_volumes  = file.read_oct_volume() # returns an OCT volume with additional metadata if available
 
