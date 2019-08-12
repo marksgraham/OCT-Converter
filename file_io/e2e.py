@@ -99,7 +99,7 @@ class E2E(object):
                 for ii in range(directory_chunk.num_entries):
                     raw = f.read(44)
                     chunk = self.sun_directory_structure.parse(raw)
-                    volume_string = f'{chunk.patient_id}_{chunk.study_id}_{chunk.series_id}'
+                    volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
                     if volume_string not in volume_dict.keys():
                         volume_dict[volume_string] =  chunk.slice_id/2
                     elif chunk.slice_id/2 > volume_dict[volume_string]:
@@ -136,7 +136,7 @@ class E2E(object):
                         raw_volume = list(map(self.read_custom_float, all_bits))
                         image = np.array(raw_volume).reshape(image_data.width, image_data.height)
                         image = 256* pow(image,1.0/2.4)
-                        volume_string = f'{chunk.patient_id}_{chunk.study_id}_{chunk.series_id}'
+                        volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
                         volume_array_dict[volume_string][int(chunk.slice_id/2)-1] = image
 
             oct_volumes = []
