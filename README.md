@@ -1,4 +1,7 @@
-![OCT](../assets/oct.gif?raw=true)
+<p align="center">
+    <img src="../assets/oct.gif?raw=true">
+</p>
+
 
 # OCT file converter #
 
