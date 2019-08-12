@@ -1,3 +1,5 @@
+![OCT](../assets/oct.gif?raw=true)
+
 # OCT file converter #
 
 This repository contains code for extracting the raw optical coherence tomography (OCT) and fundus data from 
