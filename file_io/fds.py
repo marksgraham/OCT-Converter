@@ -1,4 +1,4 @@
-import struct
+from construct import PaddedString,  Struct,  Int32un
 import numpy as np
 from file_io.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 
@@ -9,24 +9,51 @@ class FDS(object):
 
     def __init__(self, filepath):
         self.filepath = filepath
+
+        self.header = Struct(
+            'FOCT' / PaddedString(4, 'ascii'),
+            'FDA' / PaddedString(3, 'ascii'),
+            'version_info_1' / Int32un,
+            'version_info_2' / Int32un
+        )
+
+        self.oct_header = Struct(
+            'unknown' / PaddedString(1, 'ascii'),
+            'width' / Int32un,
+            'height' / Int32un,
+            'bits_per_pixel' / Int32un,
+            'number_slices' / Int32un,
+            'unknown' / PaddedString(1, 'ascii'),
+            'size' / Int32un,
+        )
+
+        self.fundus_header = Struct(
+            'width' / Int32un,
+            'height' / Int32un,
+            'bits_per_pixel' / Int32un,
+            'number_slices' / Int32un,
+            'unknown' / PaddedString(1, 'ascii'),
+            'size' / Int32un,
+        )
+
         self.chunk_dict = self.get_list_of_file_chunks()
+
 
     def get_list_of_file_chunks(self):
         chunk_dict = {}
         with open(self.filepath, 'rb') as f:
             # skip header
-            f.read(4)  # "FOCT"
-            f.read(3)  # "FDA"
-            struct.unpack('i', f.read(4))  # version info
-            struct.unpack('i', f.read(4))  # version info
+            raw = f.read(15)
+            header = self.header.parse(raw)
+
             eof = False
             while not eof:
-                chunk_name_size = struct.unpack('b', f.read(1))[0]
+                chunk_name_size = np.fromstring(f.read(1), dtype=np.uint8)[0]
                 if chunk_name_size == 0:
                     eof = True
                 else:
                     chunk_name = f.read(chunk_name_size)
-                    chunk_size = struct.unpack('i', f.read(4))[0]
+                    chunk_size = np.fromstring(f.read(4), dtype=np.uint32)[0]
                     chunk_location = f.tell()
                     f.seek(chunk_size, 1)
                     chunk_dict[chunk_name] = [chunk_location, chunk_size]
@@ -41,17 +68,12 @@ class FDS(object):
         with open(self.filepath, 'rb') as f:
             chunk_location, chunk_size = self.chunk_dict[b'@IMG_SCAN_03']
             f.seek(chunk_location)
-            f.seek(1, 1)  # byte to skip
-            width = struct.unpack('i', f.read(4))[0]
-            height = struct.unpack('i', f.read(4))[0]
-            bits_per_pixel = struct.unpack('i', f.read(4))[0]
-            number_slices = struct.unpack('i', f.read(4))[0]
-            f.seek(1, 1)  # byte to skip
-            size = struct.unpack('i', f.read(4))[0]
-            number_pixels = width * height * number_slices
+            raw = f.read(22)
+            oct_header = self.oct_header.parse(raw)
+            number_pixels = oct_header.width * oct_header.height * oct_header.number_slices
             raw_volume = np.fromstring(f.read(number_pixels * 2), dtype=np.uint16)
             volume = np.array(raw_volume)
-            volume = volume.reshape(width, height, number_slices, order='F')
+            volume = volume.reshape(oct_header.width, oct_header.height, oct_header.number_slices, order='F')
             volume = np.transpose(volume, [1, 0, 2])
         oct_volume = OCTVolumeWithMetaData([volume[:, :, i] for i in range(volume.shape[2])])
         return oct_volume
@@ -62,20 +84,14 @@ class FDS(object):
         with open(self.filepath, 'rb') as f:
             chunk_location, chunk_size = self.chunk_dict[b'@IMG_OBS']
             f.seek(chunk_location)
-            width = struct.unpack('i', f.read(4))[0]
-            height = struct.unpack('i', f.read(4))[0]
-            bits_per_pixel = struct.unpack('i', f.read(4))[0]
-            number_slices = struct.unpack('i', f.read(4))[0]
-            f.seek(1, 1)  # byte to skip
-            size = struct.unpack('i', f.read(4))[0]
-            number_pixels = width * height * number_slices
-            raw_image = [struct.unpack('B', f.read(1)) for pixel in range(size)]
+            raw = f.read(21)
+            fundus_header = self.fundus_header.parse(raw)
+            #number_pixels = fundus_header.width * fundus_header.height * fundus_header.number_slices
+            raw_image = np.fromstring(f.read(fundus_header.size), dtype=np.uint8)
+            #raw_image = [struct.unpack('B', f.read(1)) for pixel in range(fundus_header.size)]
             image = np.array(raw_image)
-            image = image.reshape(3, width, height, order='F')
+            image = image.reshape(3, fundus_header.width, fundus_header.height, order='F')
             image = np.transpose(image, [2, 1, 0])
-            # image_copy = image.copy()
-            # image[:,:,0] = image_copy[:,:,2]
-            # image[:,:,2] = image_copy[:,:,0]
             image = image.astype(np.float32)
         fundus_image = FundusImageWithMetaData(image)
         return fundus_image
