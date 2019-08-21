@@ -6,6 +6,11 @@ class Dicom(object):
         self.filepath = filepath
 
     def read_oct_volume(self):
+        """ Reads OCT data.
+
+            Returns:
+                obj:OCTVolumeWithMetaData
+        """
         import pydicom
         dicom_data = pydicom.dcmread(self.filepath)
         pixel_data = dicom_data.pixel_array

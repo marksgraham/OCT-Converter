@@ -4,19 +4,27 @@ from file_io.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 
 
 class FDS(object):
-    ''' Class for extracting data from Topcon's .fds file format. Mostly based on description of file format here:
-     https://bitbucket.org/uocte/uocte/wiki/Topcon%20File%20Format'''
+    """ Class for extracting data from Topcon's .fds file format.
 
+        Notes:
+            Mostly based on description of .fds file format here:
+            https://bitbucket.org/uocte/uocte/wiki/Topcon%20File%20Format
+
+        Attributes:
+            filepath (str): Path to .img file for reading.
+            header (obj:Struct): Defines structure of volume's header.
+            oct_header (obj:Struct): Defines structure of OCT header.
+            fundus_header (obj:Struct): Defines structure of fundus header.
+            chunk_dict (dict): Name of data chunks present in the file, and their start locations.
+    """
     def __init__(self, filepath):
         self.filepath = filepath
-
         self.header = Struct(
             'FOCT' / PaddedString(4, 'ascii'),
             'FDA' / PaddedString(3, 'ascii'),
             'version_info_1' / Int32un,
             'version_info_2' / Int32un
         )
-
         self.oct_header = Struct(
             'unknown' / PaddedString(1, 'ascii'),
             'width' / Int32un,
@@ -26,7 +34,6 @@ class FDS(object):
             'unknown' / PaddedString(1, 'ascii'),
             'size' / Int32un,
         )
-
         self.fundus_header = Struct(
             'width' / Int32un,
             'height' / Int32un,
@@ -35,11 +42,15 @@ class FDS(object):
             'unknown' / PaddedString(1, 'ascii'),
             'size' / Int32un,
         )
-
         self.chunk_dict = self.get_list_of_file_chunks()
 
 
     def get_list_of_file_chunks(self):
+        """Find all data chunks present in the file.
+
+        Returns:
+            dict
+        """
         chunk_dict = {}
         with open(self.filepath, 'rb') as f:
             # skip header
@@ -63,6 +74,11 @@ class FDS(object):
         return chunk_dict
 
     def read_oct_volume(self):
+        """ Reads OCT data.
+
+            Returns:
+                obj:OCTVolumeWithMetaData
+        """
         if b'@IMG_SCAN_03' not in self.chunk_dict:
             raise ValueError('Could not find OCT header @IMG_SCAN_03 in chunk list')
         with open(self.filepath, 'rb') as f:
@@ -79,6 +95,11 @@ class FDS(object):
         return oct_volume
 
     def read_fundus_image(self):
+        """ Reads fundus image.
+
+            Returns:
+                obj:FundusImageWithMetaData
+        """
         if b'@IMG_OBS' not in self.chunk_dict:
             raise ValueError('Could not find OCT header @IMG_OBS in chunk list')
         with open(self.filepath, 'rb') as f:

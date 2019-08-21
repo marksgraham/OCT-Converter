@@ -3,12 +3,21 @@ from file_io.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 
 
 class IMG(object):
-    ''' Class for extracting data from Zeiss's .img file format'''
+    """ Class for extracting data from Zeiss's .img file format.
+
+        Attributes:
+            filepath (str): Path to .img file for reading.
+    """
 
     def __init__(self, filepath):
         self.filepath = filepath
 
     def read_oct_volume(self):
+        """ Reads OCT data.
+
+            Returns:
+                obj:OCTVolumeWithMetaData
+        """
         with open(self.filepath, 'rb') as f:
             volume = np.fromstring(f.read(), dtype=np.uint8)
             volume = volume.reshape((1024, 512, 128), order='F')

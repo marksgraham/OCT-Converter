@@ -9,7 +9,15 @@ IMAGE_TYPES = ['.png', '.bmp', '.tiff', '.jpg', '.jpeg']
 
 
 class OCTVolumeWithMetaData(object):
-    """ Simple class to hold the OCT volume and any related metadata extracted from the volumes"""
+    """ Class to hold the OCT volume and any related metadata, and enable viewing and saving.
+
+    Attributes:
+        volume (list of np.array): All the volume's b-scans.
+        laterality (str): Left or right eye.
+        patient_id (str): Patient ID.
+        DOB (str): Patient date of birth.
+        num_slices: Number of b-scans present in volume.
+    """
 
     def __init__(self, volume, laterality=None, patient_id=None, patient_dob=None):
         self.volume = volume
@@ -46,6 +54,11 @@ class OCTVolumeWithMetaData(object):
 
 
     def save(self, filepath):
+        """Saves OCT volume as a video or stack of slices.
+
+        Args:
+            filepath (str): Location to save volume to. Extension must be in VIDEO_TYPES or IMAGE_TYPES.
+        """
         extension = os.path.splitext(filepath)[1]
         if extension.lower() in VIDEO_TYPES:
             video_writer = imageio.get_writer(filepath, macro_block_size=None)
@@ -64,7 +77,14 @@ class OCTVolumeWithMetaData(object):
 
 
 class FundusImageWithMetaData(object):
-    ''' Simple class to hold the fundus image and any related metadata extracted.'''
+    """ Class to hold the fundus image and any related metadata, and enable saving.
+
+    Attributes:
+        image (np.array): Fundus image.
+        laterality (str): Left or right eye.
+        patient_id (str): Patient ID.
+        DOB (str): Patient date of birth.
+    """
 
     def __init__(self, image, laterality=None, patient_id=None, patient_dob=None):
         self.image = image
@@ -74,6 +94,11 @@ class FundusImageWithMetaData(object):
 
 
     def save(self, filepath):
+        """Saves fundus image.
+
+        Args:
+            filepath (str): Location to save volume to. Extension must be in IMAGE_TYPES.
+        """
         extension = os.path.splitext(filepath)[1]
         if extension.lower() in IMAGE_TYPES:
             cv2.imwrite(filepath, self.image)
