@@ -145,7 +145,10 @@ class E2E(object):
                         image = np.array(raw_volume).reshape(image_data.width, image_data.height)
                         image = 256 * pow(image, 1.0 / 2.4)
                         volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
-                        volume_array_dict[volume_string][int(chunk.slice_id / 2) - 1] = image
+                        if volume_string in volume_array_dict.keys():
+                            volume_array_dict[volume_string][int(chunk.slice_id / 2) - 1] = image
+                        else:
+                            print('Failed to save image data for volume {}'.format(volume_string))
 
             oct_volumes = []
             for key, volume in volume_array_dict.items():
