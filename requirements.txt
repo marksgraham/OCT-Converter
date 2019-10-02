@@ -1,8 +1,8 @@
 construct==2.9.45
 imageio==2.2.0
 natsort==6.0.0
-numpy==1.14.1
-opencv-python==3.3.0.10
+numpy
+opencv-python
 pydicom==1.2.2
 six==1.12.0
 matplotlib
