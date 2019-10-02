@@ -22,12 +22,14 @@ maintained. This repository aims to make available python-based tools for readin
 * .img (Zeiss)
 * .dcm
 
-## Requirements
-Written and tested in python **3.6.7**.
+## Installation
+Requires **python3**.
 
-Install the required packages using:
-
-```pip install -r requirements.txt```
+To install run:
+```bash
+git clone https://github.com/marksgraham/OCT-Converter.git
+pip install -e OCT-Converter
+```
 
 ## Usage
 
