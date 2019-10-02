@@ -1,6 +1,6 @@
 import numpy as np
 from construct import PaddedString, Int16un, Struct, Int32sn, Int32un, Array
-from file_io.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
+from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 
 
 class E2E(object):

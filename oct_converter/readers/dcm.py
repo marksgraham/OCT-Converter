@@ -1,4 +1,4 @@
-from file_io.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
+from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 
 
 class Dicom(object):

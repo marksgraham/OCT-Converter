@@ -1,4 +1,5 @@
-from file_io.e2e import E2E
+from oct_converter.readers import E2E
+
 
 filepath = '../sample_files/file.e2e'
 file = E2E(filepath)

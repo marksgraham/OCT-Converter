@@ -1,6 +1,6 @@
 from construct import PaddedString,  Struct,  Int32un
 import numpy as np
-from file_io.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
+from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 
 
 class FDS(object):

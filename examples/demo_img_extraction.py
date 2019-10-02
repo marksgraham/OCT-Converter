@@ -1,4 +1,5 @@
-from file_io.img import IMG
+from oct_converter.readers import IMG
+
 
 filepath = '../sample_files/file.img'
 img = IMG(filepath)

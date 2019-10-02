@@ -1,4 +1,5 @@
-from file_io.dcm import Dicom
+from oct_converter.readers import Dicom
+
 
 filepath = '../sample_files/sample_dcm.dcm'
 file = Dicom(filepath)

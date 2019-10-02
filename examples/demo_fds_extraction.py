@@ -1,4 +1,4 @@
-from file_io.fds import FDS
+from oct_converter.readers import FDS
 
 filepath = '../sample_files/file.fds'
 fds = FDS(filepath)
