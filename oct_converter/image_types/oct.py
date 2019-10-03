@@ -72,6 +72,8 @@ class OCTVolumeWithMetaData(object):
             for index, slice in enumerate(self.volume):
                 filename = '{}_{}{}'.format(full_base, index, extension)
                 cv2.imwrite(filename, slice)
+        elif extension.lower() == '.npy':
+            np.save(filepath, self.volume)
         else:
             raise NotImplementedError('Saving with file extension {} not supported'.format(extension))
 

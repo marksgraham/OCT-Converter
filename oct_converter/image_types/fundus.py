@@ -33,5 +33,7 @@ class FundusImageWithMetaData(object):
         extension = os.path.splitext(filepath)[1]
         if extension.lower() in IMAGE_TYPES:
             cv2.imwrite(filepath, self.image)
+        elif extension.lower() == '.npy':
+            np.save(filepath, self.image)
         else:
             raise NotImplementedError('Saving with file extension {} not supported'.format(extension))

@@ -32,7 +32,9 @@ pip install -e OCT-Converter
 ```
 
 ## Usage
-
 Example usage scripts are included in examples/. 
+
+## Contributions
+Are welcome!
 
 
