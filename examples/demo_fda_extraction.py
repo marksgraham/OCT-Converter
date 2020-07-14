@@ -8,4 +8,4 @@ fda = FDA(filepath)
 # oct_volume.save('fds_testing.png')  # save volume as a set of sequential images, fds_testing_[1...N].png
 
 fundus_image = fda.read_fundus_image()  # returns a  Fundus image with additional metadata if available
-fundus_image.save('fds_testing_fundus.jpg')
+fundus_image.save('fda_testing_fundus.jpg')
