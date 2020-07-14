@@ -18,12 +18,16 @@ maintained. This repository aims to make available python-based tools for readin
 
 ## Supported file formats
 * .fds (Topcon)
+* .fda (Topcon)
 * .e2e (Heidelberg)
 * .img (Zeiss)
 * .dcm
 
 ## Installation
 Requires **python3**.
+
+pip install pylibjpeg
+
 
 To install run:
 ```bash

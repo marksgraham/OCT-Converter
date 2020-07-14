@@ -9,6 +9,6 @@ setup(
     author='Mark Graham',
     author_email='markgraham539@gmail.com',
     python_requires='>3.5',
-    install_requires=['construct','imageio','natsort','numpy','opencv-python','pydicom','six','matplotlib','imageio-ffmpeg']
+    install_requires=['construct','imageio','natsort','numpy','opencv-python','pydicom','six','matplotlib','imageio-ffmpeg', 'pylibjpeg']
 
 )
