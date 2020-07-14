@@ -1,11 +1,9 @@
 from oct_converter.readers import FDA
 
-filepath = '../../../../13812.fda'
-fda = FDA(filepath)
-# oct_volume = fds.read_oct_volume()  # returns an OCT volume with additional metadata if available
-# oct_volume.peek() # plots a montage of the volume
-# oct_volume.save('fds_testing.avi')  # save volume as a movie
-# oct_volume.save('fds_testing.png')  # save volume as a set of sequential images, fds_testing_[1...N].png
+# a sample .fda file can be downloaded from the Biobank resource here:
+# https://biobank.ndph.ox.ac.uk/showcase/refer.cgi?id=31
 
+filepath = '/home/mark/Downloads/1000034_21011_0_0.fda'
+fda = FDA(filepath)
 fundus_image = fda.read_fundus_image()  # returns a  Fundus image with additional metadata if available
 fundus_image.save('fda_testing_fundus.jpg')

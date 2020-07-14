@@ -26,9 +26,6 @@ maintained. This repository aims to make available python-based tools for readin
 ## Installation
 Requires **python3**.
 
-pip install pylibjpeg
-
-
 To install run:
 ```bash
 git clone https://github.com/marksgraham/OCT-Converter.git

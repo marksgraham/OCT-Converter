@@ -101,7 +101,7 @@ class FDS(object):
                 obj:FundusImageWithMetaData
         """
         if b'@IMG_OBS' not in self.chunk_dict:
-            raise ValueError('Could not find OCT header @IMG_OBS in chunk list')
+            raise ValueError('Could not find fundus header @IMG_OBS in chunk list')
         with open(self.filepath, 'rb') as f:
             chunk_location, chunk_size = self.chunk_dict[b'@IMG_OBS']
             f.seek(chunk_location)

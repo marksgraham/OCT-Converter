@@ -1,6 +1,8 @@
 from oct_converter.readers import FDS
 
-filepath = '../sample_files/file.fds'
+# An example .fds file can be downloaded from the Biobank website:
+# https://biobank.ndph.ox.ac.uk/showcase/refer.cgi?id=30
+filepath = '/home/mark/Downloads/eg_oct_fds(1).fds'
 fds = FDS(filepath)
 oct_volume = fds.read_oct_volume()  # returns an OCT volume with additional metadata if available
 oct_volume.peek() # plots a montage of the volume

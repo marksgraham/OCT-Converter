@@ -1,7 +1,7 @@
 from oct_converter.readers import E2E
 
 
-filepath = '../sample_files/file.e2e'
+filepath = '/Users/mark/Downloads/TRALO01R.E2E'
 file = E2E(filepath)
 oct_volumes = file.read_oct_volume()  # returns an OCT volume with additional metadata if available
 
