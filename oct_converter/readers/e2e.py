@@ -1,6 +1,8 @@
 import numpy as np
 from construct import PaddedString, Int16un, Struct, Int32sn, Int32un, Array
 from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
+import struct
+import matplotlib.pyplot as plt
 
 
 class E2E(object):
@@ -111,20 +113,28 @@ class E2E(object):
                     chunk = self.sub_directory_structure.parse(raw)
                     volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
                     if volume_string not in volume_dict.keys():
-                        volume_dict[volume_string] = chunk.slice_id / 2
+                        # volume_dict[volume_string] = chunk.slice_id / 2
+                        volume_dict[volume_string] = chunk.slice_id
                     elif chunk.slice_id / 2 > volume_dict[volume_string]:
-                        volume_dict[volume_string] = chunk.slice_id / 2
+                        # volume_dict[volume_string] = chunk.slice_id / 2
+                        volume_dict[volume_string] = chunk.slice_id
 
                     if chunk.start > chunk.pos:
                         chunk_stack.append([chunk.start, chunk.size])
+                    # else:
+                        # print("outside chunk, chunk start {} and chunk size {}".format(chunk.start, chunk.size))
 
             # initalise dict to hold all the image volumes
             volume_array_dict = {}
+            # print("volume dict {}".format(volume_dict.items()))
             for volume, num_slices in volume_dict.items():
+                # print("num slices {}".format(num_slices))
                 if num_slices > 0:
+                    # print("num slices {}".format(num_slices))
                     volume_array_dict[volume] = [0] * int(num_slices)
-
+            # print(volume_array_dict)
             # traverse all chunks and extract slices
+            fundus_images = []
             for start, pos in chunk_stack:
                 f.seek(start)
                 raw = f.read(60)
@@ -135,11 +145,27 @@ class E2E(object):
                     image_data = self.image_structure.parse(raw)
 
                     if chunk.ind == 0:  # fundus data
-                        pass
-                        # raw_volume = [struct.unpack('H', f.read(2))[0] for pixel in range(height*width)]
-                        # image = np.array(raw_volume).reshape(height,width)
-                        # plt.imshow(image)
+                        # pass
+                        print("in chunk == 0")
+                        height, width = (image_data.height, image_data.width)
+                        try:
+                            # raw_volume = [struct.unpack('H', f.read(2))[0] for pixel in range(height*width)]
+                            raw_volume = [struct.unpack('B', f.read(1))[0] for pixel in range(height*width)]
+                            image = np.array(raw_volume).reshape(height,width)
+                            fundus_images.append(image)
+                        except Exception as e:
+                            print("error {}".format(e))
+                            return fundus_images
+                        volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
+                        if volume_string in volume_array_dict.keys():
+                            # print("volume string: {}".format(volume_string))
+                            # print("chunk slice id {}".format(chunk.slice_id))
+                            # print("adjusted slice id {}".format(int(chunk.slice_id/2)-1))
+                            volume_array_dict[volume_string][int(chunk.slice_id / 2) -1] = image
+                        else:
+                            print('Failed to save image data for volume {}'.format(volume_string))
                     elif chunk.ind == 1:  # oct data
+                        print("in chunk == 1")
                         all_bits = [f.read(2) for i in range(image_data.height * image_data.width)]
                         raw_volume = list(map(self.read_custom_float, all_bits))
                         image = np.array(raw_volume).reshape(image_data.width, image_data.height)
@@ -149,12 +175,14 @@ class E2E(object):
                             volume_array_dict[volume_string][int(chunk.slice_id / 2) - 1] = image
                         else:
                             print('Failed to save image data for volume {}'.format(volume_string))
+                    else:
+                        print("unrecognised chunk")
 
             oct_volumes = []
             for key, volume in volume_array_dict.items():
                 oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key))
 
-        return oct_volumes
+        return oct_volumes, fundus_images
 
     def read_custom_float(self, bytes):
         """ Implementation of bespoke float type used in .e2e files.
