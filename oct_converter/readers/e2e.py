@@ -22,8 +22,9 @@ class E2E(object):
     """
 
 
-    def __init__(self, filepath):
+    def __init__(self, filepath, imagetype=""):
         self.filepath = filepath
+        self.imagetype = imagetype
         self.header_structure = Struct(
             'magic' / PaddedString(12, 'ascii'),
             'version' / Int32un,
@@ -113,26 +114,23 @@ class E2E(object):
                     chunk = self.sub_directory_structure.parse(raw)
                     volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
                     if volume_string not in volume_dict.keys():
-                        # volume_dict[volume_string] = chunk.slice_id / 2
-                        volume_dict[volume_string] = chunk.slice_id
+                        if self.imagetype=="FAF"
+                            volume_dict[volume_string] = chunk.slice_id
+                        else:
+                            volume_dict[volume_string] = chunk.slice_id / 2
                     elif chunk.slice_id / 2 > volume_dict[volume_string]:
-                        # volume_dict[volume_string] = chunk.slice_id / 2
-                        volume_dict[volume_string] = chunk.slice_id
-
+                        if self.imagetype=="FAF"
+                            volume_dict[volume_string] = chunk.slice_id
+                        else:
+                            volume_dict[volume_string] = chunk.slice_id / 2
                     if chunk.start > chunk.pos:
                         chunk_stack.append([chunk.start, chunk.size])
-                    # else:
-                        # print("outside chunk, chunk start {} and chunk size {}".format(chunk.start, chunk.size))
 
             # initalise dict to hold all the image volumes
             volume_array_dict = {}
-            # print("volume dict {}".format(volume_dict.items()))
             for volume, num_slices in volume_dict.items():
-                # print("num slices {}".format(num_slices))
                 if num_slices > 0:
-                    # print("num slices {}".format(num_slices))
                     volume_array_dict[volume] = [0] * int(num_slices)
-            # print(volume_array_dict)
             # traverse all chunks and extract slices
             fundus_images = []
             for start, pos in chunk_stack:
@@ -146,7 +144,6 @@ class E2E(object):
 
                     if chunk.ind == 0:  # fundus data
                         # pass
-                        print("in chunk == 0")
                         height, width = (image_data.height, image_data.width)
                         try:
                             # raw_volume = [struct.unpack('H', f.read(2))[0] for pixel in range(height*width)]
@@ -158,14 +155,10 @@ class E2E(object):
                             return fundus_images
                         volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
                         if volume_string in volume_array_dict.keys():
-                            # print("volume string: {}".format(volume_string))
-                            # print("chunk slice id {}".format(chunk.slice_id))
-                            # print("adjusted slice id {}".format(int(chunk.slice_id/2)-1))
                             volume_array_dict[volume_string][int(chunk.slice_id / 2) -1] = image
                         else:
                             print('Failed to save image data for volume {}'.format(volume_string))
                     elif chunk.ind == 1:  # oct data
-                        print("in chunk == 1")
                         all_bits = [f.read(2) for i in range(image_data.height * image_data.width)]
                         raw_volume = list(map(self.read_custom_float, all_bits))
                         image = np.array(raw_volume).reshape(image_data.width, image_data.height)
