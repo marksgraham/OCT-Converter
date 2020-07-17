@@ -114,12 +114,12 @@ class E2E(object):
                     chunk = self.sub_directory_structure.parse(raw)
                     volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
                     if volume_string not in volume_dict.keys():
-                        if self.imagetype=="FAF"
+                        if self.imagetype=="Fundus Autofluorescence"
                             volume_dict[volume_string] = chunk.slice_id
                         else:
                             volume_dict[volume_string] = chunk.slice_id / 2
                     elif chunk.slice_id / 2 > volume_dict[volume_string]:
-                        if self.imagetype=="FAF"
+                        if self.imagetype=="Fundus Autofluorescence"
                             volume_dict[volume_string] = chunk.slice_id
                         else:
                             volume_dict[volume_string] = chunk.slice_id / 2
