@@ -1,5 +1,5 @@
 import numpy as np
-from construct import PaddedString, Int16un, Struct, Int32sn, Int32un, Array
+from construct import PaddedString, Int16un, Struct, Int32sn, Int32un, Array, Int8un
 from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 import struct
 import matplotlib.pyplot as plt
@@ -25,6 +25,7 @@ class E2E(object):
     def __init__(self, filepath, imagetype=""):
         self.filepath = filepath
         self.imagetype = imagetype
+        self.laterality = None
         self.header_structure = Struct(
             'magic' / PaddedString(12, 'ascii'),
             'version' / Int32un,
@@ -68,6 +69,18 @@ class E2E(object):
             'unknown4' / Int16un,
             'type' / Int32un,
             'unknown5' / Int32un,
+        )
+        self.patient_info_structure = Struct(
+            'name' / PaddedString(31, 'ascii'),
+            'surname' / PaddedString(66, 'ascii'),
+            'birthdate' / Int32un,
+            'sex' / Int8un
+        )
+        self.lat_structure = Struct(
+            # 'unknown' / Int8un,
+            'unknown' / PaddedString(14, 'ascii'),
+            'laterality' / Int8un,
+            'unknown2' / Int8un
         )
         self.image_structure = Struct(
             'size' / Int32un,
@@ -132,11 +145,21 @@ class E2E(object):
                 if num_slices > 0:
                     volume_array_dict[volume] = [0] * int(num_slices)
             # traverse all chunks and extract slices
+            # fundus_images = []
             fundus_images = []
             for start, pos in chunk_stack:
                 f.seek(start)
                 raw = f.read(60)
                 chunk = self.chunk_structure.parse(raw)
+                if self.imagetype == "Fundus Autofluorescence":
+                    if chunk.type == 11: # laterality data
+                        raw = f.read(20)
+                        laterality_data = self.lat_structure.parse(raw)
+                        # laterality information is decimal encoded - convert to ASCII representation (http://www.asciitable.com/)
+                        if laterality_data.laterality == 82:
+                            self.laterality = 'R'
+                        elif laterality_data.laterality == 76:
+                            self.laterality = 'L'
 
                 if chunk.type == 1073741824:  # image data
                     raw = f.read(20)
@@ -144,18 +167,22 @@ class E2E(object):
 
                     if chunk.ind == 0:  # fundus data
                         # pass
+                        print("in fundus data")
                         height, width = (image_data.height, image_data.width)
                         try:
                             # raw_volume = [struct.unpack('H', f.read(2))[0] for pixel in range(height*width)]
                             raw_volume = [struct.unpack('B', f.read(1))[0] for pixel in range(height*width)]
                             image = np.array(raw_volume).reshape(height,width)
-                            fundus_images.append(image)
+                            # plt.imshow(image, cmap='gray')
+                            # plt.show()
+                            fundus_images.append((self.laterality, image))
                         except Exception as e:
                             print("error {}".format(e))
                             return fundus_images
                         volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
                         if volume_string in volume_array_dict.keys():
-                            volume_array_dict[volume_string][int(chunk.slice_id / 2) -1] = image
+                            volume_array_dict[volume_string][int(chunk.slice_id / 2) -1] = (self.laterality, image)
+                            # volume_array_dict[volume_string][int(chunk.slice_id / 2) -1] = image
                         else:
                             print('Failed to save image data for volume {}'.format(volume_string))
                     elif chunk.ind == 1:  # oct data
@@ -173,7 +200,11 @@ class E2E(object):
 
             oct_volumes = []
             for key, volume in volume_array_dict.items():
-                oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key))
+                if self.imagetype == "Fundus Autofluorescence":
+                    for lat, vol in volume:
+                        oct_volumes.append(OCTVolumeWithMetaData(volume=[vol], laterality=lat, patient_id=key))
+                else:
+                    oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key))
 
         return oct_volumes, fundus_images
 
