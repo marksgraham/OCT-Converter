@@ -125,28 +125,45 @@ class E2E(object):
                 for ii in range(directory_chunk.num_entries):
                     raw = f.read(44)
                     chunk = self.sub_directory_structure.parse(raw)
+                    if self.imagetype == "Fundus Autofluorescence":
+                        if chunk.start > chunk.pos:
+                            chunk_stack.append([chunk.start, chunk.size])
+                    else:
+                        volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
+                        if volume_string not in volume_dict.keys():
+                            volume_dict[volume_string] = chunk.slice_id / 2
+                        elif chunk.slice_id / 2 > volume_dict[volume_string]:
+                                volume_dict[volume_string] = chunk.slice_id / 2
+                        if chunk.start > chunk.pos:
+                            chunk_stack.append([chunk.start, chunk.size])
+
+            if self.imagetype == "Fundus Autofluorescence":
+                for start, pos in chunk_stack:
+                    f.seek(start)
+                    raw = f.read(60)
+                    chunk = self.chunk_structure.parse(raw)
                     volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
                     if volume_string not in volume_dict.keys():
-                        if self.imagetype=="Fundus Autofluorescence":
-                            volume_dict[volume_string] = chunk.slice_id
-                        else:
-                            volume_dict[volume_string] = chunk.slice_id / 2
+                        volume_dict[volume_string] = chunk.slice_id
                     elif chunk.slice_id / 2 > volume_dict[volume_string]:
-                        if self.imagetype=="Fundus Autofluorescence":
-                            volume_dict[volume_string] = chunk.slice_id
-                        else:
-                            volume_dict[volume_string] = chunk.slice_id / 2
-                    if chunk.start > chunk.pos:
-                        chunk_stack.append([chunk.start, chunk.size])
+                        volume_dict[volume_string] = chunk.slice_id
 
-            # initalise dict to hold all the image volumes
-            volume_array_dict = {}
-            for volume, num_slices in volume_dict.items():
-                if num_slices > 0:
-                    volume_array_dict[volume] = [0] * int(num_slices)
+                # initalise dict to hold all the images
+                volume_array_dict = {}
+                for volume, num_slices in volume_dict.items():
+                    if num_slices == 0:
+                        num_slices = 1
+                        volume_array_dict[volume] = [0] * int(num_slices)
+                    elif num_slices >  0:
+                        volume_array_dict[volume] = [0] * int(num_slices)
+            else:
+                # initalise dict to hold all the image volumes
+                volume_array_dict = {}
+                for volume, num_slices in volume_dict.items():
+                    if num_slices > 0:
+                        volume_array_dict[volume] = [0] * int(num_slices)
             # traverse all chunks and extract slices
-            # fundus_images = []
-            fundus_images = []
+            fundus_images = {}
             for start, pos in chunk_stack:
                 f.seek(start)
                 raw = f.read(60)
@@ -167,7 +184,6 @@ class E2E(object):
 
                     if chunk.ind == 0:  # fundus data
                         # pass
-                        print("in fundus data")
                         height, width = (image_data.height, image_data.width)
                         try:
                             # raw_volume = [struct.unpack('H', f.read(2))[0] for pixel in range(height*width)]
@@ -175,11 +191,14 @@ class E2E(object):
                             image = np.array(raw_volume).reshape(height,width)
                             # plt.imshow(image, cmap='gray')
                             # plt.show()
-                            fundus_images.append((self.laterality, image))
+                            # fundus_images.append((self.laterality, image))
+                            volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
+                            fundus_images[volume_string] = (self.laterality, image)
                         except Exception as e:
                             print("error {}".format(e))
                             return fundus_images
-                        volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
+                        # volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
+                        # print("fundus volume string ", volume_string)
                         if volume_string in volume_array_dict.keys():
                             volume_array_dict[volume_string][int(chunk.slice_id / 2) -1] = (self.laterality, image)
                             # volume_array_dict[volume_string][int(chunk.slice_id / 2) -1] = image
@@ -191,6 +210,7 @@ class E2E(object):
                         image = np.array(raw_volume).reshape(image_data.width, image_data.height)
                         image = 256 * pow(image, 1.0 / 2.4)
                         volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
+                        # print("oct volume string ", volume_string)
                         if volume_string in volume_array_dict.keys():
                             volume_array_dict[volume_string][int(chunk.slice_id / 2) - 1] = image
                         else:
