@@ -221,8 +221,10 @@ class E2E(object):
 
             oct_volumes = []
             for key, volume in volume_array_dict.items():
-                print(key, volume)
+                # print(key, volume)
                 if self.imagetype == "Fundus Autofluorescence":
+                    if volume == 0:
+                        pass
                     for lat, vol in volume:
                         oct_volumes.append(OCTVolumeWithMetaData(volume=[vol], laterality=lat, patient_id=key))
                 else:
