@@ -224,9 +224,13 @@ class E2E(object):
                 # print(key, volume)
                 if self.imagetype == "Fundus Autofluorescence":
                     if volume == 0:
+                        print(volume)
                         pass
-                    for lat, vol in volume:
-                        oct_volumes.append(OCTVolumeWithMetaData(volume=[vol], laterality=lat, patient_id=key))
+                    try:
+                        for lat, vol in volume:
+                            oct_volumes.append(OCTVolumeWithMetaData(volume=[vol], laterality=lat, patient_id=key))
+                    except TypeError:
+                        print("volume not iteratble: ", volume)
                 else:
                     oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key))
 
