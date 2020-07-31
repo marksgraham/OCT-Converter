@@ -164,6 +164,7 @@ class E2E(object):
                         volume_array_dict[volume] = [0] * int(num_slices)
             # traverse all chunks and extract slices
             fundus_images = {}
+            fundus_images_list = []
             for start, pos in chunk_stack:
                 f.seek(start)
                 raw = f.read(60)
@@ -191,7 +192,7 @@ class E2E(object):
                             image = np.array(raw_volume).reshape(height,width)
                             # plt.imshow(image, cmap='gray')
                             # plt.show()
-                            # fundus_images.append((self.laterality, image))
+                            fundus_images_list.append((self.laterality, image))
                             volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
                             fundus_images[volume_string] = (self.laterality, image)
                         except Exception as e:
@@ -220,13 +221,14 @@ class E2E(object):
 
             oct_volumes = []
             for key, volume in volume_array_dict.items():
+                print(key, volume)
                 if self.imagetype == "Fundus Autofluorescence":
                     for lat, vol in volume:
                         oct_volumes.append(OCTVolumeWithMetaData(volume=[vol], laterality=lat, patient_id=key))
                 else:
                     oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key))
 
-        return oct_volumes, fundus_images
+        return oct_volumes, fundus_images_list
 
     def read_custom_float(self, bytes):
         """ Implementation of bespoke float type used in .e2e files.
