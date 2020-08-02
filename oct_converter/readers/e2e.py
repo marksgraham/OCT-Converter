@@ -141,6 +141,7 @@ class E2E(object):
                 for start, pos in chunk_stack:
                     f.seek(start)
                     raw = f.read(60)
+                    # print("parsing chunk stacks")
                     chunk = self.chunk_structure.parse(raw)
                     volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
                     if volume_string not in volume_dict.keys():
@@ -171,13 +172,17 @@ class E2E(object):
                 chunk = self.chunk_structure.parse(raw)
                 if self.imagetype == "Fundus Autofluorescence":
                     if chunk.type == 11: # laterality data
+                        # print("in chunk type 11")
                         raw = f.read(20)
-                        laterality_data = self.lat_structure.parse(raw)
-                        # laterality information is decimal encoded - convert to ASCII representation (http://www.asciitable.com/)
-                        if laterality_data.laterality == 82:
-                            self.laterality = 'R'
-                        elif laterality_data.laterality == 76:
-                            self.laterality = 'L'
+                        try:
+                            laterality_data = self.lat_structure.parse(raw)
+                            # laterality information is decimal encoded - convert to ASCII representation (http://www.asciitable.com/)
+                            if laterality_data.laterality == 82:
+                                self.laterality = 'R'
+                            elif laterality_data.laterality == 76:
+                                self.laterality = 'L'
+                        except UnicodeDecodeError as ue:
+                            print("Cannot decode laterality, data structure differs from what is expected. Passing")
 
                 if chunk.type == 1073741824:  # image data
                     raw = f.read(20)
@@ -229,8 +234,10 @@ class E2E(object):
                     try:
                         for lat, vol in volume:
                             oct_volumes.append(OCTVolumeWithMetaData(volume=[vol], laterality=lat, patient_id=key))
-                    except TypeError:
-                        print("volume not iteratble: ", volume)
+                    except TypeError as te:
+                        print("error: {}, volume not iteratable {}, trying outside loop ".format(te, volume))
+                    except ValueError as ve:
+                        print("error: {}, volume not iteratable {}, trying outside loop ".format(ve, volume))
                 else:
                     oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key))
 
