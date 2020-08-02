@@ -185,7 +185,7 @@ class E2E(object):
                                 self.laterality = 'L'
                         except UnicodeDecodeError as ue:
                             # print("Cannot decode laterality, data structure differs from what is expected. Passing")
-                            logging.warning("Cannot decode laterality, data structure differs from what is expected. Passing.")
+                            self.logging.warning("Cannot decode laterality, data structure differs from what is expected. Passing.")
 
                 if chunk.type == 1073741824:  # image data
                     raw = f.read(20)
@@ -205,12 +205,12 @@ class E2E(object):
                             fundus_images[volume_string] = (self.laterality, image)
                         except Exception as e:
                             # print("error {}".format(e))
-                            logging.error("raised exception with error {}".format(e))
+                            self.logging.error("raised exception with error {}".format(e))
                             return fundus_images
                         if volume_string in volume_array_dict.keys():
                             volume_array_dict[volume_string][int(chunk.slice_id / 2) -1] = (self.laterality, image)
                         else:
-                            logging.warning('Failed to save image data for volume {}'.format(volume_string))
+                            self.logging.warning('Failed to save image data for volume {}'.format(volume_string))
                     elif chunk.ind == 1:  # oct data
                         all_bits = [f.read(2) for i in range(image_data.height * image_data.width)]
                         raw_volume = list(map(self.read_custom_float, all_bits))
@@ -222,9 +222,9 @@ class E2E(object):
                             volume_array_dict[volume_string][int(chunk.slice_id / 2) - 1] = image
                         else:
                             # print('Failed to save image data for volume {}'.format(volume_string))
-                            logging.warning('Failed to save image data for volume {}'.format(volume_string))
+                            self.logging.warning('Failed to save image data for volume {}'.format(volume_string))
                     else:
-                        logging.info('unrecognised chunk for volume string {}'.format(volume_string))
+                        self.logging.info('unrecognised chunk for volume string {}'.format(volume_string))
 
             oct_volumes = []
             for key, volume in volume_array_dict.items():
@@ -232,17 +232,17 @@ class E2E(object):
                 if self.imagetype == "Fundus Autofluorescence":
                     if volume == 0:
                         print("volume == 0")
-                        logging.warning("volume with string {} == 0, passing".format(key))
+                        self.logging.warning("volume with string {} == 0, passing".format(key))
                         pass
                     try:
                         for lat, vol in volume:
                             oct_volumes.append(OCTVolumeWithMetaData(volume=[vol], laterality=lat, patient_id=key))
                     except TypeError as te:
                         print("error: {}, volume not iteratable, trying outside loop ".format(te))
-                        logging.warning("error: {}, volume not iteratable, trying outside loop ".format(te))
+                        self.logging.warning("error: {}, volume not iteratable, trying outside loop ".format(te))
                     except ValueError as ve:
                         print("error: {}, volume not iteratable {}, trying outside loop ".format(ve))
-                        logging.warning("error: {}, volume not iteratable, trying outside loop ".format(ve))
+                        self.logging.warning("error: {}, volume not iteratable, trying outside loop ".format(ve))
                 else:
                     oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key))
 
