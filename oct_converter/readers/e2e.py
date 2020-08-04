@@ -4,6 +4,7 @@ from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMeta
 import struct
 import matplotlib.pyplot as plt
 import setup_logger
+# import logging
 
 
 class E2E(object):
@@ -24,7 +25,7 @@ class E2E(object):
 
 
     def __init__(self, filepath, imagetype=""):
-        self.logging = setup_logger.get_logger()
+        self.logger = setup_logger.default_logger('extract_e2e.log')
         self.filepath = filepath
         self.imagetype = imagetype
         self.laterality = None
@@ -208,7 +209,7 @@ class E2E(object):
                             # plt.show()
                             fundus_images_list.append((self.laterality, image))
                             volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
-                            print("volume string from FAF {}".format(volume_string))
+                            # print("volume string from FAF {}".format(volume_string))
                             fundus_images[volume_string] = (self.laterality, image)
                         except Exception as e:
                             # print("error {}".format(e))
@@ -243,7 +244,6 @@ class E2E(object):
                         pass
                     try:
                         for lat, vol in volume:
-                            print("lat {}".format(lat))
                             oct_volumes.append(OCTVolumeWithMetaData(volume=[vol], laterality=lat, patient_id=key))
                     except (TypeError, ValueError) as e:
                         print("error: {}, volume not iteratable".format(e))
