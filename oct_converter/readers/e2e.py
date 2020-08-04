@@ -81,6 +81,7 @@ class E2E(object):
         self.lat_structure = Struct(
             # 'unknown' / Int8un,
             'unknown' / PaddedString(14, 'ascii'),
+            # 'unknown' / Array(16, Int16un),
             'laterality' / Int8un,
             'unknown2' / Int8un
         )
@@ -151,9 +152,11 @@ class E2E(object):
                     elif chunk.slice_id / 2 > volume_dict[volume_string]:
                         volume_dict[volume_string] = chunk.slice_id
 
+
                 # initalise dict to hold all the images
                 volume_array_dict = {}
                 for volume, num_slices in volume_dict.items():
+                    # print(num_slices)
                     if num_slices == 0:
                         num_slices = 1
                         volume_array_dict[volume] = [0] * int(num_slices)
@@ -165,6 +168,9 @@ class E2E(object):
                 for volume, num_slices in volume_dict.items():
                     if num_slices > 0:
                         volume_array_dict[volume] = [0] * int(num_slices)
+
+
+            # print("volume array dict {}".format(volume_array_dict))
             # traverse all chunks and extract slices
             fundus_images = {}
             fundus_images_list = []
@@ -202,6 +208,7 @@ class E2E(object):
                             # plt.show()
                             fundus_images_list.append((self.laterality, image))
                             volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
+                            print("volume string from FAF {}".format(volume_string))
                             fundus_images[volume_string] = (self.laterality, image)
                         except Exception as e:
                             # print("error {}".format(e))
@@ -227,21 +234,22 @@ class E2E(object):
                         self.logging.info('unrecognised chunk for volume string {}'.format(volume_string))
 
             oct_volumes = []
-            # for key, volume in volume_array_dict.items():
-            #     # print(key, volume)
-            #     if self.imagetype == "Fundus Autofluorescence":
-            #         if volume == 0:
-            #             print("volume == 0")
-            #             self.logging.warning("volume with string {} == 0, passing".format(key))
-            #             pass
-            #         try:
-            #             for lat, vol in volume:
-            #                 oct_volumes.append(OCTVolumeWithMetaData(volume=[vol], laterality=lat, patient_id=key))
-            #         except (TypeError, ValueError) as e:
-            #             print("error: {}, volume not iteratable".format(e))
-            #             self.logging.warning("error: {}, volume not iteratable".format(e))
-            #     else:
-            #         oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key))
+            for key, volume in volume_array_dict.items():
+                # print(key, volume)
+                if self.imagetype == "Fundus Autofluorescence":
+                    if volume == 0:
+                        print("volume == 0")
+                        self.logging.warning("volume with string {} == 0, passing".format(key))
+                        pass
+                    try:
+                        for lat, vol in volume:
+                            print("lat {}".format(lat))
+                            oct_volumes.append(OCTVolumeWithMetaData(volume=[vol], laterality=lat, patient_id=key))
+                    except (TypeError, ValueError) as e:
+                        print("error: {}, volume not iteratable".format(e))
+                        self.logging.warning("error: {}, volume not iteratable".format(e))
+                else:
+                    oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key))
 
         return oct_volumes, fundus_images_list
 
