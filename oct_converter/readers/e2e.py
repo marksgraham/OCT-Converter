@@ -185,7 +185,7 @@ class E2E(object):
                                 self.laterality = 'L'
                         except UnicodeDecodeError as ue:
                             # print("Cannot decode laterality, data structure differs from what is expected. Passing")
-                            self.logging.warning("Cannot decode laterality, data structure differs from what is expected. Passing.")
+                            self.logging.warning("cannot decode laterality, data structure differs from what is expected - passing")
 
                 if chunk.type == 1073741824:  # image data
                     raw = f.read(20)
@@ -227,24 +227,21 @@ class E2E(object):
                         self.logging.info('unrecognised chunk for volume string {}'.format(volume_string))
 
             oct_volumes = []
-            for key, volume in volume_array_dict.items():
-                # print(key, volume)
-                if self.imagetype == "Fundus Autofluorescence":
-                    if volume == 0:
-                        print("volume == 0")
-                        self.logging.warning("volume with string {} == 0, passing".format(key))
-                        pass
-                    try:
-                        for lat, vol in volume:
-                            oct_volumes.append(OCTVolumeWithMetaData(volume=[vol], laterality=lat, patient_id=key))
-                    except TypeError as te:
-                        print("error: {}, volume not iteratable, trying outside loop ".format(te))
-                        self.logging.warning("error: {}, volume not iteratable, trying outside loop ".format(te))
-                    except ValueError as ve:
-                        print("error: {}, volume not iteratable {}, trying outside loop ".format(ve))
-                        self.logging.warning("error: {}, volume not iteratable, trying outside loop ".format(ve))
-                else:
-                    oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key))
+            # for key, volume in volume_array_dict.items():
+            #     # print(key, volume)
+            #     if self.imagetype == "Fundus Autofluorescence":
+            #         if volume == 0:
+            #             print("volume == 0")
+            #             self.logging.warning("volume with string {} == 0, passing".format(key))
+            #             pass
+            #         try:
+            #             for lat, vol in volume:
+            #                 oct_volumes.append(OCTVolumeWithMetaData(volume=[vol], laterality=lat, patient_id=key))
+            #         except (TypeError, ValueError) as e:
+            #             print("error: {}, volume not iteratable".format(e))
+            #             self.logging.warning("error: {}, volume not iteratable".format(e))
+            #     else:
+            #         oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key))
 
         return oct_volumes, fundus_images_list
 
