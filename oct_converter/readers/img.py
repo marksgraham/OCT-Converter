@@ -19,10 +19,10 @@ class IMG(object):
                 obj:OCTVolumeWithMetaData
         """
         with open(self.filepath, 'rb') as f:
-            volume = np.fromstring(f.read(), dtype=np.uint8)
-            volume = volume.reshape((1024, 512, 128), order='F')
+            volume = np.frombuffer(f.read(), dtype=np.uint8)  # np.fromstring() gives numpy depreciation warning
+            num_slices = len(volume) // (1024*512)
+            volume = volume.reshape((1024, 512, num_slices), order='F')   
             shape = volume.shape
-            # volume = np.transpose(volume, [2, 1, 0])
 
             interlaced = np.zeros((int(shape[0] / 2), shape[1], shape[2] * 2))
             interlaced[..., 0::2] = volume[:512, ...]
