@@ -1,7 +1,7 @@
 import numpy as np
 from construct import PaddedString, Int16un, Struct, Int32sn, Int32un, Array
 from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
-
+from pathlib import Path
 
 class E2E(object):
     """ Class for extracting data from Heidelberg's .e2e file format.
@@ -21,7 +21,9 @@ class E2E(object):
 
 
     def __init__(self, filepath):
-        self.filepath = filepath
+        self.filepath = Path(filepath)
+        if not self.filepath.exists():
+            raise FileNotFoundError(self.filepath)
         self.header_structure = Struct(
             'magic' / PaddedString(12, 'ascii'),
             'version' / Int32un,

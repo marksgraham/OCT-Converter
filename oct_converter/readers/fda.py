@@ -2,6 +2,7 @@ from construct import PaddedString,  Struct,  Int32un
 import numpy as np
 from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 from pylibjpeg import decode
+from pathlib import Path
 
 class FDA(object):
     """ Class for extracting data from Topcon's .fda file format.
@@ -18,7 +19,9 @@ class FDA(object):
             chunk_dict (dict): Name of data chunks present in the file, and their start locations.
     """
     def __init__(self, filepath):
-        self.filepath = filepath
+        self.filepath = Path(filepath)
+        if not self.filepath.exists():
+            raise FileNotFoundError(self.filepath)
         self.header = Struct(
             'FOCT' / PaddedString(4, 'ascii'),
             'FDA' / PaddedString(3, 'ascii'),

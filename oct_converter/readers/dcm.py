@@ -1,9 +1,11 @@
 from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
-
+from pathlib import Path
 
 class Dicom(object):
     def __init__(self, filepath):
-        self.filepath = filepath
+        self.filepath = Path(filepath)
+        if not self.filepath.exists():
+            raise FileNotFoundError(self.filepath)
 
     def read_oct_volume(self):
         """ Reads OCT data.
