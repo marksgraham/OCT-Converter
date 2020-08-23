@@ -28,8 +28,17 @@ class FDA(object):
             'version_info_1' / Int32un,
             'version_info_2' / Int32un
         )
-
         self.oct_header = Struct(
+            'type' / PaddedString(1, 'ascii'),
+            'unknown1' / Int32un,
+            'unknown2' / Int32un,
+            'width' / Int32un,
+            'height' / Int32un,
+            'number_slices' / Int32un,
+            'unknown3' / Int32un,
+        )
+
+        self.oct_header_2 = Struct(
             'unknown' / PaddedString(1, 'ascii'),
             'width' / Int32un,
             'height' / Int32un,
@@ -87,15 +96,36 @@ class FDA(object):
                 obj:OCTVolumeWithMetaData
         """
 
-        import matplotlib.pyplot as plt
+        if b'@IMG_JPEG' not in self.chunk_dict:
+            raise ValueError('Could not find OCT header @IMG_JPEG in chunk list')
+        with open(self.filepath, 'rb') as f:
+            chunk_location, chunk_size = self.chunk_dict[b'@IMG_JPEG']
+            f.seek(chunk_location) # Set the chunk’s current position.
+            raw = f.read(25)
+            oct_header = self.oct_header.parse(raw)
+            volume = np.zeros((oct_header.height, oct_header.width, oct_header.number_slices))
+            for i in range(oct_header.number_slices):
+                size = np.fromstring(f.read(4), dtype=np.int32)[0]
+                raw_slice= f.read(size)
+                slice = decode(raw_slice)
+                volume[:,:,i] = slice
+        oct_volume = OCTVolumeWithMetaData([volume[:, :, i] for i in range(volume.shape[2])])
+        return oct_volume
+
+    def read_oct_volume_2(self):
+        """ Reads OCT data.
+
+            Returns:
+                obj:OCTVolumeWithMetaData
+        """
+
         if b'@IMG_MOT_COMP_03' not in self.chunk_dict:
             raise ValueError('Could not find OCT header @IMG_MOT_COMP_03 in chunk list')
         with open(self.filepath, 'rb') as f:
             chunk_location, chunk_size = self.chunk_dict[b'@IMG_MOT_COMP_03']
             f.seek(chunk_location) # Set the chunk’s current position.
-            f.seek(chunk_location)
             raw = f.read(22)
-            oct_header = self.oct_header.parse(raw)
+            oct_header = self.oct_header_2.parse(raw)
             number_pixels = oct_header.width * oct_header.height * oct_header.number_slices
             raw_volume = np.fromstring(f.read(number_pixels * 2), dtype=np.uint16)
             volume = np.array(raw_volume)
