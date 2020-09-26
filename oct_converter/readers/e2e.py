@@ -4,7 +4,7 @@ from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMeta
 import struct
 import matplotlib.pyplot as plt
 import setup_logger
-# import logging
+import logging
 
 
 class E2E(object):
@@ -141,47 +141,48 @@ class E2E(object):
                         if chunk.start > chunk.pos:
                             chunk_stack.append([chunk.start, chunk.size])
 
-            if self.imagetype == "Fundus Autofluorescence":
-                for start, pos in chunk_stack:
-                    f.seek(start)
-                    raw = f.read(60)
-                    # print("parsing chunk stacks")
-                    chunk = self.chunk_structure.parse(raw)
-                    volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
-                    if volume_string not in volume_dict.keys():
-                        volume_dict[volume_string] = chunk.slice_id
-                    elif chunk.slice_id / 2 > volume_dict[volume_string]:
-                        volume_dict[volume_string] = chunk.slice_id
-
+            # if self.imagetype == "Fundus Autofluorescence":
+            #     for start, pos in chunk_stack:
+            #         f.seek(start)
+            #         raw = f.read(60)
+            #         # print("parsing chunk stacks")
+            #         chunk = self.chunk_structure.parse(raw)
+            #         volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
+            #         if volume_string not in volume_dict.keys():
+            #             volume_dict[volume_string] = chunk.slice_id
+            #         elif chunk.slice_id / 2 > volume_dict[volume_string]:
+            #             volume_dict[volume_string] = chunk.slice_id
+            #
 
                 # initalise dict to hold all the images
-                volume_array_dict = {}
-                for volume, num_slices in volume_dict.items():
-                    # print(num_slices)
-                    if num_slices == 0:
-                        num_slices = 1
-                        volume_array_dict[volume] = [0] * int(num_slices)
-                    elif num_slices >  0:
-                        volume_array_dict[volume] = [0] * int(num_slices)
-            else:
+            fundus_images = []
+                # volume_array_dict = {}
+                # for volume, num_slices in volume_dict.items():
+                #     # print(num_slices)
+                #     if num_slices == 0:
+                #         num_slices = 1
+                #         volume_array_dict[volume] = [0] * int(num_slices)
+                #     elif num_slices >  0:
+                #         volume_array_dict[volume] = [0] * int(num_slices)
+            # else:
                 # initalise dict to hold all the image volumes
-                volume_array_dict = {}
-                for volume, num_slices in volume_dict.items():
-                    if num_slices > 0:
-                        volume_array_dict[volume] = [0] * int(num_slices)
+            oct_images = []
+                # volume_array_dict = {}
+                # for volume, num_slices in volume_dict.items():
+                #     if num_slices > 0:
+                #         volume_array_dict[volume] = [0] * int(num_slices)
 
 
             # print("volume array dict {}".format(volume_array_dict))
             # traverse all chunks and extract slices
-            fundus_images = {}
-            fundus_images_list = []
+            # fundus_images = {}
+            # fundus_images_list = []
             for start, pos in chunk_stack:
                 f.seek(start)
                 raw = f.read(60)
                 chunk = self.chunk_structure.parse(raw)
                 if self.imagetype == "Fundus Autofluorescence":
                     if chunk.type == 11: # laterality data
-                        # print("in chunk type 11")
                         raw = f.read(20)
                         try:
                             laterality_data = self.lat_structure.parse(raw)
@@ -205,53 +206,49 @@ class E2E(object):
                             # raw_volume = [struct.unpack('H', f.read(2))[0] for pixel in range(height*width)]
                             raw_volume = [struct.unpack('B', f.read(1))[0] for pixel in range(height*width)]
                             image = np.array(raw_volume).reshape(height,width)
-                            # plt.imshow(image, cmap='gray')
-                            # plt.show()
-                            fundus_images_list.append((self.laterality, image))
                             volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
-                            # print("volume string from FAF {}".format(volume_string))
-                            fundus_images[volume_string] = (self.laterality, image)
+                            fundus_images.append((volume_string, self.laterality, image))
+                            # fundus_images[volume_string] = (self.laterality, image)
                         except Exception as e:
-                            # print("error {}".format(e))
                             self.logging.error("raised exception with error {}".format(e))
                             return fundus_images
-                        if volume_string in volume_array_dict.keys():
-                            volume_array_dict[volume_string][int(chunk.slice_id / 2) -1] = (self.laterality, image)
-                        else:
-                            self.logging.warning('Failed to save image data for volume {}'.format(volume_string))
+                        # if volume_string in volume_array_dict.keys():
+                        #     volume_array_dict[volume_string][int(chunk.slice_id / 2) -1] = (self.laterality, image)
+                        # else:
+                        #     self.logging.warning('Failed to save image data for volume {}'.format(volume_string))
                     elif chunk.ind == 1:  # oct data
                         all_bits = [f.read(2) for i in range(image_data.height * image_data.width)]
                         raw_volume = list(map(self.read_custom_float, all_bits))
                         image = np.array(raw_volume).reshape(image_data.width, image_data.height)
                         image = 256 * pow(image, 1.0 / 2.4)
                         volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
+                        oct_images.append((volume_string, image))
                         # print("oct volume string ", volume_string)
-                        if volume_string in volume_array_dict.keys():
-                            volume_array_dict[volume_string][int(chunk.slice_id / 2) - 1] = image
-                        else:
-                            # print('Failed to save image data for volume {}'.format(volume_string))
-                            self.logging.warning('Failed to save image data for volume {}'.format(volume_string))
+                        # if volume_string in volume_array_dict.keys():
+                        #     volume_array_dict[volume_string][int(chunk.slice_id / 2) - 1] = image
+                        # else:
+                        #     # print('Failed to save image data for volume {}'.format(volume_string))
+                        #     self.logging.warning('Failed to save image data for volume {}'.format(volume_string))
                     else:
                         self.logging.info('unrecognised chunk for volume string {}'.format(volume_string))
 
-            oct_volumes = []
-            for key, volume in volume_array_dict.items():
-                # print(key, volume)
-                if self.imagetype == "Fundus Autofluorescence":
-                    if volume == 0:
-                        print("volume == 0")
-                        self.logging.warning("volume with string {} == 0, passing".format(key))
-                        pass
-                    try:
-                        for lat, vol in volume:
-                            oct_volumes.append(OCTVolumeWithMetaData(volume=[vol], laterality=lat, patient_id=key))
-                    except (TypeError, ValueError) as e:
-                        print("error: {}, volume not iteratable".format(e))
-                        self.logging.warning("error: {}, volume not iteratable".format(e))
-                else:
-                    oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key))
 
-        return oct_volumes, fundus_images_list
+            # for key, volume in volume_array_dict.items():
+            #     if self.imagetype == "Fundus Autofluorescence":
+            #         if volume == 0:
+            #             print("volume == 0")
+            #             self.logging.warning("volume with string {} == 0, passing".format(key))
+            #             pass
+            #         try:
+            #             for lat, vol in volume:
+            #                 oct_volumes.append(OCTVolumeWithMetaData(volume=[vol], laterality=lat, patient_id=key))
+            #         except (TypeError, ValueError) as e:
+            #             print("error: {}, volume not iteratable".format(e))
+            #             self.logging.warning("error: {}, volume not iteratable".format(e))
+            #     else:
+            #         oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key))
+
+        return oct_images, fundus_images
 
     def read_custom_float(self, bytes):
         """ Implementation of bespoke float type used in .e2e files.
