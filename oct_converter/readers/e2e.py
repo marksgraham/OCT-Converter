@@ -5,6 +5,7 @@ import struct
 import matplotlib.pyplot as plt
 import setup_logger
 import logging
+from pathlib import Path
 
 
 class E2E(object):
@@ -29,6 +30,10 @@ class E2E(object):
         self.filepath = filepath
         self.imagetype = imagetype
         self.laterality = None
+    def __init__(self, filepath):
+        self.filepath = Path(filepath)
+        if not self.filepath.exists():
+            raise FileNotFoundError(self.filepath)
         self.header_structure = Struct(
             'magic' / PaddedString(12, 'ascii'),
             'version' / Int32un,

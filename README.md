@@ -38,4 +38,10 @@ Example usage scripts are included in examples/.
 ## Contributions
 Are welcome!
 
+## Updates
+22 August 2020
+- Experimental support for reading OCT data from .fda files. 
+
+14 July 2020
+- Can now read fundus data from .fda files. 
 
