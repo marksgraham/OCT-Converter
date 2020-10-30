@@ -124,7 +124,8 @@ class E2E(object):
             volume_array_dict = {}
             for volume, num_slices in volume_dict.items():
                 if num_slices > 0:
-                    volume_array_dict[volume] = [0] * int(num_slices)
+                    # num_slices + 1 here due to evidence that a slice was being missed off the end in extraction
+                    volume_array_dict[volume] = [0] * int(num_slices + 1)
 
             # traverse all chunks and extract slices
             for start, pos in chunk_stack:
