@@ -127,6 +127,7 @@ class E2E(object):
 
             # initalise dict to hold all the image volumes
             volume_array_dict = {}
+            volume_array_dict_additional = {} # for storage of slices not caught by extraction
             for volume, num_slices in volume_dict.items():
                 if num_slices > 0:
                     # num_slices + 1 here due to evidence that a slice was being missed off the end in extraction
@@ -162,12 +163,18 @@ class E2E(object):
                         if volume_string in volume_array_dict.keys():
                             volume_array_dict[volume_string][int(chunk.slice_id / 2) - 1] = image
                         else:
-                            print('Failed to save image data for volume {}'.format(volume_string))
+                            # try to capture these additional images
+                            if volume_string in volume_array_dict_additional.keys():
+                                volume_array_dict_additional[volume_string].append(image)
+                            else:
+                                volume_array_dict_additional[volume_string] = [image]
+                            #print('Failed to save image data for volume {}'.format(volume_string))
 
             oct_volumes = []
             for key, volume in volume_array_dict.items():
                 oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key, laterality=self.laterality))
-
+            for key, volume in volume_array_dict_additional.items():
+                oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key, laterality=self.laterality))
 
         return oct_volumes
 
