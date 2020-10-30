@@ -39,6 +39,10 @@ Example usage scripts are included in examples/.
 Are welcome!
 
 ## Updates
+30 October 2020
+- Extract fundus and laterality data from .e2e
+- Now attempts to extract additional volumetric data from .e2e files that was previously missed
+
 22 August 2020
 - Experimental support for reading OCT data from .fda files. 
 
