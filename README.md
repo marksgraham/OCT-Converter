@@ -31,6 +31,12 @@ To install run:
 git clone https://github.com/marksgraham/OCT-Converter.git
 pip install -e OCT-Converter
 ```
+Alternate to build and install a python wheel:
+```bash
+git clone https://github.com/marksgraham/OCT-Converter.git
+python setup.py bdist_wheel
+pip install dist/*.whl
+```
 
 ## Usage
 Example usage scripts are included in examples/. 
