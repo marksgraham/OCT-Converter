@@ -2,7 +2,7 @@ from oct_converter.readers import FDA
 
 # a sample .fda file can be downloaded from the Biobank resource here:
 # https://biobank.ndph.ox.ac.uk/showcase/refer.cgi?id=31
-filepath = '/home/mark/Downloads/eg_oct_fda(1).fda'
+filepath = '/Users/mark/Downloads/eg_oct_fda.fda'
 fda = FDA(filepath)
 
 oct_volume = fda.read_oct_volume() # returns an OCT volume with additional metadata if available

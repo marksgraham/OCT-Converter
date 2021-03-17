@@ -26,21 +26,32 @@ maintained. This repository aims to make available python-based tools for readin
 ## Installation
 Requires **python3**.
 
-To install run:
 ```bash
-git clone https://github.com/marksgraham/OCT-Converter.git
-pip install -e OCT-Converter
-```
-Alternate to build and install a python wheel:
-```bash
-git clone https://github.com/marksgraham/OCT-Converter.git
-cd OCT-Converter
-python setup.py bdist_wheel
-pip install dist/*.whl
+pip install oct-converter
 ```
 
+
 ## Usage
-Example usage scripts are included in examples/. 
+A number of example usage scripts are included in examples/. 
+
+Here is an example of reading a .fds file:
+
+```python
+from oct_converter.readers import FDS
+
+# An example .fds file can be downloaded from the Biobank website:
+# https://biobank.ndph.ox.ac.uk/showcase/refer.cgi?id=30
+filepath = '/home/mark/Downloads/eg_oct_fds.fds'
+fds = FDS(filepath)
+
+oct_volume = fds.read_oct_volume()  # returns an OCT volume with additional metadata if available
+oct_volume.peek() # plots a montage of the volume
+oct_volume.save('fds_testing.avi')  # save volume as a movie
+oct_volume.save('fds_testing.png')  # save volume as a set of sequential images, fds_testing_[1...N].png
+
+fundus_image = fds.read_fundus_image()  # returns a  Fundus image with additional metadata if available
+fundus_image.save('fds_testing_fundus.jpg')
+```
 
 ## Contributions
 Are welcome!
