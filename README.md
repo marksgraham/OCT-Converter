@@ -24,7 +24,7 @@ maintained. This repository aims to make available python-based tools for readin
 * .dcm
 
 ## Installation
-Requires **python3**.
+Requires python 3.7 or higher.
 
 ```bash
 pip install oct-converter
