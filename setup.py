@@ -6,7 +6,7 @@ HERE = pathlib.Path(__file__).parent
 README = (HERE / "README.md").read_text()
 
 setup(
-    name='oct_converter', 
+    name='oct_converter',
     version='0.1',
     description='Extract OCT and fundus data from proprietary file formats.',
     long_description=README,
@@ -15,7 +15,7 @@ setup(
     author='Mark Graham',
     author_email='markgraham539@gmail.com',
     license="MIT",
-    python_requires='>3.5',
+    python_requires='>=3.7',
     install_requires=['construct','imageio','natsort','numpy','opencv-python','pydicom','six','matplotlib','imageio-ffmpeg', 'pylibjpeg', 'pathlib'],
     packages=find_packages(),
     include_package_data=True
