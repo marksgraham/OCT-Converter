@@ -48,6 +48,7 @@ oct_volume = fds.read_oct_volume()  # returns an OCT volume with additional meta
 oct_volume.peek() # plots a montage of the volume
 oct_volume.save('fds_testing.avi')  # save volume as a movie
 oct_volume.save('fds_testing.png')  # save volume as a set of sequential images, fds_testing_[1...N].png
+oct_volume.save_projection('projection.png') # save 2D projection
 
 fundus_image = fds.read_fundus_image()  # returns a  Fundus image with additional metadata if available
 fundus_image.save('fds_testing_fundus.jpg')
@@ -57,6 +58,9 @@ fundus_image.save('fds_testing_fundus.jpg')
 Are welcome!
 
 ## Updates
+14 May 2021
+- Can save 2D projections of OCT volumes.
+
 30 October 2020
 - Extract fundus and laterality data from .e2e
 - Now attempts to extract additional volumetric data from .e2e files that was previously missed

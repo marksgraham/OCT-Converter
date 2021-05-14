@@ -78,3 +78,22 @@ class OCTVolumeWithMetaData(object):
             raise NotImplementedError('Saving with file extension {} not supported'.format(extension))
 
 
+    def get_projection(self):
+        """Produces a 2D projection image from the volume.
+        """
+        projection = np.mean(self.volume, axis=1)
+        return projection
+
+    def save_projection(self, filepath):
+        """Save a 2D projection image from the volume.
+
+        Args:
+            filepath (str): Location to save volume to. Extension must be in IMAGE_TYPES.
+        """
+        extension = os.path.splitext(filepath)[1]
+        if extension.lower() in IMAGE_TYPES:
+            projection = self.get_projection()
+            projection = 255* projection/projection.max()
+            cv2.imwrite(filepath, projection.astype(int))
+        else:
+            raise NotImplementedError('Saving with file extension {} not supported'.format(extension))
