@@ -58,6 +58,9 @@ fundus_image.save('fds_testing_fundus.jpg')
 Are welcome!
 
 ## Updates
+11 June 2021
+- Can now specify whether Zeiss .img data needs to be de-interlaced during reading.
+
 14 May 2021
 - Can save 2D projections of OCT volumes.
 
