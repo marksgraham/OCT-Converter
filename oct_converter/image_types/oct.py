@@ -69,6 +69,8 @@ class OCTVolumeWithMetaData(object):
             base = os.path.splitext(os.path.basename(filepath))[0]
             print('Saving OCT as sequential slices {}_[1..{}]{}'.format(base, len(self.volume), extension))
             full_base = os.path.splitext(filepath)[0]
+            self.volume = np.array(self.volume).astype("float64")
+            self.volume *= 255.0/self.volume.max()
             for index, slice in enumerate(self.volume):
                 filename = '{}_{}{}'.format(full_base, index, extension)
                 cv2.imwrite(filename, slice)
