@@ -2,8 +2,7 @@ import numpy as np
 from construct import (Struct, Int16un, Int32un, PaddedString, Float64n, 
                         BytesInteger, Tell, Computed, Seek, Hex, Lazy, 
                         Array,this,Bytes)
-# from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
-from oct import OCTVolumeWithMetaData
+from oct_converter.image_types import OCTVolumeWithMetaData
 from pathlib import Path
 import h5py, tempfile
                             
@@ -41,6 +40,7 @@ strField = Struct(keylength=Int32un,key=PaddedString(this.keylength, "utf8"), da
 
 class BOCT(object):
     """ Class for extracting data from Bioptigen's .OCT file format.
+        .OCT stores 4d volumes (time series of 3D volumes with the same shape)
 
         Attributes:
             filepath (str): Path to .img file for reading.
@@ -59,6 +59,7 @@ class BOCT(object):
         self.filepath = Path(filepath)
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
+
         self.oct_header = Struct(
                                 "magicNumber" / Hex(Int32un),
                                 "version" / Hex(Int16un),
@@ -118,53 +119,44 @@ class BOCT(object):
                                 "header" / self.oct_header,
                                 "data" / self.frame_stack
                                 )
-    def read_oct_volume(self):
+    def read_oct_volume(self,diskbuffered=False):
         """ Reads OCT data.
 
             Returns:
-                obj:OCTVolumeWithMetaData
+                list(obj):[OCTVolumeWithMetaData]
         """
+        ##Laterality/patient_id data not contained in .OCT file (often in filename)
+        self.laterality = None
+        self.patient_id = self.filepath.stem
+
+        ##Lazily parse the file without loading frame pixels
         oct = self.file_structure.parse_file(self.filepath)
-        self.header = oct.header
+        header = oct.header
         self.frames = FrameGenerator(oct.data)
-        self.scantype = self.bioptigen_scan_type_map[self.header.scantype.value]
-        ##Values expected from header
-        self.framecount = self.header.frames.value
-        self.scancount = self.header.scans.value
-        self.totalframes = self.header.framecount.value
+        scantype = self.bioptigen_scan_type_map[header.scantype.value]
+        framecount = header.frames.value
+        scancount = header.scans.value
+
+        if scantype=='linear':
+            ##linear bscans can contain multiple scans at one position
+            ##reorder into (framecount+scancount,1,y,x)
+            framecount += scancount
+            scancount=1
+        self.volume_shape = (framecount,scancount,self.frames.Ascans,self.frames.depth)
+        self.vol_frames_shape = (self.volume_shape[0],self.volume_shape[1])
         
-        ##values obtained from data
-        self.Bscan_geom = self.frames.geom
-        self.original_xbounds = (self.header.xmin.value,self.header.xmax.value)
-        self.original_ybounds = (self.header.ymin.value,self.header.ymax.value)
-        self.original_extent = (self.original_ybounds,self.original_xbounds) ##For plotting
-
-        self.xresolution =  self.header.scandepth.value/self.Bscan_geom[1]
-        self.yresolution =  self.header.scanlength.value/self.Bscan_geom[0]
-        self.zresolution = self.header.elscanlength.value/self.scancount
-        self.zextent = (self.original_ybounds[0],self.original_ybounds[1],0,self.header.elscanlength.value)
-        ##Bioptigen OCTs compress 4D volume to 3D 
-        ##2D images of [x,y], either scans or frames (repeats over time), stacked 
-        self.oct_shape = (self.frames.geom[0],     ##x,y,z+t
-                          self.frames.geom[1],
-                          self.frames.count)
-
-        self.vdim3 = int(self.totalframes/self.framecount)
-        self.vdim4 = int(self.framecount)
-        self.vol_frames_shape = (self.vdim4,self.vdim3)
-        self.volume_shape = (self.vdim4,
-                            self.vdim3,
-                            self.frames.geom[0],
-                            self.frames.geom[1]     ##t,z,x,y                            
-                            )
-        ##Index conversion between framestack (3D) and volume (3D+Time)
-        stack_to_vol = np.asarray([i+j*(self.vdim4) for i in range(0,self.vdim4) for j in range(0,self.vdim3)])
-        vol_to_stack = np.asarray([i+j*(self.vdim3) for i in range(0,self.vdim3) for j in range(0,self.vdim4)])
+        ##Index conversion between 3D framestack (z+t,y,x) and 4D volume (t,z,x,y)
+        stack_to_vol = np.asarray([i+j*(framecount) for i in range(0,framecount) for j in range(0,scancount)])
+        vol_to_stack = np.asarray([i+j*(scancount) for i in range(0,scancount) for j in range(0,framecount)])
         self.indicies = {'to_vol':stack_to_vol,
                         'to_stack':vol_to_stack}
-        self._stack_ind_to_sf = [(s,f) for s in range(0,self.vdim3) for f in range(0,self.vdim4)]
-        self.loaded = False
-        self._create_disk_buffer()
+        self._loaded = False
+        if diskbuffered:
+            self._create_disk_buffer()
+        else:
+            self.vol = np.empty(self.volume_shape,dtype=np.uint16)
+
+        self.load_oct_volume()
     
     def _create_disk_buffer(self,name='vol'):
         _,_,x,y = self.volume_shape
@@ -182,12 +174,12 @@ class BOCT(object):
             with open(self.filepath, 'rb') as f:
                 for t,v in enumerate(volFrames):
                     for z,frame in enumerate(v):
-                        self.vol[t,z,:,:] = frame.load(f,self.Bscan_geom)
+                        self.vol[t,z,:,:] = frame.load(f,self.frames.geom)
             self.loaded=True
         except Exception as e:
             print(e)
             print('Stopping load')
-        return OCTVolumeWithMetaData(self.vol)
+        return [OCTVolumeWithMetaData(self.vol[t,:,:,:]) for t in self.vol.shape[0]]
 
     def read_fundus_image(self):
         pass
@@ -206,8 +198,6 @@ class OCTFrame:
     def load(self,f,imsize):
         return np.resize(self.from_bytes(f),imsize)
 
-    def __lt__(self,other):
-        pass
     def __eq__(self,other):
         return self.im == other
 
@@ -215,42 +205,17 @@ class OCTFrame:
 class FrameGenerator:
     def __init__(self,oct_data):
         self.data = None
-        self.last = 0
-        self.xres = 1
-        self.yres = 1
         self.oct_data = oct_data
 
         frame0 = oct_data[0]
         self.Ascans = frame0.image.columns
         self.depth = frame0.image.rows
         self.geom = (self.Ascans, self.depth)
-        self._get_frames()
-        
-    def _get_frames(self):
         self.data = np.asarray([OCTFrame(frame) for frame in self.oct_data])
         self.count = len(self.data)
-        self._to_original_order = np.asarray(range(self.count))
-        self._to_current_order = []
-
+        
     def set_frameorder(self,indexArr):
-        self.data = self._reorder_frames(indexArr)
-        self._to_current_order.append(indexArr)
-        self._to_original_order = self._to_original_order[indexArr]
-
-    def _reorder_frames(self,indexArr):
         try:
-            return self.data[indexArr]
+            self.data = self.data[indexArr]
         except Exception as e:
             print(e)
-
-    def get_original_frame_order(self):
-        return self._reorder_frames(self._to_original_order)
-
-    def set_original_frame_order(self):
-        self.set_frameorder(self._to_original_order)
-        self._to_original_order = np.asarray(range(self.count))
-        self._to_current_order = []
-
-    def set_scale(self,xres = 1, yres = 1):
-        self.xres = xres
-        self.yres = yres
