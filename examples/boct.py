@@ -156,7 +156,7 @@ class BOCT(object):
         else:
             self.vol = np.empty(self.volume_shape,dtype=np.uint16)
 
-        self.load_oct_volume()
+        return self.load_oct_volume()
     
     def _create_disk_buffer(self,name='vol'):
         _,_,x,y = self.volume_shape
@@ -179,7 +179,7 @@ class BOCT(object):
         except Exception as e:
             print(e)
             print('Stopping load')
-        return [OCTVolumeWithMetaData(self.vol[t,:,:,:]) for t in self.vol.shape[0]]
+        return [OCTVolumeWithMetaData(self.vol[t,:,:,:]) for t in range(self.vol.shape[0])]
 
     def read_fundus_image(self):
         pass
