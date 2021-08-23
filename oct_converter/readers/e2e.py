@@ -2,6 +2,20 @@ import numpy as np
 from construct import PaddedString, Int16un, Struct, Int32sn, Int32un, Int8un, Array
 from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 from pathlib import Path
+import time
+
+def timeit(method):
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+        if 'log_time' in kw:
+            name = kw.get('log_name', method.__name__.upper())
+            kw['log_time'][name] = int((te - ts) * 1000)
+        else:
+            print(f'{method.__name__}  {(te - ts) * 1000:2.2f} ms')
+        return result
+    return timed
 
 class E2E(object):
     """ Class for extracting data from Heidelberg's .e2e file format.
@@ -18,7 +32,7 @@ class E2E(object):
             chunk_structure (obj:Struct): Defines structure of each data chunk.
             image_structure (obj:Struct): Defines structure of image header.
     """
-
+    power = pow(2, 10)
 
     def __init__(self, filepath):
         self.filepath = Path(filepath)
@@ -80,6 +94,19 @@ class E2E(object):
             'laterality' / Int8un,
             'unknown2' / Int8un
         )
+    
+    def uint16_to_ufloat16(self,uint16):
+            bits = '{0:016b}'.format(uint16)[::-1]
+            # get mantissa and exponent
+            mantissa = bits[:10]
+            exponent = bits[10:]
+            exponent = exponent[::-1]
+
+            # convert to decimal representations
+            mantissa_sum = 1 + int(mantissa, 2) / self.power
+            exponent_sum = int(exponent, 2) - 63
+            decimal_value = mantissa_sum * np.float_power(2, exponent_sum)
+            return decimal_value
 
     def read_oct_volume(self):
         """ Reads OCT data.
@@ -87,6 +114,14 @@ class E2E(object):
             Returns:
                 obj:OCTVolumeWithMetaData
         """
+        def _make_lut():
+            LUT = []
+            for i in range(0,pow(2,16)):
+                LUT.append(self.uint16_to_ufloat16(i))
+            return np.array(LUT)
+        LUT = _make_lut() 
+               
+
         with open(self.filepath, 'rb') as f:
             raw = f.read(36)
             header = self.header_structure.parse(raw)
@@ -155,9 +190,8 @@ class E2E(object):
                     image_data = self.image_structure.parse(raw)
 
                     if chunk.ind == 1:  # oct data
-                        all_bits = [f.read(2) for i in range(image_data.height * image_data.width)]
-                        raw_volume = list(map(self.read_custom_float, all_bits))
-                        image = np.array(raw_volume).reshape(image_data.width, image_data.height)
+                        raw_volume = np.fromfile(f, dtype=np.uint16, count=image_data.height * image_data.width)
+                        image = LUT[raw_volume].reshape(image_data.width, image_data.height)
                         image = 256 * pow(image, 1.0 / 2.4)
                         volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
                         if volume_string in volume_array_dict.keys():
@@ -264,7 +298,6 @@ class E2E(object):
         Returns:
             float
         """
-        power = pow(2, 10)
         # convert two bytes to 16-bit binary representation
         bits = bin(bytes[0])[2:].zfill(8)[::-1] + bin(bytes[1])[2:].zfill(8)[::-1]
 
@@ -273,7 +306,7 @@ class E2E(object):
         exponent = bits[10:]
 
         # convert to decimal representations
-        mantissa_sum = 1 + int(mantissa, 2) / power
+        mantissa_sum = 1 + int(mantissa, 2) / self.power
         exponent_sum = int(exponent[::-1], 2) - 63
         decimal_value = mantissa_sum * pow(2, exponent_sum)
         return decimal_value
