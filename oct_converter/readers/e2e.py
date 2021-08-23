@@ -2,21 +2,6 @@ import numpy as np
 from construct import PaddedString, Int16un, Struct, Int32sn, Int32un, Int8un, Array
 from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 from pathlib import Path
-import time
-
-def timeit(method):
-    def timed(*args, **kw):
-        ts = time.time()
-        result = method(*args, **kw)
-        te = time.time()
-        if 'log_time' in kw:
-            name = kw.get('log_name', method.__name__.upper())
-            kw['log_time'][name] = int((te - ts) * 1000)
-        else:
-            print(f'{method.__name__}  {(te - ts) * 1000:2.2f} ms')
-        return result
-    return timed
-
 class E2E(object):
     """ Class for extracting data from Heidelberg's .e2e file format.
 
