@@ -121,6 +121,8 @@ class BOCT(object):
                                 )
     def read_oct_volume(self,diskbuffered=False):
         """ Reads OCT data.
+            Args:
+                diskbuffered (bool): If True, reduces memory usage by storing volume on disk using HDF5
 
             Returns:
                 list(obj):[OCTVolumeWithMetaData]

@@ -1,9 +1,6 @@
-# from oct_converter.readers import boct
-from boct import BOCT
+from oct_converter.readers import BOCT
 from pathlib import Path
 
-# a sample .fda file can be downloaded from the Biobank resource here:
-# https://biobank.ndph.ox.ac.uk/showcase/refer.cgi?id=31
 examplefile = r'5640_OD_V_1x1_0_0000012.OCT'
 filepath = Path(__file__).with_name(examplefile)
 print(filepath)
