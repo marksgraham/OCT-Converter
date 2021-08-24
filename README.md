@@ -21,6 +21,7 @@ maintained. This repository aims to make available python-based tools for readin
 * .fda (Topcon)
 * .e2e (Heidelberg)
 * .img (Zeiss)
+* .oct (Bioptigen)
 * .dcm
 
 ## Installation
@@ -58,6 +59,9 @@ fundus_image.save('fds_testing_fundus.jpg')
 Are welcome!
 
 ## Updates
+24 Aug 2021
+- Reading the Bioptigen .OCT format is now supported 
+
 11 June 2021
 - Can now specify whether Zeiss .img data needs to be de-interlaced during reading.
 

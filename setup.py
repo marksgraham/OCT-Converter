@@ -16,7 +16,7 @@ setup(
     author_email='markgraham539@gmail.com',
     license="MIT",
     python_requires='>=3.7',
-    install_requires=['construct','imageio','natsort','numpy','opencv-python','pydicom','six','matplotlib','imageio-ffmpeg', 'pylibjpeg', 'pathlib'],
+    install_requires=['construct','imageio','natsort','numpy','opencv-python','pydicom','six','matplotlib','imageio-ffmpeg', 'pylibjpeg', 'pathlib', 'h5py'],
     packages=find_packages(),
     include_package_data=True
 )
