@@ -2,6 +2,7 @@ import numpy as np
 from construct import PaddedString, Int16un, Struct, Int32sn, Int32un, Int8un, Array
 from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 from pathlib import Path
+
 class E2E(object):
     """ Class for extracting data from Heidelberg's .e2e file format.
 
@@ -17,7 +18,6 @@ class E2E(object):
             chunk_structure (obj:Struct): Defines structure of each data chunk.
             image_structure (obj:Struct): Defines structure of image header.
     """
-    power = pow(2, 10)
 
     def __init__(self, filepath):
         self.filepath = Path(filepath)
@@ -79,19 +79,9 @@ class E2E(object):
             'laterality' / Int8un,
             'unknown2' / Int8un
         )
-    
-    def uint16_to_ufloat16(self,uint16):
-            bits = '{0:016b}'.format(uint16)[::-1]
-            # get mantissa and exponent
-            mantissa = bits[:10]
-            exponent = bits[10:]
-            exponent = exponent[::-1]
 
-            # convert to decimal representations
-            mantissa_sum = 1 + int(mantissa, 2) / self.power
-            exponent_sum = int(exponent, 2) - 63
-            decimal_value = mantissa_sum * np.float_power(2, exponent_sum)
-            return decimal_value
+        self.power = pow(2, 10)
+
 
     def read_oct_volume(self):
         """ Reads OCT data.
@@ -294,4 +284,28 @@ class E2E(object):
         mantissa_sum = 1 + int(mantissa, 2) / self.power
         exponent_sum = int(exponent[::-1], 2) - 63
         decimal_value = mantissa_sum * pow(2, exponent_sum)
+        return decimal_value
+
+    def uint16_to_ufloat16(self, uint16):
+        """ Implementation of bespoke float type used in .e2e files.
+
+        Notes:
+            Custom float is a floating point type with no sign, 6-bit exponent, and 10-bit mantissa.
+
+        Args:
+            uint16 (int):
+
+        Returns:
+            float
+        """
+        bits = '{0:016b}'.format(uint16)[::-1]
+        # get mantissa and exponent
+        mantissa = bits[:10]
+        exponent = bits[10:]
+        exponent = exponent[::-1]
+
+        # convert to decimal representations
+        mantissa_sum = 1 + int(mantissa, 2) / self.power
+        exponent_sum = int(exponent, 2) - 63
+        decimal_value = mantissa_sum * np.float_power(2, exponent_sum)
         return decimal_value
