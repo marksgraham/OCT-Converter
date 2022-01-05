@@ -24,12 +24,12 @@ class E2E(object):
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
         self.header_structure = Struct(
-            'magic' / PaddedString(12, 'ascii'),
+            'magic1' / PaddedString(12, 'ascii'),
             'version' / Int32un,
             'unknown' / Array(10, Int16un)
         )
         self.main_directory_structure = Struct(
-            'magic' / PaddedString(12, 'ascii'),
+            'magic2' / PaddedString(12, 'ascii'),
             'version' / Int32un,
             'unknown' / Array(10, Int16un),
             'num_entries' / Int32un,
@@ -52,7 +52,7 @@ class E2E(object):
             'unknown4' / Int32un,
         )
         self.chunk_structure = Struct(
-            'magic' / PaddedString(12, 'ascii'),
+            'magic3' / PaddedString(12, 'ascii'),
             'unknown' / Int32un,
             'unknown2' / Int32un,
             'pos' / Int32un,
