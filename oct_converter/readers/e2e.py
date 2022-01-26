@@ -75,7 +75,7 @@ class E2E(object):
             'height' / Int32un,
         )
         self.lat_structure = Struct(
-            'unknown' / PaddedString(14, 'ascii'),
+            'unknown' / Array(14, Int8un),
             'laterality' / Int8un,
             'unknown2' / Int8un
         )
