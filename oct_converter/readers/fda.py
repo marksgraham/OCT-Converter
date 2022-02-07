@@ -83,7 +83,11 @@ class FDA(object):
                     chunk_size = np.fromstring(f.read(4), dtype=np.uint32)[0]
                     chunk_location = f.tell()
                     f.seek(chunk_size, 1)
-                    chunk_dict[chunk_name] = [chunk_location, chunk_size]
+                    # Add this to get all locations - a tag can occur more than once (e.g. @CONTOUR_INFO)
+                    if chunk_name in chunk_dict:
+                        chunk_dict[chunk_name] += [(chunk_location, chunk_size)]
+                    else:
+                        chunk_dict[chunk_name] = [(chunk_location, chunk_size)]
         print('File {} contains the following chunks:'.format(self.filepath))
         for key in chunk_dict.keys():
             print(key)
