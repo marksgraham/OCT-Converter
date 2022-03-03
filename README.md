@@ -78,3 +78,7 @@ Are welcome!
 14 July 2020
 - Can now read fundus data from .fda files. 
 
+## Related projects
+- [uocte](https://bitbucket.org/uocte/uocte/wiki/Home) inspired and enabled this project.
+- [eyepy](https://github.com/MedVisBonn/eyepy) can can read HEYEY XML and VOL formats.
+
