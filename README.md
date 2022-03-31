@@ -80,5 +80,5 @@ Are welcome!
 
 ## Related projects
 - [uocte](https://bitbucket.org/uocte/uocte/wiki/Home) inspired and enabled this project.
-- [eyepy](https://github.com/MedVisBonn/eyepy) can can read HEYEY XML and VOL formats.
+- [eyepy](https://github.com/MedVisBonn/eyepy) can read HEYEY XML and VOL formats.
 
