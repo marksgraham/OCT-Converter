@@ -249,7 +249,7 @@ class E2E(object):
                     image_data = self.image_structure.parse(raw)
 
                     if chunk.ind == 0:  # fundus data
-                        raw_volume = np.fromstring(f.read(image_data.height * image_data.width), dtype=np.uint8)
+                        raw_volume = np.frombuffer(f.read(image_data.height * image_data.width), dtype=np.uint8)
                         image = np.array(raw_volume).reshape(image_data.height,image_data.width)
                         image_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
                         image_array_dict[image_string] = image
