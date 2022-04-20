@@ -190,10 +190,12 @@ class E2E(object):
                             #print('Failed to save image data for volume {}'.format(volume_string))
 
             oct_volumes = []
-            for key, volume in volume_array_dict.items():
+            for key, volume in chain(volume_array_dict.items(), volume_array_dict_additional.items()):
+                # remove any initalised volumes that never had image data attached
+                if isinstance(volume[0], int):
+                    continue
                 oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key, laterality=self.laterality))
-            for key, volume in volume_array_dict_additional.items():
-                oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key, laterality=self.laterality))
+
 
         return oct_volumes
 
