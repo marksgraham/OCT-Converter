@@ -2,6 +2,8 @@ import numpy as np
 from construct import PaddedString, Int16un, Struct, Int32sn, Int32un, Int8un, Array
 from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 from pathlib import Path
+from itertools import chain
+import warnings
 
 class E2E(object):
     """ Class for extracting data from Heidelberg's .e2e file format.
@@ -166,9 +168,17 @@ class E2E(object):
 
                     if chunk.ind == 1:  # oct data
                         raw_volume = np.fromfile(f, dtype=np.uint16, count=image_data.height * image_data.width)
-                        image = LUT[raw_volume].reshape(image_data.width, image_data.height)
-                        image = 256 * pow(image, 1.0 / 2.4)
                         volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
+                        try:
+                            image = LUT[raw_volume].reshape(image_data.width, image_data.height)
+                        except:
+                            warnings.warn((f'Could not reshape image id {volume_string} with '
+                                        f'{image.size} elements into a '
+                                        f'{image_data.width}x'
+                                        f'{image_data.height} array'), UserWarning)
+
+                        image = 256 * pow(image, 1.0 / 2.4)
+
                         if volume_string in volume_array_dict.keys():
                             volume_array_dict[volume_string][int(chunk.slice_id / 2) - 1] = image
                         else:
@@ -180,10 +190,12 @@ class E2E(object):
                             #print('Failed to save image data for volume {}'.format(volume_string))
 
             oct_volumes = []
-            for key, volume in volume_array_dict.items():
+            for key, volume in chain(volume_array_dict.items(), volume_array_dict_additional.items()):
+                # remove any initalised volumes that never had image data attached
+                if isinstance(volume[0], int):
+                    continue
                 oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key, laterality=self.laterality))
-            for key, volume in volume_array_dict_additional.items():
-                oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key, laterality=self.laterality))
+
 
         return oct_volumes
 
