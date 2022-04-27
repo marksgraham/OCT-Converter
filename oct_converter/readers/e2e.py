@@ -167,15 +167,19 @@ class E2E(object):
                     image_data = self.image_structure.parse(raw)
 
                     if chunk.ind == 1:  # oct data
-                        raw_volume = np.fromfile(f, dtype=np.uint16, count=image_data.height * image_data.width)
+                        count = image_data.height * image_data.width
+                        if count == 0:
+                            break
+                        raw_volume = np.fromfile(f, dtype=np.uint16, count=count)
                         volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
                         try:
                             image = LUT[raw_volume].reshape(image_data.width, image_data.height)
                         except:
                             warnings.warn((f'Could not reshape image id {volume_string} with '
-                                        f'{image.size} elements into a '
+                                        f'{len(LUT[raw_volume])} elements into a '
                                         f'{image_data.width}x'
                                         f'{image_data.height} array'), UserWarning)
+                            break
 
                         image = 256 * pow(image, 1.0 / 2.4)
 
@@ -259,9 +263,11 @@ class E2E(object):
                 if chunk.type == 1073741824:  # image data
                     raw = f.read(20)
                     image_data = self.image_structure.parse(raw)
-
+                    count = image_data.height * image_data.width
+                    if count == 0:
+                        break
                     if chunk.ind == 0:  # fundus data
-                        raw_volume = np.frombuffer(f.read(image_data.height * image_data.width), dtype=np.uint8)
+                        raw_volume = np.frombuffer(f.read(count), dtype=np.uint8)
                         image = np.array(raw_volume).reshape(image_data.height,image_data.width)
                         image_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
                         image_array_dict[image_string] = image
