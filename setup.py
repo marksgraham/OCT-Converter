@@ -7,7 +7,7 @@ README = (HERE / "README.md").read_text()
 
 setup(
     name='oct_converter',
-    version='0.2',
+    version='0.2.1',
     description='Extract OCT and fundus data from proprietary file formats.',
     long_description=README,
     long_description_content_type="text/markdown",
