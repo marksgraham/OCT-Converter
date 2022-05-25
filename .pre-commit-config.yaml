@@ -1,0 +1,31 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.2.0
+    hooks:
+      - id: check-ast                  # Simply check whether the files parse as valid python
+      - id: check-case-conflict        # Check for files that would conflict in case-insensitive filesystems
+      - id: check-merge-conflict       # Check for files that contain merge conflict strings
+      - id: debug-statements           # Check for debugger imports and py37+ `breakpoint()` calls in python source
+      - id: detect-private-key         # Detects the presence of private keys
+      - id: end-of-file-fixer          # Ensures that a file is either empty, or ends with one newline
+      - id: mixed-line-ending          # Replaces or checks mixed line ending
+      - id: trailing-whitespace        # This hook trims trailing whitespace
+  - repo: https://github.com/pycqa/isort
+    rev: 5.10.1
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+  - repo: https://github.com/psf/black
+    rev: stable
+    hooks:
+      - id: black
+  - repo: https://github.com/pycqa/flake8
+    rev: 4.0.1
+    hooks:
+      - id: flake8
+        args: [
+          '--ignore=E501,F841',                 # allow long-lines, variables to be assigned but not used
+          '--per-file-ignores=__init__.py:F401' # allow unused imports in __init__.py
+        ]

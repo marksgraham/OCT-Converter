@@ -5,14 +5,14 @@
 
 # OCT file converter #
 
-This repository contains code for extracting the raw optical coherence tomography (OCT) and fundus data from 
-manufacturer's proprietary file formats. 
+This repository contains code for extracting the raw optical coherence tomography (OCT) and fundus data from
+manufacturer's proprietary file formats.
 
 ## Motivation
-Research in ophthalmology is often hindered by manufacturer's usage of proprietary data formats for storing their data. 
+Research in ophthalmology is often hindered by manufacturer's usage of proprietary data formats for storing their data.
 For example, until recently, the ~200,000 OCT scans in the UK Biobank project was only available in Topcon's .fds
 file format, which prevented bulk processing and analysis. The only freely available software that allows these scans
-to be accessed is  [uocte](https://bitbucket.org/uocte/uocte/wiki/Home), which is written in C++ and is no longer 
+to be accessed is  [uocte](https://bitbucket.org/uocte/uocte/wiki/Home), which is written in C++ and is no longer
 maintained. This repository aims to make available python-based tools for reading these proprietary formats.
 
 
@@ -33,7 +33,7 @@ pip install oct-converter
 
 
 ## Usage
-A number of example usage scripts are included in examples/. 
+A number of example usage scripts are included in examples/.
 
 Here is an example of reading a .fds file:
 
@@ -60,7 +60,7 @@ Are welcome!
 
 ## Updates
 24 Aug 2021
-- Reading the Bioptigen .OCT format is now supported 
+- Reading the Bioptigen .OCT format is now supported
 
 11 June 2021
 - Can now specify whether Zeiss .img data needs to be de-interlaced during reading.
@@ -73,12 +73,11 @@ Are welcome!
 - Now attempts to extract additional volumetric data from .e2e files that was previously missed
 
 22 August 2020
-- Experimental support for reading OCT data from .fda files. 
+- Experimental support for reading OCT data from .fda files.
 
 14 July 2020
-- Can now read fundus data from .fda files. 
+- Can now read fundus data from .fda files.
 
 ## Related projects
 - [uocte](https://bitbucket.org/uocte/uocte/wiki/Home) inspired and enabled this project.
 - [eyepy](https://github.com/MedVisBonn/eyepy) can read HEYEY XML and VOL formats, and [eyelab](https://github.com/MedVisBonn/eyelab) is a tool for annotating this data.
-
