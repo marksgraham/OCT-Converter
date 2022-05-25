@@ -1,9 +1,13 @@
-import numpy as np
-from construct import PaddedString, Int16un, Struct, Int32sn, Int32un, Int8un, Array
-from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
-from pathlib import Path
-from itertools import chain
 import warnings
+from itertools import chain
+from pathlib import Path
+
+import numpy as np
+from construct import (Array, Int8un, Int16un, Int32sn, Int32un, PaddedString,
+                       Struct)
+
+from oct_converter.image_types import (FundusImageWithMetaData,
+                                       OCTVolumeWithMetaData)
 
 
 class E2E(object):

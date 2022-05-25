@@ -1,6 +1,9 @@
-import numpy as np
-from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 from pathlib import Path
+
+import numpy as np
+
+from oct_converter.image_types import (FundusImageWithMetaData,
+                                       OCTVolumeWithMetaData)
 
 
 class IMG(object):

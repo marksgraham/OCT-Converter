@@ -1,7 +1,10 @@
-from construct import PaddedString, Struct, Int32un
-import numpy as np
-from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 from pathlib import Path
+
+import numpy as np
+from construct import Int32un, PaddedString, Struct
+
+from oct_converter.image_types import (FundusImageWithMetaData,
+                                       OCTVolumeWithMetaData)
 
 
 class FDS(object):

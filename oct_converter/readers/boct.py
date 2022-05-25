@@ -1,23 +1,13 @@
-import numpy as np
-from construct import (
-    Struct,
-    Int16un,
-    Int32un,
-    PaddedString,
-    Float64n,
-    BytesInteger,
-    Tell,
-    Computed,
-    Seek,
-    Hex,
-    Lazy,
-    Array,
-    this,
-    Bytes,
-)
-from oct_converter.image_types import OCTVolumeWithMetaData
+import tempfile
 from pathlib import Path
-import h5py, tempfile
+
+import h5py
+import numpy as np
+from construct import (Array, Bytes, BytesInteger, Computed, Float64n, Hex,
+                       Int16un, Int32un, Lazy, PaddedString, Seek, Struct,
+                       Tell, this)
+
+from oct_converter.image_types import OCTVolumeWithMetaData
 
 headerField = Struct(
     keylength=Int32un, key=PaddedString(this.keylength, "utf8"), dataLength=Int32un
