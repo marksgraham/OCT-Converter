@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from oct_converter.image_types import (FundusImageWithMetaData,
-                                       OCTVolumeWithMetaData)
+from oct_converter.image_types import OCTVolumeWithMetaData
 
 
 class Dicom(object):

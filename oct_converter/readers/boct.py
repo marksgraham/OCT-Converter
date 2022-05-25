@@ -3,9 +3,22 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-from construct import (Array, Bytes, BytesInteger, Computed, Float64n, Hex,
-                       Int16un, Int32un, Lazy, PaddedString, Seek, Struct,
-                       Tell, this)
+from construct import (
+    Array,
+    Bytes,
+    BytesInteger,
+    Computed,
+    Float64n,
+    Hex,
+    Int16un,
+    Int32un,
+    Lazy,
+    PaddedString,
+    Seek,
+    Struct,
+    Tell,
+    this,
+)
 
 from oct_converter.image_types import OCTVolumeWithMetaData
 
@@ -149,11 +162,11 @@ class BOCT(object):
         Returns:
             list(obj):[OCTVolumeWithMetaData]
         """
-        ##Laterality/patient_id data not contained in .OCT file (often in filename)
+        # Laterality/patient_id data not contained in .OCT file (often in filename)
         self.laterality = None
         self.patient_id = self.filepath.stem
 
-        ##Lazily parse the file without loading frame pixels
+        # Lazily parse the file without loading frame pixels
         oct = self.file_structure.parse_file(self.filepath)
         header = oct.header
         self.frames = FrameGenerator(oct.data)
@@ -162,8 +175,8 @@ class BOCT(object):
         scancount = header.scans.value
 
         if scantype == "linear":
-            ##linear bscans can contain multiple scans at one position
-            ##reorder into (framecount+scancount,1,y,x)
+            # linear bscans can contain multiple scans at one position
+            # reorder into (framecount+scancount,1,y,x)
             framecount += scancount
             scancount = 1
         self.volume_shape = (
@@ -174,7 +187,7 @@ class BOCT(object):
         )
         self.vol_frames_shape = (self.volume_shape[0], self.volume_shape[1])
 
-        ##Index conversion between 3D framestack (z+t,y,x) and 4D volume (t,z,x,y)
+        # Index conversion between 3D framestack (z+t,y,x) and 4D volume (t,z,x,y)
         stack_to_vol = np.asarray(
             [
                 i + j * (framecount)

@@ -3,11 +3,9 @@ from itertools import chain
 from pathlib import Path
 
 import numpy as np
-from construct import (Array, Int8un, Int16un, Int32sn, Int32un, PaddedString,
-                       Struct)
+from construct import Array, Int8un, Int16un, Int32sn, Int32un, PaddedString, Struct
 
-from oct_converter.image_types import (FundusImageWithMetaData,
-                                       OCTVolumeWithMetaData)
+from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
 
 
 class E2E(object):
@@ -166,7 +164,7 @@ class E2E(object):
                             self.laterality = "R"
                         elif laterality_data.laterality == 76:
                             self.laterality = "L"
-                    except:
+                    except Exception:
                         self.laterality = None
 
                 if chunk.type == 1073741824:  # image data
@@ -185,7 +183,7 @@ class E2E(object):
                             image = LUT[raw_volume].reshape(
                                 image_data.width, image_data.height
                             )
-                        except:
+                        except Exception:
                             warnings.warn(
                                 (
                                     f"Could not reshape image id {volume_string} with "
@@ -282,7 +280,7 @@ class E2E(object):
                             self.laterality = "R"
                         elif laterality_data.laterality == 76:
                             self.laterality = "L"
-                    except:
+                    except Exception:
                         self.laterality = None
 
                 if chunk.type == 1073741824:  # image data

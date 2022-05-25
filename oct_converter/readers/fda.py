@@ -4,8 +4,7 @@ import numpy as np
 from construct import Int32un, PaddedString, Struct
 from pylibjpeg import decode
 
-from oct_converter.image_types import (FundusImageWithMetaData,
-                                       OCTVolumeWithMetaData)
+from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
 
 
 class FDA(object):

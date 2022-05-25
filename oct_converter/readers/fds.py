@@ -3,8 +3,7 @@ from pathlib import Path
 import numpy as np
 from construct import Int32un, PaddedString, Struct
 
-from oct_converter.image_types import (FundusImageWithMetaData,
-                                       OCTVolumeWithMetaData)
+from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
 
 
 class FDS(object):
