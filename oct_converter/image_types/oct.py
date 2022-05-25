@@ -4,12 +4,15 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
-VIDEO_TYPES = ['.avi', '.mp4', ]
-IMAGE_TYPES = ['.png', '.bmp', '.tiff', '.jpg', '.jpeg']
+VIDEO_TYPES = [
+    ".avi",
+    ".mp4",
+]
+IMAGE_TYPES = [".png", ".bmp", ".tiff", ".jpg", ".jpeg"]
 
 
 class OCTVolumeWithMetaData(object):
-    """ Class to hold the OCT volume and any related metadata, and enable viewing and saving.
+    """Class to hold the OCT volume and any related metadata, and enable viewing and saving.
 
     Attributes:
         volume (list of np.array): All the volume's b-scans.
@@ -27,7 +30,7 @@ class OCTVolumeWithMetaData(object):
         self.num_slices = len(self.volume)
 
     def peek(self, rows=5, cols=5, filepath=None):
-        """ Plots a montage of the OCT volume. Optionally saves the plot if a filepath is provided.
+        """Plots a montage of the OCT volume. Optionally saves the plot if a filepath is provided.
 
         Args:
             rows (int) : Number of rows in the plot.
@@ -39,19 +42,18 @@ class OCTVolumeWithMetaData(object):
         y_size = cols * self.volume[0].shape[1]
         ratio = y_size / x_size
         slices_indices = np.linspace(0, self.num_slices - 1, images).astype(np.int)
-        plt.figure(figsize=(12*ratio,12))
+        plt.figure(figsize=(12 * ratio, 12))
         for i in range(images):
-            plt.subplot(rows, cols, i +1)
-            plt.imshow(self.volume[slices_indices[i]],cmap='gray')
-            plt.axis('off')
-            plt.title('{}'.format(slices_indices[i]))
-        plt.suptitle('OCT volume with {} slices.'.format(self.num_slices))
+            plt.subplot(rows, cols, i + 1)
+            plt.imshow(self.volume[slices_indices[i]], cmap="gray")
+            plt.axis("off")
+            plt.title("{}".format(slices_indices[i]))
+        plt.suptitle("OCT volume with {} slices.".format(self.num_slices))
 
         if filepath is not None:
             plt.savefig(filepath)
         else:
             plt.show()
-
 
     def save(self, filepath):
         """Saves OCT volume as a video or stack of slices.
@@ -67,22 +69,26 @@ class OCTVolumeWithMetaData(object):
             video_writer.close()
         elif extension.lower() in IMAGE_TYPES:
             base = os.path.splitext(os.path.basename(filepath))[0]
-            print('Saving OCT as sequential slices {}_[1..{}]{}'.format(base, len(self.volume), extension))
+            print(
+                "Saving OCT as sequential slices {}_[1..{}]{}".format(
+                    base, len(self.volume), extension
+                )
+            )
             full_base = os.path.splitext(filepath)[0]
             self.volume = np.array(self.volume).astype("float64")
-            self.volume *= 255.0/self.volume.max()
+            self.volume *= 255.0 / self.volume.max()
             for index, slice in enumerate(self.volume):
-                filename = '{}_{}{}'.format(full_base, index, extension)
+                filename = "{}_{}{}".format(full_base, index, extension)
                 cv2.imwrite(filename, slice)
-        elif extension.lower() == '.npy':
+        elif extension.lower() == ".npy":
             np.save(filepath, self.volume)
         else:
-            raise NotImplementedError('Saving with file extension {} not supported'.format(extension))
-
+            raise NotImplementedError(
+                "Saving with file extension {} not supported".format(extension)
+            )
 
     def get_projection(self):
-        """Produces a 2D projection image from the volume.
-        """
+        """Produces a 2D projection image from the volume."""
         projection = np.mean(self.volume, axis=1)
         return projection
 
@@ -95,7 +101,9 @@ class OCTVolumeWithMetaData(object):
         extension = os.path.splitext(filepath)[1]
         if extension.lower() in IMAGE_TYPES:
             projection = self.get_projection()
-            projection = 255* projection/projection.max()
+            projection = 255 * projection / projection.max()
             cv2.imwrite(filepath, projection.astype(int))
         else:
-            raise NotImplementedError('Saving with file extension {} not supported'.format(extension))
+            raise NotImplementedError(
+                "Saving with file extension {} not supported".format(extension)
+            )

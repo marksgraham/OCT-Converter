@@ -4,11 +4,15 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
-VIDEO_TYPES = ['.avi', '.mp4', ]
-IMAGE_TYPES = ['.png', '.bmp', '.tiff', '.jpg', '.jpeg']
+VIDEO_TYPES = [
+    ".avi",
+    ".mp4",
+]
+IMAGE_TYPES = [".png", ".bmp", ".tiff", ".jpg", ".jpeg"]
+
 
 class FundusImageWithMetaData(object):
-    """ Class to hold the fundus image and any related metadata, and enable saving.
+    """Class to hold the fundus image and any related metadata, and enable saving.
 
     Attributes:
         image (np.array): Fundus image.
@@ -23,7 +27,6 @@ class FundusImageWithMetaData(object):
         self.patient_id = patient_id
         self.DOB = patient_dob
 
-
     def save(self, filepath):
         """Saves fundus image.
 
@@ -33,7 +36,9 @@ class FundusImageWithMetaData(object):
         extension = os.path.splitext(filepath)[1]
         if extension.lower() in IMAGE_TYPES:
             cv2.imwrite(filepath, self.image)
-        elif extension.lower() == '.npy':
+        elif extension.lower() == ".npy":
             np.save(filepath, self.image)
         else:
-            raise NotImplementedError('Saving with file extension {} not supported'.format(extension))
+            raise NotImplementedError(
+                "Saving with file extension {} not supported".format(extension)
+            )

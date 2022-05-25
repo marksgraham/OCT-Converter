@@ -2,11 +2,12 @@ import numpy as np
 from oct_converter.image_types import OCTVolumeWithMetaData, FundusImageWithMetaData
 from pathlib import Path
 
-class IMG(object):
-    """ Class for extracting data from Zeiss's .img file format.
 
-        Attributes:
-            filepath (str): Path to .img file for reading.
+class IMG(object):
+    """Class for extracting data from Zeiss's .img file format.
+
+    Attributes:
+        filepath (str): Path to .img file for reading.
     """
 
     def __init__(self, filepath):
@@ -15,17 +16,19 @@ class IMG(object):
             raise FileNotFoundError(self.filepath)
 
     def read_oct_volume(self, interlaced=False):
-        """ Reads OCT data.
+        """Reads OCT data.
         Args:
             interlaced (bool): Determines whether data needs to be de-interlaced.
 
             Returns:
                 obj:OCTVolumeWithMetaData
         """
-        with open(self.filepath, 'rb') as f:
-            volume = np.frombuffer(f.read(), dtype=np.uint8)  # np.fromstring() gives numpy depreciation warning
-            num_slices = len(volume) // (1024*512)
-            volume = volume.reshape((1024, 512, num_slices), order='F')
+        with open(self.filepath, "rb") as f:
+            volume = np.frombuffer(
+                f.read(), dtype=np.uint8
+            )  # np.fromstring() gives numpy depreciation warning
+            num_slices = len(volume) // (1024 * 512)
+            volume = volume.reshape((1024, 512, num_slices), order="F")
             if interlaced:
                 shape = volume.shape
                 interlaced = np.zeros((int(shape[0] / 2), shape[1], shape[2] * 2))
@@ -34,5 +37,7 @@ class IMG(object):
                 interlaced = np.rot90(interlaced, axes=(0, 1))
                 volume = interlaced
 
-        oct_volume = OCTVolumeWithMetaData([volume[:, :, i] for i in range(volume.shape[2])])
+        oct_volume = OCTVolumeWithMetaData(
+            [volume[:, :, i] for i in range(volume.shape[2])]
+        )
         return oct_volume

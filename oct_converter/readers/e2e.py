@@ -5,20 +5,21 @@ from pathlib import Path
 from itertools import chain
 import warnings
 
+
 class E2E(object):
-    """ Class for extracting data from Heidelberg's .e2e file format.
+    """Class for extracting data from Heidelberg's .e2e file format.
 
-        Notes:
-            Mostly based on description of .e2e file format here:
-            https://bitbucket.org/uocte/uocte/wiki/Heidelberg%20File%20Format.
+    Notes:
+        Mostly based on description of .e2e file format here:
+        https://bitbucket.org/uocte/uocte/wiki/Heidelberg%20File%20Format.
 
-        Attributes:
-            filepath (str): Path to .img file for reading.
-            header_structure (obj:Struct): Defines structure of volume's header.
-            main_directory_structure (obj:Struct): Defines structure of volume's main directory.
-            sub_directory_structure (obj:Struct): Defines structure of each sub directory in the volume.
-            chunk_structure (obj:Struct): Defines structure of each data chunk.
-            image_structure (obj:Struct): Defines structure of image header.
+    Attributes:
+        filepath (str): Path to .img file for reading.
+        header_structure (obj:Struct): Defines structure of volume's header.
+        main_directory_structure (obj:Struct): Defines structure of volume's main directory.
+        sub_directory_structure (obj:Struct): Defines structure of each sub directory in the volume.
+        chunk_structure (obj:Struct): Defines structure of each data chunk.
+        image_structure (obj:Struct): Defines structure of image header.
     """
 
     def __init__(self, filepath):
@@ -26,80 +27,78 @@ class E2E(object):
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
         self.header_structure = Struct(
-            'magic1' / PaddedString(12, 'ascii'),
-            'version' / Int32un,
-            'unknown' / Array(10, Int16un)
+            "magic1" / PaddedString(12, "ascii"),
+            "version" / Int32un,
+            "unknown" / Array(10, Int16un),
         )
         self.main_directory_structure = Struct(
-            'magic2' / PaddedString(12, 'ascii'),
-            'version' / Int32un,
-            'unknown' / Array(10, Int16un),
-            'num_entries' / Int32un,
-            'current' / Int32un,
-            'prev' / Int32un,
-            'unknown3' / Int32un,
+            "magic2" / PaddedString(12, "ascii"),
+            "version" / Int32un,
+            "unknown" / Array(10, Int16un),
+            "num_entries" / Int32un,
+            "current" / Int32un,
+            "prev" / Int32un,
+            "unknown3" / Int32un,
         )
         self.sub_directory_structure = Struct(
-            'pos' / Int32un,
-            'start' / Int32un,
-            'size' / Int32un,
-            'unknown' / Int32un,
-            'patient_id' / Int32un,
-            'study_id' / Int32un,
-            'series_id' / Int32un,
-            'slice_id' / Int32sn,
-            'unknown2' / Int16un,
-            'unknown3' / Int16un,
-            'type' / Int32un,
-            'unknown4' / Int32un,
+            "pos" / Int32un,
+            "start" / Int32un,
+            "size" / Int32un,
+            "unknown" / Int32un,
+            "patient_id" / Int32un,
+            "study_id" / Int32un,
+            "series_id" / Int32un,
+            "slice_id" / Int32sn,
+            "unknown2" / Int16un,
+            "unknown3" / Int16un,
+            "type" / Int32un,
+            "unknown4" / Int32un,
         )
         self.chunk_structure = Struct(
-            'magic3' / PaddedString(12, 'ascii'),
-            'unknown' / Int32un,
-            'unknown2' / Int32un,
-            'pos' / Int32un,
-            'size' / Int32un,
-            'unknown3' / Int32un,
-            'patient_id' / Int32un,
-            'study_id' / Int32un,
-            'series_id' / Int32un,
-            'slice_id' / Int32sn,
-            'ind' / Int16un,
-            'unknown4' / Int16un,
-            'type' / Int32un,
-            'unknown5' / Int32un,
+            "magic3" / PaddedString(12, "ascii"),
+            "unknown" / Int32un,
+            "unknown2" / Int32un,
+            "pos" / Int32un,
+            "size" / Int32un,
+            "unknown3" / Int32un,
+            "patient_id" / Int32un,
+            "study_id" / Int32un,
+            "series_id" / Int32un,
+            "slice_id" / Int32sn,
+            "ind" / Int16un,
+            "unknown4" / Int16un,
+            "type" / Int32un,
+            "unknown5" / Int32un,
         )
         self.image_structure = Struct(
-            'size' / Int32un,
-            'type' / Int32un,
-            'unknown' / Int32un,
-            'width' / Int32un,
-            'height' / Int32un,
+            "size" / Int32un,
+            "type" / Int32un,
+            "unknown" / Int32un,
+            "width" / Int32un,
+            "height" / Int32un,
         )
         self.lat_structure = Struct(
-            'unknown' / Array(14, Int8un),
-            'laterality' / Int8un,
-            'unknown2' / Int8un
+            "unknown" / Array(14, Int8un), "laterality" / Int8un, "unknown2" / Int8un
         )
 
         self.power = pow(2, 10)
 
-
     def read_oct_volume(self):
-        """ Reads OCT data.
+        """Reads OCT data.
 
-            Returns:
-                obj:OCTVolumeWithMetaData
+        Returns:
+            obj:OCTVolumeWithMetaData
         """
+
         def _make_lut():
             LUT = []
-            for i in range(0,pow(2,16)):
+            for i in range(0, pow(2, 16)):
                 LUT.append(self.uint16_to_ufloat16(i))
             return np.array(LUT)
-        LUT = _make_lut() 
-               
 
-        with open(self.filepath, 'rb') as f:
+        LUT = _make_lut()
+
+        with open(self.filepath, "rb") as f:
             raw = f.read(36)
             header = self.header_structure.parse(raw)
 
@@ -128,7 +127,9 @@ class E2E(object):
                 for ii in range(directory_chunk.num_entries):
                     raw = f.read(44)
                     chunk = self.sub_directory_structure.parse(raw)
-                    volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
+                    volume_string = "{}_{}_{}".format(
+                        chunk.patient_id, chunk.study_id, chunk.series_id
+                    )
                     if volume_string not in volume_dict.keys():
                         volume_dict[volume_string] = chunk.slice_id / 2
                     elif chunk.slice_id / 2 > volume_dict[volume_string]:
@@ -139,7 +140,9 @@ class E2E(object):
 
             # initalise dict to hold all the image volumes
             volume_array_dict = {}
-            volume_array_dict_additional = {} # for storage of slices not caught by extraction
+            volume_array_dict_additional = (
+                {}
+            )  # for storage of slices not caught by extraction
             for volume, num_slices in volume_dict.items():
                 if num_slices > 0:
                     # num_slices + 1 here due to evidence that a slice was being missed off the end in extraction
@@ -156,9 +159,9 @@ class E2E(object):
                     try:
                         laterality_data = self.lat_structure.parse(raw)
                         if laterality_data.laterality == 82:
-                            self.laterality = 'R'
+                            self.laterality = "R"
                         elif laterality_data.laterality == 76:
-                            self.laterality = 'L'
+                            self.laterality = "L"
                     except:
                         self.laterality = None
 
@@ -171,45 +174,63 @@ class E2E(object):
                         if count == 0:
                             break
                         raw_volume = np.fromfile(f, dtype=np.uint16, count=count)
-                        volume_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
+                        volume_string = "{}_{}_{}".format(
+                            chunk.patient_id, chunk.study_id, chunk.series_id
+                        )
                         try:
-                            image = LUT[raw_volume].reshape(image_data.width, image_data.height)
+                            image = LUT[raw_volume].reshape(
+                                image_data.width, image_data.height
+                            )
                         except:
-                            warnings.warn((f'Could not reshape image id {volume_string} with '
-                                        f'{len(LUT[raw_volume])} elements into a '
-                                        f'{image_data.width}x'
-                                        f'{image_data.height} array'), UserWarning)
+                            warnings.warn(
+                                (
+                                    f"Could not reshape image id {volume_string} with "
+                                    f"{len(LUT[raw_volume])} elements into a "
+                                    f"{image_data.width}x"
+                                    f"{image_data.height} array"
+                                ),
+                                UserWarning,
+                            )
                             break
 
                         image = 256 * pow(image, 1.0 / 2.4)
 
                         if volume_string in volume_array_dict.keys():
-                            volume_array_dict[volume_string][int(chunk.slice_id / 2) - 1] = image
+                            volume_array_dict[volume_string][
+                                int(chunk.slice_id / 2) - 1
+                            ] = image
                         else:
                             # try to capture these additional images
                             if volume_string in volume_array_dict_additional.keys():
-                                volume_array_dict_additional[volume_string].append(image)
+                                volume_array_dict_additional[volume_string].append(
+                                    image
+                                )
                             else:
                                 volume_array_dict_additional[volume_string] = [image]
-                            #print('Failed to save image data for volume {}'.format(volume_string))
+                            # print('Failed to save image data for volume {}'.format(volume_string))
 
             oct_volumes = []
-            for key, volume in chain(volume_array_dict.items(), volume_array_dict_additional.items()):
+            for key, volume in chain(
+                volume_array_dict.items(), volume_array_dict_additional.items()
+            ):
                 # remove any initalised volumes that never had image data attached
                 if isinstance(volume[0], int):
                     continue
-                oct_volumes.append(OCTVolumeWithMetaData(volume=volume, patient_id=key, laterality=self.laterality))
-
+                oct_volumes.append(
+                    OCTVolumeWithMetaData(
+                        volume=volume, patient_id=key, laterality=self.laterality
+                    )
+                )
 
         return oct_volumes
 
     def read_fundus_image(self):
-        """ Reads fundus data.
+        """Reads fundus data.
 
-            Returns:
-                obj:FundusImageWithMetaData
+        Returns:
+            obj:FundusImageWithMetaData
         """
-        with open(self.filepath, 'rb') as f:
+        with open(self.filepath, "rb") as f:
             raw = f.read(36)
             header = self.header_structure.parse(raw)
 
@@ -254,9 +275,9 @@ class E2E(object):
                     try:
                         laterality_data = self.lat_structure.parse(raw)
                         if laterality_data.laterality == 82:
-                            self.laterality = 'R'
+                            self.laterality = "R"
                         elif laterality_data.laterality == 76:
-                            self.laterality = 'L'
+                            self.laterality = "L"
                     except:
                         self.laterality = None
 
@@ -268,19 +289,26 @@ class E2E(object):
                         break
                     if chunk.ind == 0:  # fundus data
                         raw_volume = np.frombuffer(f.read(count), dtype=np.uint8)
-                        image = np.array(raw_volume).reshape(image_data.height,image_data.width)
-                        image_string = '{}_{}_{}'.format(chunk.patient_id, chunk.study_id, chunk.series_id)
+                        image = np.array(raw_volume).reshape(
+                            image_data.height, image_data.width
+                        )
+                        image_string = "{}_{}_{}".format(
+                            chunk.patient_id, chunk.study_id, chunk.series_id
+                        )
                         image_array_dict[image_string] = image
-
 
             fundus_images = []
             for key, image in image_array_dict.items():
-                fundus_images.append(FundusImageWithMetaData(image=image, patient_id=key, laterality= self.laterality))
+                fundus_images.append(
+                    FundusImageWithMetaData(
+                        image=image, patient_id=key, laterality=self.laterality
+                    )
+                )
 
         return fundus_images
 
     def read_custom_float(self, bytes):
-        """ Implementation of bespoke float type used in .e2e files.
+        """Implementation of bespoke float type used in .e2e files.
 
         Notes:
             Custom float is a floating point type with no sign, 6-bit exponent, and 10-bit mantissa.
@@ -305,7 +333,7 @@ class E2E(object):
         return decimal_value
 
     def uint16_to_ufloat16(self, uint16):
-        """ Implementation of bespoke float type used in .e2e files.
+        """Implementation of bespoke float type used in .e2e files.
 
         Notes:
             Custom float is a floating point type with no sign, 6-bit exponent, and 10-bit mantissa.
@@ -316,7 +344,7 @@ class E2E(object):
         Returns:
             float
         """
-        bits = '{0:016b}'.format(uint16)[::-1]
+        bits = "{0:016b}".format(uint16)[::-1]
         # get mantissa and exponent
         mantissa = bits[:10]
         exponent = bits[10:]
