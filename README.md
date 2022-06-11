@@ -1,12 +1,13 @@
-<p align="center">
-    <img src="../assets/oct.gif?raw=true">
-</p>
 
 
-# OCT file converter #
+
+# OCT Converter #
 
 This repository contains code for extracting the raw optical coherence tomography (OCT) and fundus data from
 manufacturer's proprietary file formats.
+<p align="center">
+    <img src="../assets/oct.gif?raw=true">
+</p>
 
 ## Motivation
 Research in ophthalmology is often hindered by manufacturer's usage of proprietary data formats for storing their data.
@@ -56,7 +57,7 @@ fundus_image.save('fds_testing_fundus.jpg')
 ```
 
 ## Contributions
-Are welcome!
+Are welcome! Please open a [new issue](https://github.com/marksgraham/OCT-Converter/issues/new) to discuss any potential contributions.
 
 ## Updates
 24 Aug 2021
@@ -81,3 +82,6 @@ Are welcome!
 ## Related projects
 - [uocte](https://bitbucket.org/uocte/uocte/wiki/Home) inspired and enabled this project.
 - [eyepy](https://github.com/MedVisBonn/eyepy) can read HEYEY XML and VOL formats, and [eyelab](https://github.com/MedVisBonn/eyelab) is a tool for annotating this data.
+
+## Clinical use
+This is research software and any data extracted using it should not be used for clinical decision-making.
