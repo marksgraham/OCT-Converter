@@ -79,11 +79,19 @@ class E2E(object):
             "width" / Int32un,
             "height" / Int32un,
         )
+        self.patient_id_structure = Struct(
+            "firstname" / PaddedString(31, "ascii"),
+            "surname" / PaddedString(66, "ascii"),
+            "birthdate" / Int32un,
+            "sex" / PaddedString(1, "ascii"),
+        )
         self.lat_structure = Struct(
             "unknown" / Array(14, Int8un), "laterality" / Int8un, "unknown2" / Int8un
         )
 
         self.power = pow(2, 10)
+        self.laterality = None
+        self.sex = None
 
     def read_oct_volume(self):
         """Reads OCT data.
@@ -155,7 +163,13 @@ class E2E(object):
                 f.seek(start)
                 raw = f.read(60)
                 chunk = self.chunk_structure.parse(raw)
-
+                if chunk.type == 9:
+                    raw = f.read(102)
+                    try:
+                        patient_data = self.patient_id_structure.parse(raw)
+                        self.sex = patient_data.sex
+                    except Exception:
+                        self.sex = None
                 if chunk.type == 11:  # laterality data
                     raw = f.read(20)
                     try:
@@ -220,7 +234,10 @@ class E2E(object):
                     continue
                 oct_volumes.append(
                     OCTVolumeWithMetaData(
-                        volume=volume, patient_id=key, laterality=self.laterality
+                        volume=volume,
+                        patient_id=key,
+                        laterality=self.laterality,
+                        sex=self.sex,
                     )
                 )
 

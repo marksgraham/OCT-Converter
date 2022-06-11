@@ -23,11 +23,14 @@ class OCTVolumeWithMetaData(object):
         num_slices: Number of b-scans present in volume.
     """
 
-    def __init__(self, volume, laterality=None, patient_id=None, patient_dob=None):
+    def __init__(
+        self, volume, laterality=None, sex=None, patient_id=None, patient_dob=None
+    ):
         self.volume = volume
         self.laterality = laterality
         self.patient_id = patient_id
         self.DOB = patient_dob
+        self.sex = sex
         self.num_slices = len(self.volume)
 
     def peek(self, rows=5, cols=5, filepath=None):
