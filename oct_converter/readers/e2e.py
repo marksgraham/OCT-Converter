@@ -90,7 +90,6 @@ class E2E(object):
         )
 
         self.power = pow(2, 10)
-        self.laterality = None
         self.sex = None
         self.first_name = None
         self.surname = None
@@ -155,6 +154,7 @@ class E2E(object):
             volume_array_dict_additional = (
                 {}
             )  # for storage of slices not caught by extraction
+            laterality_dict = {}
             for volume, num_slices in volume_dict.items():
                 if num_slices > 0:
                     # num_slices + 1 here due to evidence that a slice was being missed off the end in extraction
@@ -165,7 +165,8 @@ class E2E(object):
                 f.seek(start)
                 raw = f.read(60)
                 chunk = self.chunk_structure.parse(raw)
-                if chunk.type == 9:
+
+                if chunk.type == 9:  # patient data
                     raw = f.read(102)
                     try:
                         patient_data = self.patient_id_structure.parse(raw)
@@ -174,16 +175,17 @@ class E2E(object):
                         self.surname = patient_data.surname
                     except Exception:
                         pass
+
                 if chunk.type == 11:  # laterality data
                     raw = f.read(20)
                     try:
                         laterality_data = self.lat_structure.parse(raw)
                         if laterality_data.laterality == 82:
-                            self.laterality = "R"
+                            laterality = "R"
                         elif laterality_data.laterality == 76:
-                            self.laterality = "L"
+                            laterality = "L"
                     except Exception:
-                        self.laterality = None
+                        laterality = None
 
                 if chunk.type == 1073741824:  # image data
                     raw = f.read(20)
@@ -228,7 +230,8 @@ class E2E(object):
                             else:
                                 volume_array_dict_additional[volume_string] = [image]
                             # print('Failed to save image data for volume {}'.format(volume_string))
-
+                        # here assumes laterality stored in chunk before the image itself
+                        laterality_dict[volume_string] = laterality
             oct_volumes = []
             for key, volume in chain(
                 volume_array_dict.items(), volume_array_dict_additional.items()
@@ -240,7 +243,9 @@ class E2E(object):
                     OCTVolumeWithMetaData(
                         volume=volume,
                         patient_id=key,
-                        laterality=self.laterality,
+                        laterality=laterality_dict[key]
+                        if key in laterality_dict.keys()
+                        else None,
                         sex=self.sex,
                         first_name=self.first_name,
                         surname=self.surname,
@@ -288,6 +293,7 @@ class E2E(object):
 
             # initalise dict to hold all the image volumes
             image_array_dict = {}
+            laterality_dict = {}
 
             # traverse all chunks and extract slices
             for start, pos in chunk_stack:
@@ -300,11 +306,11 @@ class E2E(object):
                     try:
                         laterality_data = self.lat_structure.parse(raw)
                         if laterality_data.laterality == 82:
-                            self.laterality = "R"
+                            laterality = "R"
                         elif laterality_data.laterality == 76:
-                            self.laterality = "L"
+                            laterality = "L"
                     except Exception:
-                        self.laterality = None
+                        laterality = None
 
                 if chunk.type == 1073741824:  # image data
                     raw = f.read(20)
@@ -321,12 +327,17 @@ class E2E(object):
                             chunk.patient_id, chunk.study_id, chunk.series_id
                         )
                         image_array_dict[image_string] = image
-
+                        # here assumes laterality stored in chunk before the image itself
+                        laterality_dict[image_string] = laterality
             fundus_images = []
             for key, image in image_array_dict.items():
                 fundus_images.append(
                     FundusImageWithMetaData(
-                        image=image, patient_id=key, laterality=self.laterality
+                        image=image,
+                        patient_id=key,
+                        laterality=laterality_dict[key]
+                        if key in laterality_dict.keys()
+                        else None,
                     )
                 )
 
