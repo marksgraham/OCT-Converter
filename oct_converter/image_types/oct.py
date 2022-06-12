@@ -20,11 +20,21 @@ class OCTVolumeWithMetaData(object):
         laterality (str): Left or right eye.
         patient_id (str): Patient ID.
         DOB (str): Patient date of birth.
-        num_slices: Number of b-scans present in volume.
+        sex (str): Patient sex.
+        num_slices (int): Number of b-scans present in volume.
+        first_name (str): Patient first name.
+        surname (str): Patient second name.
     """
 
     def __init__(
-        self, volume, laterality=None, sex=None, patient_id=None, patient_dob=None
+        self,
+        volume,
+        laterality=None,
+        sex=None,
+        patient_id=None,
+        patient_dob=None,
+        first_name=None,
+        surname=None,
     ):
         self.volume = volume
         self.laterality = laterality
@@ -32,6 +42,8 @@ class OCTVolumeWithMetaData(object):
         self.DOB = patient_dob
         self.sex = sex
         self.num_slices = len(self.volume)
+        self.first_name = first_name
+        self.surname = surname
 
     def peek(self, rows=5, cols=5, filepath=None):
         """Plots a montage of the OCT volume. Optionally saves the plot if a filepath is provided.

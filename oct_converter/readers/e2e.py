@@ -80,7 +80,7 @@ class E2E(object):
             "height" / Int32un,
         )
         self.patient_id_structure = Struct(
-            "firstname" / PaddedString(31, "ascii"),
+            "first_name" / PaddedString(31, "ascii"),
             "surname" / PaddedString(66, "ascii"),
             "birthdate" / Int32un,
             "sex" / PaddedString(1, "ascii"),
@@ -92,6 +92,8 @@ class E2E(object):
         self.power = pow(2, 10)
         self.laterality = None
         self.sex = None
+        self.first_name = None
+        self.surname = None
 
     def read_oct_volume(self):
         """Reads OCT data.
@@ -168,8 +170,10 @@ class E2E(object):
                     try:
                         patient_data = self.patient_id_structure.parse(raw)
                         self.sex = patient_data.sex
+                        self.first_name = patient_data.first_name
+                        self.surname = patient_data.surname
                     except Exception:
-                        self.sex = None
+                        pass
                 if chunk.type == 11:  # laterality data
                     raw = f.read(20)
                     try:
@@ -238,6 +242,8 @@ class E2E(object):
                         patient_id=key,
                         laterality=self.laterality,
                         sex=self.sex,
+                        first_name=self.first_name,
+                        surname=self.surname,
                     )
                 )
 
