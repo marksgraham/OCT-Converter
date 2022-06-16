@@ -1,9 +1,9 @@
-from oct_converter.readers import IMG
+from oct_converter.readers import POCT
 
-filepath = "../sample_files/file.img"
-img = IMG(filepath)
-oct_volume = (
-    img.read_oct_volume()
-)  # returns an OCT volume with additional metadata if available
-oct_volume.peek()  # plots a montage of the volume
-oct_volume.save("img_testing.avi")  # save volume
+filepath = "/Users/mark/Dropbox/Work/Projects/OCT-Converter/my_example_volumes/optovue-oct/aaa_111111_Retina Map_OD_2022-05-31_09.31.11_1.OCT"
+poct = POCT(filepath)
+oct_volumes = poct.read_oct_volume()
+
+for volume in oct_volumes:
+    volume.peek()  # plots a montage of the volume
+print("debug")
