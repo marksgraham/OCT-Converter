@@ -60,6 +60,9 @@ fundus_image.save('fds_testing_fundus.jpg')
 Are welcome! Please open a [new issue](https://github.com/marksgraham/OCT-Converter/issues/new) to discuss any potential contributions.
 
 ## Updates
+16 June 2022
+- Initial support for reading Optovue OCTs
+
 24 Aug 2021
 - Reading the Bioptigen .OCT format is now supported
 
