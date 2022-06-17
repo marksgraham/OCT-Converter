@@ -23,6 +23,7 @@ maintained. This repository aims to make available python-based tools for readin
 * .e2e (Heidelberg)
 * .img (Zeiss)
 * .oct (Bioptigen)
+* .OCT (Optovue)
 * .dcm
 
 ## Installation
