@@ -7,10 +7,10 @@ oct_volumes = (
 )  # returns a list of all OCT volumes with additional metadata if available
 for volume in oct_volumes:
     volume.peek()  # plots a montage of the volume
-    volume.save("{}.avi".format(volume.patient_id))
+    volume.save("{}_{}.avi".format(volume.volume_id, volume.laterality))
 
 fundus_images = (
     file.read_fundus_image()
 )  # returns a list of all fundus images with additional metadata if available
 for image in fundus_images:
-    image.save("{}.png".format(image.patient_id))
+    image.save("{}+{}.png".format(image.image_id, image.laterality))

@@ -63,6 +63,7 @@ Are welcome! Please open a [new issue](https://github.com/marksgraham/OCT-Conver
 16 June 2022
 - Initial support for reading Optovue OCTs
 - Laterality is now extracted separately for each OCT/fundus image for .e2e files.
+- More patient info extracted from .e2e files (name, sex, birthdate, patient ID)
 
 24 Aug 2021
 - Reading the Bioptigen .OCT format is now supported

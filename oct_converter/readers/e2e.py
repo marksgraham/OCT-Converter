@@ -84,6 +84,7 @@ class E2E(object):
             "surname" / PaddedString(66, "ascii"),
             "birthdate" / Int32un,
             "sex" / PaddedString(1, "ascii"),
+            "patient_id" / PaddedString(25, "ascii"),
         )
         self.lat_structure = Struct(
             "unknown" / Array(14, Int8un), "laterality" / Int8un, "unknown2" / Int8un
@@ -155,6 +156,7 @@ class E2E(object):
                 {}
             )  # for storage of slices not caught by extraction
             laterality_dict = {}
+            laterality = None
             for volume, num_slices in volume_dict.items():
                 if num_slices > 0:
                     # num_slices + 1 here due to evidence that a slice was being missed off the end in extraction
@@ -167,12 +169,15 @@ class E2E(object):
                 chunk = self.chunk_structure.parse(raw)
 
                 if chunk.type == 9:  # patient data
-                    raw = f.read(102)
+                    raw = f.read(127)
                     try:
                         patient_data = self.patient_id_structure.parse(raw)
                         self.sex = patient_data.sex
                         self.first_name = patient_data.first_name
                         self.surname = patient_data.surname
+                        # this gives the birthdate as a Julian date, needs converting to calendar date
+                        self.birthdate = (patient_data.birthdate / 64) - 14558805
+                        self.patient_id = patient_data.patient_id
                     except Exception:
                         pass
 
@@ -242,7 +247,8 @@ class E2E(object):
                 oct_volumes.append(
                     OCTVolumeWithMetaData(
                         volume=volume,
-                        patient_id=key,
+                        patient_id=self.patient_id,
+                        volume_id=key,
                         laterality=laterality_dict[key]
                         if key in laterality_dict.keys()
                         else None,
@@ -301,6 +307,19 @@ class E2E(object):
                 raw = f.read(60)
                 chunk = self.chunk_structure.parse(raw)
 
+                if chunk.type == 9:  # patient data
+                    raw = f.read(127)
+                    try:
+                        patient_data = self.patient_id_structure.parse(raw)
+                        self.sex = patient_data.sex
+                        self.first_name = patient_data.first_name
+                        self.surname = patient_data.surname
+                        # this gives the birthdate as a Julian date, needs converting to calendar date
+                        self.birthdate = (patient_data.birthdate / 64) - 14558805
+                        self.patient_id = patient_data.patient_id
+                    except Exception:
+                        pass
+
                 if chunk.type == 11:  # laterality data
                     raw = f.read(20)
                     try:
@@ -334,7 +353,8 @@ class E2E(object):
                 fundus_images.append(
                     FundusImageWithMetaData(
                         image=image,
-                        patient_id=key,
+                        patient_id=self.patient_id,
+                        image_id=key,
                         laterality=laterality_dict[key]
                         if key in laterality_dict.keys()
                         else None,

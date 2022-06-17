@@ -17,13 +17,17 @@ class FundusImageWithMetaData(object):
         image (np.array): Fundus image.
         laterality (str): Left or right eye.
         patient_id (str): Patient ID.
+        image_id (str): Image ID.
         DOB (str): Patient date of birth.
     """
 
-    def __init__(self, image, laterality=None, patient_id=None, patient_dob=None):
+    def __init__(
+        self, image, laterality=None, patient_id=None, image_id=None, patient_dob=None
+    ):
         self.image = image
         self.laterality = laterality
         self.patient_id = patient_id
+        self.image_id = image_id
         self.DOB = patient_dob
 
     def save(self, filepath):

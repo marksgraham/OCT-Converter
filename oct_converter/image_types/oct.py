@@ -19,6 +19,7 @@ class OCTVolumeWithMetaData(object):
         volume (list of np.array): All the volume's b-scans.
         laterality (str): Left or right eye.
         patient_id (str): Patient ID.
+        volume_id (str): Volume ID.
         DOB (str): Patient date of birth.
         sex (str): Patient sex.
         num_slices (int): Number of b-scans present in volume.
@@ -32,6 +33,7 @@ class OCTVolumeWithMetaData(object):
         laterality=None,
         sex=None,
         patient_id=None,
+        volume_id=None,
         patient_dob=None,
         first_name=None,
         surname=None,
@@ -39,6 +41,7 @@ class OCTVolumeWithMetaData(object):
         self.volume = volume
         self.laterality = laterality
         self.patient_id = patient_id
+        self.volume_id = volume_id
         self.DOB = patient_dob
         self.sex = sex
         self.num_slices = len(self.volume)
