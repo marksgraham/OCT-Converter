@@ -236,7 +236,8 @@ class E2E(object):
                                 volume_array_dict_additional[volume_string] = [image]
                             # print('Failed to save image data for volume {}'.format(volume_string))
                         # here assumes laterality stored in chunk before the image itself
-                        laterality_dict[volume_string] = laterality
+                        if laterality and volume_string not in laterality_dict:
+                            laterality_dict[volume_string] = laterality
             oct_volumes = []
             for key, volume in chain(
                 volume_array_dict.items(), volume_array_dict_additional.items()
@@ -275,6 +276,8 @@ class E2E(object):
 
             # traverse list of main directories in first pass
             directory_stack = []
+
+            laterality = None
 
             current = main_directory.current
             while current != 0:
