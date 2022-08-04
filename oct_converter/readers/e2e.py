@@ -1,4 +1,5 @@
 import warnings
+from collections import defaultdict
 from itertools import chain
 from pathlib import Path
 
@@ -89,6 +90,12 @@ class E2E(object):
         self.lat_structure = Struct(
             "unknown" / Array(14, Int8un), "laterality" / Int8un, "unknown2" / Int8un
         )
+        self.contour_structure  = Struct(
+            "unknown0" / Int32un,
+            "id" / Int32un,
+            "unknown1" / Int32un,
+            "width" / Int32un,
+        )
 
         self.power = pow(2, 10)
         self.sex = None
@@ -162,6 +169,8 @@ class E2E(object):
                     # num_slices + 1 here due to evidence that a slice was being missed off the end in extraction
                     volume_array_dict[volume] = [0] * int(num_slices + 1)
 
+            contour_dict = defaultdict(lambda: defaultdict(dict))
+
             # traverse all chunks and extract slices
             for start, pos in chunk_stack:
                 f.seek(start)
@@ -191,6 +200,41 @@ class E2E(object):
                             laterality = "L"
                     except Exception:
                         laterality = None
+
+                if chunk.type == 10019: # contour data
+                    raw = f.read(16)
+                    contour_data = self.contour_structure.parse(raw)
+
+                    if contour_data.width > 0:
+                        volume_string = "{}_{}_{}".format(
+                            chunk.patient_id, chunk.study_id, chunk.series_id
+                        )
+                        slice_id = int(chunk.slice_id / 2) - 1
+                        contour_name = f"contour{contour_data.id}"
+                        try:
+                            raw_volume = np.frombuffer(
+                                f.read(contour_data.width * 4),
+                                dtype=np.float32
+                            )
+                            contour = np.array(raw_volume)
+                            max_float = np.finfo(np.float32).max
+                            contour[
+                                (contour < 1e-9) | (contour == max_float)
+                            ] = np.nan
+                        except Exception as e:
+                            warnings.warn(
+                                (
+                                    f"Could not read contour "
+                                    f"image id {volume_string}"
+                                    f"contour name {contour_name} "
+                                    f"slice id {slice_id}."
+                                ),
+                                UserWarning,
+                            )
+                        else:
+                            (
+                                contour_dict[volume_string][contour_name][slice_id]
+                            ) = contour
 
                 if chunk.type == 1073741824:  # image data
                     raw = f.read(20)
@@ -238,6 +282,24 @@ class E2E(object):
                         # here assumes laterality stored in chunk before the image itself
                         if laterality and volume_string not in laterality_dict:
                             laterality_dict[volume_string] = laterality
+
+            contour_data = {}
+            for volume_id, contours in contour_dict.items():
+                if volume_id in volume_dict:
+                    num_slices = int(volume_dict[volume_id]) + 1
+                else:
+                    num_slices = None
+                contour_data[volume_id] = {
+                    k: [None] * (num_slices or len(v))
+                    for k, v in contours.items()
+                }
+
+                for contour_name, contour_values in contours.items():
+                    for slice_id, contour in contour_values.items():
+                        (
+                            contour_data[volume_id][contour_name][slice_id]
+                        ) = contour
+
             oct_volumes = []
             for key, volume in chain(
                 volume_array_dict.items(), volume_array_dict_additional.items()
@@ -256,6 +318,7 @@ class E2E(object):
                         sex=self.sex,
                         first_name=self.first_name,
                         surname=self.surname,
+                        contours=contour_data.get(key)
                     )
                 )
 
