@@ -2,7 +2,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.2.0
+    rev: v4.3.0
     hooks:
       - id: check-ast                  # Simply check whether the files parse as valid python
       - id: check-case-conflict        # Check for files that would conflict in case-insensitive filesystems
@@ -18,14 +18,14 @@ repos:
       - id: isort
         args: ["--profile", "black"]
   - repo: https://github.com/psf/black
-    rev: stable
+    rev: 22.6.0
     hooks:
       - id: black
   - repo: https://github.com/pycqa/flake8
-    rev: 4.0.1
+    rev: 5.0.4
     hooks:
       - id: flake8
         args: [
-          '--ignore=E501,F841,E203',                 # allow long-lines, variables to be assigned but not used
+          '--ignore=E501,F841,E203,W503',                 # allow long-lines, variables to be assigned but not used
           '--per-file-ignores=__init__.py:F401' # allow unused imports in __init__.py
         ]
