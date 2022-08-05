@@ -201,7 +201,7 @@ class E2E(object):
                     except Exception:
                         laterality = None
 
-                if chunk.type == 10019: # contour data
+                if chunk.type == 10019:  # contour data
                     raw = f.read(16)
                     contour_data = self.contour_structure.parse(raw)
 
@@ -213,14 +213,11 @@ class E2E(object):
                         contour_name = f"contour{contour_data.id}"
                         try:
                             raw_volume = np.frombuffer(
-                                f.read(contour_data.width * 4),
-                                dtype=np.float32
+                                f.read(contour_data.width * 4), dtype=np.float32
                             )
                             contour = np.array(raw_volume)
                             max_float = np.finfo(np.float32).max
-                            contour[
-                                (contour < 1e-9) | (contour == max_float)
-                            ] = np.nan
+                            contour[(contour < 1e-9) | (contour == max_float)] = np.nan
                         except Exception as e:
                             warnings.warn(
                                 (
@@ -276,7 +273,9 @@ class E2E(object):
                                         image
                                     )
                                 else:
-                                    volume_array_dict_additional[volume_string] = [image]
+                                    volume_array_dict_additional[volume_string] = [
+                                        image
+                                    ]
                             # here assumes laterality stored in chunk before the image itself
                             if laterality and volume_string not in laterality_dict:
                                 laterality_dict[volume_string] = laterality
@@ -288,15 +287,12 @@ class E2E(object):
                 else:
                     num_slices = None
                 contour_data[volume_id] = {
-                    k: [None] * (num_slices or len(v))
-                    for k, v in contours.items()
+                    k: [None] * (num_slices or len(v)) for k, v in contours.items()
                 }
 
                 for contour_name, contour_values in contours.items():
                     for slice_id, contour in contour_values.items():
-                        (
-                            contour_data[volume_id][contour_name][slice_id]
-                        ) = contour
+                        (contour_data[volume_id][contour_name][slice_id]) = contour
 
             oct_volumes = []
             for key, volume in chain(
@@ -314,7 +310,7 @@ class E2E(object):
                         sex=self.sex,
                         first_name=self.first_name,
                         surname=self.surname,
-                        contours=contour_data.get(key)
+                        contours=contour_data.get(key),
                     )
                 )
 

@@ -38,7 +38,7 @@ class OCTVolumeWithMetaData(object):
         patient_dob=None,
         first_name=None,
         surname=None,
-        contours=None
+        contours=None,
     ):
         self.volume = volume
         self.laterality = laterality
@@ -77,7 +77,7 @@ class OCTVolumeWithMetaData(object):
                         and v[slice_id] is not None
                         and not np.isnan(v[slice_id]).all()
                     ):
-                        plt.plot(v[slice_id], color='r')
+                        plt.plot(v[slice_id], color="r")
             plt.axis("off")
             plt.title("{}".format(slice_id))
         plt.suptitle("OCT volume with {} slices.".format(self.num_slices))
