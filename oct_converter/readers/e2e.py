@@ -90,7 +90,7 @@ class E2E(object):
         self.lat_structure = Struct(
             "unknown" / Array(14, Int8un), "laterality" / Int8un, "unknown2" / Int8un
         )
-        self.contour_structure  = Struct(
+        self.contour_structure = Struct(
             "unknown0" / Int32un,
             "id" / Int32un,
             "unknown1" / Int32un,
@@ -262,26 +262,24 @@ class E2E(object):
                                 ),
                                 UserWarning,
                             )
-                            break
-
-                        image = 256 * pow(image, 1.0 / 2.4)
-
-                        if volume_string in volume_array_dict.keys():
-                            volume_array_dict[volume_string][
-                                int(chunk.slice_id / 2) - 1
-                            ] = image
                         else:
-                            # try to capture these additional images
-                            if volume_string in volume_array_dict_additional.keys():
-                                volume_array_dict_additional[volume_string].append(
-                                    image
-                                )
+                            image = 256 * pow(image, 1.0 / 2.4)
+
+                            if volume_string in volume_array_dict.keys():
+                                volume_array_dict[volume_string][
+                                    int(chunk.slice_id / 2) - 1
+                                ] = image
                             else:
-                                volume_array_dict_additional[volume_string] = [image]
-                            # print('Failed to save image data for volume {}'.format(volume_string))
-                        # here assumes laterality stored in chunk before the image itself
-                        if laterality and volume_string not in laterality_dict:
-                            laterality_dict[volume_string] = laterality
+                                # try to capture these additional images
+                                if volume_string in volume_array_dict_additional.keys():
+                                    volume_array_dict_additional[volume_string].append(
+                                        image
+                                    )
+                                else:
+                                    volume_array_dict_additional[volume_string] = [image]
+                            # here assumes laterality stored in chunk before the image itself
+                            if laterality and volume_string not in laterality_dict:
+                                laterality_dict[volume_string] = laterality
 
             contour_data = {}
             for volume_id, contours in contour_dict.items():
@@ -312,9 +310,7 @@ class E2E(object):
                         volume=volume,
                         patient_id=self.patient_id,
                         volume_id=key,
-                        laterality=laterality_dict[key]
-                        if key in laterality_dict.keys()
-                        else None,
+                        laterality=laterality_dict.get(key),
                         sex=self.sex,
                         first_name=self.first_name,
                         surname=self.surname,

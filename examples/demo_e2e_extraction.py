@@ -6,7 +6,7 @@ oct_volumes = (
     file.read_oct_volume()
 )  # returns a list of all OCT volumes with additional metadata if available
 for volume in oct_volumes:
-    volume.peek()  # plots a montage of the volume
+    volume.peek(show_contours=True)  # plots a montage of the volume
     volume.save("{}_{}.avi".format(volume.volume_id, volume.laterality))
 
 fundus_images = (

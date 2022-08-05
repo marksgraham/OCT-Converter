@@ -58,7 +58,7 @@ class OCTVolumeWithMetaData(object):
             rows (int) : Number of rows in the plot.
             cols (int) : Number of columns in the plot.
             filepath (str): Location to save montage to.
-            show_contours (boolen): If set to ``True``, will plot contours on the OCT volume.
+            show_contours (bool): If set to ``True``, will plot contours on the OCT volume.
         """
         images = rows * cols
         x_size = rows * self.volume[0].shape[0]
