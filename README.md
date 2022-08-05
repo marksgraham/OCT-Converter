@@ -61,6 +61,9 @@ fundus_image.save('fds_testing_fundus.jpg')
 Are welcome! Please open a [new issue](https://github.com/marksgraham/OCT-Converter/issues/new) to discuss any potential contributions.
 
 ## Updates
+5 August 2022
+- Contours (layer segmentations) are now extracted from .e2e files.
+
 16 June 2022
 - Initial support for reading Optovue OCTs
 - Laterality is now extracted separately for each OCT/fundus image for .e2e files.
