@@ -25,6 +25,7 @@ class OCTVolumeWithMetaData(object):
         num_slices (int): Number of b-scans present in volume.
         first_name (str): Patient first name.
         surname (str): Patient second name.
+        contours (dict of list): Contours data.
     """
 
     def __init__(
@@ -37,6 +38,7 @@ class OCTVolumeWithMetaData(object):
         patient_dob=None,
         first_name=None,
         surname=None,
+        contours=None,
     ):
         self.volume = volume
         self.laterality = laterality
@@ -47,14 +49,16 @@ class OCTVolumeWithMetaData(object):
         self.num_slices = len(self.volume)
         self.first_name = first_name
         self.surname = surname
+        self.contours = contours
 
-    def peek(self, rows=5, cols=5, filepath=None):
+    def peek(self, rows=5, cols=5, filepath=None, show_contours=False):
         """Plots a montage of the OCT volume. Optionally saves the plot if a filepath is provided.
 
         Args:
             rows (int) : Number of rows in the plot.
             cols (int) : Number of columns in the plot.
             filepath (str): Location to save montage to.
+            show_contours (bool): If set to ``True``, will plot contours on the OCT volume.
         """
         images = rows * cols
         x_size = rows * self.volume[0].shape[0]
@@ -63,10 +67,19 @@ class OCTVolumeWithMetaData(object):
         slices_indices = np.linspace(0, self.num_slices - 1, images).astype(np.int)
         plt.figure(figsize=(12 * ratio, 12))
         for i in range(images):
+            slice_id = slices_indices[i]
             plt.subplot(rows, cols, i + 1)
-            plt.imshow(self.volume[slices_indices[i]], cmap="gray")
+            plt.imshow(self.volume[slice_id], cmap="gray")
+            if show_contours and self.contours is not None:
+                for v in self.contours.values():
+                    if (
+                        slice_id < len(v)
+                        and v[slice_id] is not None
+                        and not np.isnan(v[slice_id]).all()
+                    ):
+                        plt.plot(v[slice_id], color="r")
             plt.axis("off")
-            plt.title("{}".format(slices_indices[i]))
+            plt.title("{}".format(slice_id))
         plt.suptitle("OCT volume with {} slices.".format(self.num_slices))
 
         if filepath is not None:
