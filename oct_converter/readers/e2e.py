@@ -1,10 +1,21 @@
 import warnings
 from collections import defaultdict
+from datetime import datetime, timedelta
 from itertools import chain
 from pathlib import Path
 
 import numpy as np
-from construct import Array, Int8un, Int16un, Int32sn, Int32un, PaddedString, Struct
+from construct import (
+    Array,
+    Float32l,
+    Int8un,
+    Int16un,
+    Int32sn,
+    Int32un,
+    Int64un,
+    PaddedString,
+    Struct,
+)
 
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
 
@@ -97,10 +108,40 @@ class E2E(object):
             "width" / Int32un,
         )
 
+        # following the spec from
+        # https://github.com/neurodial/LibE2E/blob/d26d2d9db64c5f765c0241ecc22177bb0c440c87/E2E/dataelements/bscanmetadataelement.cpp#L75
+        self.bscan_metadata = Struct(
+            "unknown1" / Int32un,
+            "imgSizeX" / Int32un,
+            "imgSizeY" / Int32un,
+            "posX1" / Float32l,
+            "posX2" / Float32l,
+            "posY1" / Float32l,
+            "posY2" / Float32l,
+            "zero1" / Int32un,
+            "unknown2" / Float32l,
+            "scaley" / Float32l,
+            "unknown3" / Float32l,
+            "zero2" / Int32un,
+            "unknown4" / Array(2, Float32l),
+            "zero3" / Int32un,
+            "imgSizeWidth" / Int32un,
+            "numImages" / Int32un,
+            "aktImage" / Int32un,
+            "scanType" / Int32un,
+            "centrePosX" / Float32l,
+            "centrePosY" / Float32l,
+            "unknown5" / Int32un,
+            "acquisitionTime" / Int64un,
+            "numAve" / Int32un,
+            "imgQuality" / Float32l,
+        )
+
         self.power = pow(2, 10)
         self.sex = None
         self.first_name = None
         self.surname = None
+        self.acquisition_date = None
 
     def read_oct_volume(self):
         """Reads OCT data.
@@ -190,7 +231,19 @@ class E2E(object):
                     except Exception:
                         pass
 
-                if chunk.type == 11:  # laterality data
+                elif chunk.type == 10004:  # bscan metadata
+                    raw = f.read(104)
+                    bscan_metadata = self.bscan_metadata.parse(raw)
+                    start_epoch = datetime(
+                        year=1600, month=12, day=31, hour=23, minute=59
+                    )
+                    acquisition_datetime = start_epoch + timedelta(
+                        seconds=bscan_metadata.acquisitionTime * 1e-7
+                    )
+                    if self.acquisition_date is None:
+                        self.acquisition_date = acquisition_datetime.date()
+
+                elif chunk.type == 11:  # laterality data
                     raw = f.read(20)
                     try:
                         laterality_data = self.lat_structure.parse(raw)
@@ -201,7 +254,7 @@ class E2E(object):
                     except Exception:
                         laterality = None
 
-                if chunk.type == 10019:  # contour data
+                elif chunk.type == 10019:  # contour data
                     raw = f.read(16)
                     contour_data = self.contour_structure.parse(raw)
 
@@ -233,7 +286,7 @@ class E2E(object):
                                 contour_dict[volume_string][contour_name][slice_id]
                             ) = contour
 
-                if chunk.type == 1073741824:  # image data
+                elif chunk.type == 1073741824:  # image data
                     raw = f.read(20)
                     image_data = self.image_structure.parse(raw)
 
@@ -305,11 +358,12 @@ class E2E(object):
                     OCTVolumeWithMetaData(
                         volume=volume,
                         patient_id=self.patient_id,
-                        volume_id=key,
-                        laterality=laterality_dict.get(key),
-                        sex=self.sex,
                         first_name=self.first_name,
                         surname=self.surname,
+                        sex=self.sex,
+                        acquisition_date=self.acquisition_date,
+                        volume_id=key,
+                        laterality=laterality_dict.get(key),
                         contours=contour_data.get(key),
                     )
                 )
