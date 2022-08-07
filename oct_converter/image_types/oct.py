@@ -17,38 +17,48 @@ class OCTVolumeWithMetaData(object):
 
     Attributes:
         volume (list of np.array): All the volume's b-scans.
-        laterality (str): Left or right eye.
+
         patient_id (str): Patient ID.
-        volume_id (str): Volume ID.
-        DOB (str): Patient date of birth.
-        sex (str): Patient sex.
-        num_slices (int): Number of b-scans present in volume.
         first_name (str): Patient first name.
         surname (str): Patient second name.
+        sex (str): Patient sex.
+        DOB (str): Patient date of birth.
+
+        volume_id (str): Volume ID.
+        acquisition_date (datetime): date image acquired.
+        num_slices (int): Number of b-scans present in volume.
+        laterality (str): Left or right eye.
         contours (dict of list): Contours data.
     """
 
     def __init__(
         self,
         volume,
-        laterality=None,
-        sex=None,
         patient_id=None,
-        volume_id=None,
-        patient_dob=None,
         first_name=None,
         surname=None,
+        sex=None,
+        patient_dob=None,
+        volume_id=None,
+        acquisition_date=None,
+        laterality=None,
         contours=None,
     ):
+        # image
         self.volume = volume
-        self.laterality = laterality
+
+        # patient data
         self.patient_id = patient_id
-        self.volume_id = volume_id
-        self.DOB = patient_dob
-        self.sex = sex
-        self.num_slices = len(self.volume)
         self.first_name = first_name
         self.surname = surname
+        self.sex = sex
+        self.DOB = patient_dob
+
+        # volume data
+        self.volume_id = volume_id
+        self.acquistion_date = acquisition_date
+        self.laterality = laterality
+        self.num_slices = len(self.volume)
         self.contours = contours
 
     def peek(self, rows=5, cols=5, filepath=None, show_contours=False):
