@@ -61,8 +61,9 @@ fundus_image.save('fds_testing_fundus.jpg')
 Are welcome! Please open a [new issue](https://github.com/marksgraham/OCT-Converter/issues/new) to discuss any potential contributions.
 
 ## Updates
-5 August 2022
+7 August 2022
 - Contours (layer segmentations) are now extracted from .e2e files.
+- Acquisition date is now extracted from .e2e files.
 
 16 June 2022
 - Initial support for reading Optovue OCTs
@@ -90,6 +91,7 @@ Are welcome! Please open a [new issue](https://github.com/marksgraham/OCT-Conver
 
 ## Related projects
 - [uocte](https://bitbucket.org/uocte/uocte/wiki/Home) inspired and enabled this project.
+- [LibE2E](https://github.com/neurodial/LibE2E) provided some additional descriptions of the .e2e file spec.
 - [eyepy](https://github.com/MedVisBonn/eyepy) can read HEYEY XML and VOL formats, and [eyelab](https://github.com/MedVisBonn/eyelab) is a tool for annotating this data.
 
 ## Clinical use
