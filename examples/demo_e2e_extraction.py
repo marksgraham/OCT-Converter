@@ -1,11 +1,6 @@
 from oct_converter.readers import E2E
 
-filepath = "/Users/mark/Library/CloudStorage/Dropbox/Work/Projects/OCT-Converter/my_example_volumes/e2e-vassily/PatientIDTIN0007-ADAMIDIS/DIMIT001.E2E"
-filepath = "/Users/mark/Library/CloudStorage/Dropbox/Work/Projects/OCT-Converter/my_example_volumes/e2e-vassily/PatientIDTIN0007-ADAMIDIS/DIMIT002.E2E"
-# filepath = "/Users/mark/Library/CloudStorage/Dropbox/Work/Projects/OCT-Converter/my_example_volumes/e2e-vassily/new-e2e-11-06-2022/TIN0901T.E2E"
-# filepath = "/Users/mark/Library/CloudStorage/Dropbox/Work/Projects/OCT-Converter/my_example_volumes/e2e-vassily/new-e2e-11-06-2022/TIN0902T.E2E"
-# filepath = "/Users/mark/Library/CloudStorage/Dropbox/Work/Projects/OCT-Converter/my_example_volumes/e2e-vassily/problem20-06-22/ADAMI02I.E2E"
-filepath = "/Users/mark/Library/CloudStorage/Dropbox/Work/Projects/OCT-Converter/my_example_volumes/e2e-vassily/TIN0001T.E2E"
+filepath = "/Users/mark/Downloads/Sample/001_O01S.E2E"
 file = E2E(filepath)
 oct_volumes = (
     file.read_oct_volume()
