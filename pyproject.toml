@@ -1,0 +1,49 @@
+# pyproject.toml
+
+[build-system]
+requires      = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oct_converter"
+version = "0.3.0"
+description = "Extract OCT and fundus data from proprietary file formats."
+readme = "README.md"
+authors = [{ name = "Mark Graham", email = "markgraham539@gmail.com" }]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["oct", "fundus", "reader", "fda", "e2e", "zeiss", "heidelberg", "topcon"]
+dependencies = [
+    "construct",
+    "imageio",
+    "natsort",
+    "numpy",
+    "opencv-python",
+    "pydicom",
+    "six",
+    "matplotlib",
+    "imageio-ffmpeg",
+    "pylibjpeg",
+    "h5py",
+]
+requires-python = ">=3.7"
+
+[project.urls]
+Homepage = "https://github.com/marksgraham/OCT-Converter"
+
+[tool.bumpver]
+current_version = "0.2.0"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message = "bump version {old_version} -> {new_version}"
+commit = true
+tag = false
+push = false
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = [
+    'current_version = "{version}"',
+]
