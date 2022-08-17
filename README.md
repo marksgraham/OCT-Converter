@@ -90,9 +90,9 @@ Are welcome! Please open a [new issue](https://github.com/marksgraham/OCT-Conver
 - Can now read fundus data from .fda files.
 
 ## Related projects
-- [uocte](https://bitbucket.org/uocte/uocte/wiki/Home) inspired and enabled this project.
-- [LibE2E](https://github.com/neurodial/LibE2E) provided some additional descriptions of the .e2e file spec.
-- [eyepy](https://github.com/MedVisBonn/eyepy) can read HEYEY XML and VOL formats, and [eyelab](https://github.com/MedVisBonn/eyelab) is a tool for annotating this data.
+- [uocte](https://bitbucket.org/uocte/uocte/wiki/Home) inspired and enabled this project
+- [LibE2E](https://github.com/neurodial/LibE2E) and [LibOctData](https://github.com/neurodial/LibOctData) provided some additional descriptions of the .e2e file spec
+- [eyepy](https://github.com/MedVisBonn/eyepy) can read HEYEY XML and VOL formats, and [eyelab](https://github.com/MedVisBonn/eyelab) is a tool for annotating this data
 
 ## Clinical use
 This is research software and any data extracted using it should not be used for clinical decision-making.
