@@ -2,20 +2,11 @@
 
 
 # OCT Converter #
+In opthalmology, data acquired from the scanner is often exported in the manufacturer's propietary file format. OCT-Converter provides python-based tools for extracting images (optical coherence tomography and fundus), as well as associated metadata, from these files.
 
-This repository contains code for extracting the raw optical coherence tomography (OCT) and fundus data from
-manufacturer's proprietary file formats.
 <p align="center">
     <img src="../assets/oct.gif?raw=true">
 </p>
-
-## Motivation
-Research in ophthalmology is often hindered by manufacturer's usage of proprietary data formats for storing their data.
-For example, until recently, the ~200,000 OCT scans in the UK Biobank project was only available in Topcon's .fds
-file format, which prevented bulk processing and analysis. The only freely available software that allows these scans
-to be accessed is  [uocte](https://bitbucket.org/uocte/uocte/wiki/Home), which is written in C++ and is no longer
-maintained. This repository aims to make available python-based tools for reading these proprietary formats.
-
 
 ## Supported file formats
 * .fds (Topcon)
@@ -24,7 +15,7 @@ maintained. This repository aims to make available python-based tools for readin
 * .img (Zeiss)
 * .oct (Bioptigen)
 * .OCT (Optovue)
-* .dcm (both standard, see [Dicom](oct_converter/readers/dicom.py), and Zeiss' obfuscated version, see [ZEISSDicom](oct_converter/readers/zeissdicom.py) )
+* .dcm (both the standard kind, see [Dicom](oct_converter/readers/dicom.py), and Zeiss' obfuscated version, see [ZEISSDicom](oct_converter/readers/zeissdicom.py))
 
 ## Installation
 Requires python 3.7 or higher.
