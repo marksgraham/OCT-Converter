@@ -2,7 +2,7 @@
 
 
 # OCT Converter #
-In opthalmology, data acquired from the scanner is often exported in the manufacturer's propietary file format. OCT-Converter provides python-based tools for extracting images (optical coherence tomography and fundus), as well as associated metadata, from these files.
+In ophthalmology, data acquired from the scanner is often exported in the manufacturer's proprietary file format. OCT-Converter provides python-based tools for extracting images (optical coherence tomography and fundus), as well as associated metadata, from these files.
 
 <p align="center">
     <img width="320" height="320" src="https://user-images.githubusercontent.com/7947315/202814956-6e7e6702-82f4-4250-8625-ec23c1727e4f.jpg">
