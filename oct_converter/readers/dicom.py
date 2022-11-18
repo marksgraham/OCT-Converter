@@ -19,7 +19,9 @@ class Dicom(object):
 
         dicom_data = pydicom.dcmread(self.filepath)
         if dicom_data.Manufacturer.startswith("Carl Zeiss Meditec"):
-            raise ValueError("This appears to be a Zeiss DCM. You may need to read with the ZEISSDCM class.")
+            raise ValueError(
+                "This appears to be a Zeiss DCM. You may need to read with the ZEISSDCM class."
+            )
         pixel_data = dicom_data.pixel_array
         oct_volume = OCTVolumeWithMetaData(volume=pixel_data)
         return oct_volume
