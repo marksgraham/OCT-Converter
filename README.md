@@ -24,7 +24,7 @@ maintained. This repository aims to make available python-based tools for readin
 * .img (Zeiss)
 * .oct (Bioptigen)
 * .OCT (Optovue)
-* .dcm
+* .dcm (both standard, see [Dicom](oct_converter/readers/dicom.py) class, and Zeiss's obfuscated Dicoms, see [ZEISSDicom](oct_converter/readers/zeissdicom.py) )
 
 ## Installation
 Requires python 3.7 or higher.
