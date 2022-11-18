@@ -5,4 +5,4 @@ from .fda import FDA
 from .fds import FDS
 from .img import IMG
 from .poct import POCT
-from .zeissdcm import ZEISSDICOM
+from .zeissdcm import ZEISSDCM
