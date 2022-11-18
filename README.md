@@ -24,7 +24,7 @@ maintained. This repository aims to make available python-based tools for readin
 * .img (Zeiss)
 * .oct (Bioptigen)
 * .OCT (Optovue)
-* .dcm (both standard, see [Dicom](oct_converter/readers/dicom.py) class, and Zeiss's obfuscated Dicoms, see [ZEISSDicom](oct_converter/readers/zeissdicom.py) )
+* .dcm (both standard, see [Dicom](oct_converter/readers/dicom.py), and Zeiss' obfuscated version, see [ZEISSDicom](oct_converter/readers/zeissdicom.py) )
 
 ## Installation
 Requires python 3.7 or higher.
@@ -61,6 +61,9 @@ fundus_image.save('fds_testing_fundus.jpg')
 Are welcome! Please open a [new issue](https://github.com/marksgraham/OCT-Converter/issues/new) to discuss any potential contributions.
 
 ## Updates
+18 November 2022
+- Initial supported for reading the Zeiss Dicom format.
+
 7 August 2022
 - Contours (layer segmentations) are now extracted from .e2e files.
 - Acquisition date is now extracted from .e2e files.
