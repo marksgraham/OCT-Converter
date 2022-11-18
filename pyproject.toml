@@ -37,7 +37,7 @@ Homepage = "https://github.com/marksgraham/OCT-Converter"
 
 [tool.setuptools.packages.find]
 where = [""]
-include = ["oct_converter*"]
+include = ["oct_converter*","examples"]
 exclude= ["my_example_volumes*"]
 
 [tool.bumpver]
