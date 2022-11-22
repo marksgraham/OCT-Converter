@@ -54,7 +54,7 @@ Are welcome! Please open a [new issue](https://github.com/marksgraham/OCT-Conver
 
 ## Updates
 18 November 2022
-- Initial supported for reading the Zeiss Dicom format.
+- Initial support for reading the Zeiss Dicom format.
 
 7 August 2022
 - Contours (layer segmentations) are now extracted from .e2e files.
