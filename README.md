@@ -1,13 +1,16 @@
+<h1 align="center">OCT Converter</h1>
+<p align="center">
+ Python-based tools for reading OCT and fundus data.
+</p>
 
-
-
-# OCT Converter #
-In ophthalmology, data acquired from the scanner is often exported in the manufacturer's proprietary file format. OCT-Converter provides python-based tools for extracting images (optical coherence tomography and fundus), as well as associated metadata, from these files.
 
 <p align="center">
     <img width="320" height="320" src="https://user-images.githubusercontent.com/7947315/202814956-6e7e6702-82f4-4250-8625-ec23c1727e4f.jpg">
     <img width="320" height="320" src="https://user-images.githubusercontent.com/7947315/202814575-9f18b7ca-3028-4d23-9b82-015995c44eab.gif">
 </p>
+
+## Description
+In ophthalmology, data acquired from the scanner is often exported in the manufacturer's proprietary file format. OCT-Converter provides python-based tools for extracting images (optical coherence tomography and fundus), as well as associated metadata, from these files.
 
 ## Supported file formats
 * .fds (Topcon)
