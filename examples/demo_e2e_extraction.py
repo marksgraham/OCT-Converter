@@ -1,6 +1,6 @@
 from oct_converter.readers import E2E
 
-filepath = "/Users/mark/Downloads/Sample/001_O01S.E2E"
+filepath = "../sample_files/sample.E2E"
 file = E2E(filepath)
 oct_volumes = (
     file.read_oct_volume()

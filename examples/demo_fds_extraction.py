@@ -2,7 +2,7 @@ from oct_converter.readers import FDS
 
 # An example .fds file can be downloaded from the Biobank website:
 # https://biobank.ndph.ox.ac.uk/showcase/refer.cgi?id=30
-filepath = "/home/mark/Downloads/eg_oct_fds(1).fds"
+filepath = "/home/mark/Downloads/eg_oct_fds.fds"
 fds = FDS(filepath)
 
 oct_volume = (

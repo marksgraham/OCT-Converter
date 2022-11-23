@@ -2,9 +2,7 @@ from pathlib import Path
 
 from oct_converter.readers import BOCT
 
-examplefile = r"5640_OD_V_1x1_0_0000012.OCT"
-filepath = Path(__file__).with_name(examplefile)
-print(filepath)
+filepath = "../sample_files/sample.OCT"
 boct = BOCT(filepath)
 oct_volumes = boct.read_oct_volume(
     diskbuffered=True
