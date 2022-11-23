@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from oct_converter.readers import BOCT
 
 filepath = "../sample_files/sample.OCT"
