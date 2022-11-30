@@ -1,0 +1,16 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: OCT-Converter
+message: >-
+  If you make use of this software, please cite it
+  using the metadata from this file.
+type: software
+authors:
+  - given-names: Mark
+    family-names: Graham
+    email: markgraham539@gmail.com
+    affiliation: King's College London
+    orcid: 'https://orcid.org/0000-0002-4170-1095'
+version: v0.5.0
