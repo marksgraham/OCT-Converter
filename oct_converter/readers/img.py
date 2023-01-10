@@ -20,6 +20,8 @@ class IMG(object):
     def read_oct_volume(self, rows=1024, cols=512, interlaced=False):
         """Reads OCT data.
         Args:
+            rows (int): Can be used to specify a custom row dimension of the image slice. Defaults to 1024 pixels if not specified.
+            cols (int): Can be used to specify a custom column dimension of the image slice. Defaults to 512 pixels if not specified.
             interlaced (bool): Determines whether data needs to be de-interlaced.
 
             Returns:
@@ -42,4 +44,4 @@ class IMG(object):
         oct_volume = OCTVolumeWithMetaData(
             [volume[:, :, i] for i in range(volume.shape[2])]
         )
-        return oct_volume, num_slices
+        return oct_volume
