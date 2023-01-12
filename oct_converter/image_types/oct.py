@@ -74,7 +74,7 @@ class OCTVolumeWithMetaData(object):
         x_size = rows * self.volume[0].shape[0]
         y_size = cols * self.volume[0].shape[1]
         ratio = y_size / x_size
-        slices_indices = np.linspace(0, self.num_slices - 1, images).astype(np.int)
+        slices_indices = np.linspace(0, self.num_slices - 1, images).astype(np.int16)
         plt.figure(figsize=(12 * ratio, 12))
         for i in range(images):
             slice_id = slices_indices[i]
