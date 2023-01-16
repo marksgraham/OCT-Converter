@@ -176,8 +176,8 @@ class BOCT(object):
 
         if scantype == "linear":
             # linear bscans can contain multiple scans at one position
-            # reorder into (framecount+scancount,1,y,x)
-            framecount += scancount
+            # reorder into (framecount*scancount,1,y,x)
+            framecount *= scancount
             scancount = 1
         self.volume_shape = (
             framecount,
