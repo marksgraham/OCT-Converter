@@ -1,14 +1,20 @@
 from __future__ import annotations
-from typing import Union, List, BinaryIO, Tuple
-import numpy as np
-from numpy.typing import NDArray
-from pathlib import Path
+
 import tempfile
+from pathlib import Path
+from typing import BinaryIO, List, Tuple, Union
+
 import h5py
-from .binary_structs import bioptigen_file_structure, bioptigen_oct_header_struct
+import numpy as np
 from construct import Struct
-from oct_converter.image_types import OCTVolumeWithMetaData
+from numpy.typing import NDArray
+
 from oct_converter.exceptions import InvalidOCTReaderError
+from oct_converter.image_types import OCTVolumeWithMetaData
+
+from .binary_structs import bioptigen_file_structure, bioptigen_oct_header_struct
+
+
 class BOCT(object):
     """Class for extracting data from Bioptigen's .OCT file format.
     .OCT stores 4d volumes (time series of 3D volumes with the same shape)
@@ -22,20 +28,24 @@ class BOCT(object):
     file_structure = bioptigen_file_structure
     header_structure = bioptigen_oct_header_struct
 
-    def __init__(self, filepath:Union[Path,str]):
+    def __init__(self, filepath: Union[Path, str]):
         self.filepath = Path(filepath)
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
         self._validate(self.filepath)
 
-    def _validate(self, path:Path) ->  bool:
+    def _validate(self, path: Path) -> bool:
         try:
             self.header_structure.parse_file(path)
         except UnicodeDecodeError:
-            raise InvalidOCTReaderError('OCT header does not match Bioptigen .OCT format. Did you mean to use Optovue .oct (POCT)?')
+            raise InvalidOCTReaderError(
+                "OCT header does not match Bioptigen .OCT format. Did you mean to use Optovue .oct (POCT)?"
+            )
         return True
-        
-    def read_oct_volume(self, diskbuffered:bool=False) -> List[OCTVolumeWithMetaData]:
+
+    def read_oct_volume(
+        self, diskbuffered: bool = False
+    ) -> List[OCTVolumeWithMetaData]:
         """Reads OCT data.
         Args:
             diskbuffered (bool): If True, reduces memory usage by storing volume on disk using HDF5
@@ -69,21 +79,20 @@ class BOCT(object):
         bscan_shape = (self.volume_shape[2], self.volume_shape[3])
         self.vol_frames_shape = (self.volume_shape[0], self.volume_shape[1])
         if diskbuffered:
-            self.vol = self._create_disk_buffer(buffer_shape = bscan_shape)
+            self.vol = self._create_disk_buffer(buffer_shape=bscan_shape)
         else:
             self.vol = np.empty(self.volume_shape, dtype=np.uint16)
 
         return self.load_oct_volume()
 
-    def _create_disk_buffer(self, buffer_shape:Tuple[int,int], name:str="vol") -> h5py.Dataset:
+    def _create_disk_buffer(
+        self, buffer_shape: Tuple[int, int], name: str = "vol"
+    ) -> h5py.Dataset:
         x, y = buffer_shape
         chunksize = (1, 1, x, y)
         tf = h5py.File(tempfile.TemporaryFile(), "w")
         return tf.create_dataset(
-            name, 
-            shape=self.volume_shape, 
-            dtype=np.uint16, 
-            chunks=chunksize
+            name, shape=self.volume_shape, dtype=np.uint16, chunks=chunksize
         )
 
     def load_oct_volume(self) -> List[OCTVolumeWithMetaData]:
@@ -92,7 +101,9 @@ class BOCT(object):
             with open(self.filepath, "rb") as f:
                 for t, v in enumerate(volFrames):
                     for z, frame in enumerate(v):
-                        self.vol[t, z, :, :] = frame.load(f, self.frames.Ascans, self.frames.depth)
+                        self.vol[t, z, :, :] = frame.load(
+                            f, self.frames.Ascans, self.frames.depth
+                        )
         except Exception as e:
             print(e)
             print("Stopping load")
@@ -102,30 +113,31 @@ class BOCT(object):
         ]
 
     def read_fundus_image(self) -> None:
-        return 
+        return
 
 
 class OCTFrame:
-    def __init__(self, frame:Struct):
+    def __init__(self, frame: Struct):
         self.count = frame.image.totalpixels
         self.abs_pos = frame.image.offset
 
-    def from_bytes(self, f:BinaryIO) -> NDArray[np.uint16]:
+    def from_bytes(self, f: BinaryIO) -> NDArray[np.uint16]:
         f.seek(self.abs_pos, 0)
         im = np.fromfile(f, dtype=np.uint16, count=self.count)
         return im
 
-    def load(self, f:BinaryIO, Ascans:int, depth:int) -> NDArray[np.uint16]:
-        return np.resize(self.from_bytes(f), (Ascans,depth))
+    def load(self, f: BinaryIO, Ascans: int, depth: int) -> NDArray[np.uint16]:
+        return np.resize(self.from_bytes(f), (Ascans, depth))
+
 
 class FrameGenerator:
-    def __init__(self, oct_data:Struct):
+    def __init__(self, oct_data: Struct):
         self.Ascans = oct_data[0].image.columns
         self.depth = oct_data[0].image.rows
         self.data = np.asarray([OCTFrame(frame) for frame in oct_data])
         self.count = len(self.data)
 
-    def reorder(self, indexArr:NDArray[np.int_]) -> FrameGenerator:
+    def reorder(self, indexArr: NDArray[np.int_]) -> FrameGenerator:
         try:
             self.data = self.data[indexArr]
         except Exception as e:
