@@ -93,4 +93,4 @@ Are welcome! Please open a [new issue](https://github.com/marksgraham/OCT-Conver
 - [eyepy](https://github.com/MedVisBonn/eyepy) can read HEYEY XML and VOL formats, and [eyelab](https://github.com/MedVisBonn/eyelab) is a tool for annotating this data
 
 ## Clinical use
-This is research software and any data extracted using it should not be used for clinical decision-making.
+We can't guarantee images extracted with OCT-Converter will match those extracted or viewed with the manufacturer's software. Any use in clinical settings is at the user's own risk.
