@@ -24,7 +24,6 @@ dependencies = [
     "numpy",
     "opencv-python",
     "pydicom",
-    "six",
     "matplotlib",
     "imageio-ffmpeg",
     "pylibjpeg",
