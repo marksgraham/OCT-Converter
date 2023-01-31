@@ -53,7 +53,7 @@ fundus_image.save('fds_testing_fundus.jpg')
 ```
 
 ## Contributions
-Are welcome! Please open a [new issue](https://github.com/marksgraham/OCT-Converter/issues/new) to discuss any potential contributions.
+Are welcome! Here is a [development roadmap](https://github.com/marksgraham/OCT-Converter/issues/86), including some easy first issues. Please open a [new issue](https://github.com/marksgraham/OCT-Converter/issues/new) to discuss any potential contributions.
 
 ## Updates
 18 November 2022
