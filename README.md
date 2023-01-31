@@ -56,6 +56,9 @@ fundus_image.save('fds_testing_fundus.jpg')
 Are welcome! Here is a [development roadmap](https://github.com/marksgraham/OCT-Converter/issues/86), including some easy first issues. Please open a [new issue](https://github.com/marksgraham/OCT-Converter/issues/new) to discuss any potential contributions.
 
 ## Updates
+31 January 2023
+- Greatly extended support for extracting metadata from .fda files
+
 18 November 2022
 - Initial support for reading the Zeiss Dicom format.
 
