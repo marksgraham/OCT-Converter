@@ -26,7 +26,6 @@ dependencies = [
     "pydicom",
     "matplotlib",
     "imageio-ffmpeg",
-    "pylibjpeg",
     "h5py",
 ]
 requires-python = ">=3.7"
