@@ -1,10 +1,10 @@
+import io
 from pathlib import Path
 
-import construct
 import numpy as np
-from construct import Int8un, Int16un, Int32un, PaddedString, Struct, GreedyString, Float64n, Float64b, Float64l
-import io
+from construct import Float64n, Int8un, Int16un, Int32un, PaddedString, Struct
 from PIL import Image
+
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
 
 
@@ -92,24 +92,24 @@ class FDA(object):
         )
 
         self.patient_info_02_header = Struct(
-            "patient_id" / PaddedString(8,'ascii'),
-            "patient_given_name" / PaddedString(8,'ascii'),
-            "patient_surname" / PaddedString(8,'ascii'),
+            "patient_id" / PaddedString(8, "ascii"),
+            "patient_given_name" / PaddedString(8, "ascii"),
+            "patient_surname" / PaddedString(8, "ascii"),
             "birth_date_type" / Int8un,
             "birth_year" / Int16un,
             "birth_month" / Int16un,
             "birth_day" / Int16un,
         )
 
-        self.fda_file_info_header = Struct (
+        self.fda_file_info_header = Struct(
             "0x2" / Int32un,
             "0x3e8" / Int32un,
-            "8.0.1.20198" / PaddedString(32,'ascii')
+            "8.0.1.20198" / PaddedString(32, "ascii"),
         )
 
-        self.capture_info_02_header = Struct (
+        self.capture_info_02_header = Struct(
             "x" / Int16un,
-            "zeros" / PaddedString(52,'ascii'),
+            "zeros" / PaddedString(52, "ascii"),
             "aquisition_year" / Int16un,
             "aquisition_month" / Int16un,
             "aquisition_day" / Int16un,
@@ -118,72 +118,72 @@ class FDA(object):
             "aquisition_second" / Int16un,
         )
 
-        self.param_scan_04_header = Struct (
+        self.param_scan_04_header = Struct(
             "tomogram_x_dimension_in_mm" / Float64n,
             "tomogram_y_dimension_in_mm" / Float64n,
             "tomogram_z_dimension_in_um" / Float64n,
         )
 
-        self.img_trc_02_header = Struct (
+        self.img_trc_02_header = Struct(
             "width" / Int32un,
             "height" / Int32un,
             "bits_per_pixel" / Int32un,
             "num_slices_0x2" / Int32un,
             "0x1" / Int8un,
-            "size" / Int32un
+            "size" / Int32un,
         )
 
-        self.param_obs_02_header = Struct (
-            "camera_model" / PaddedString(12,'utf16'),
+        self.param_obs_02_header = Struct(
+            "camera_model" / PaddedString(12, "utf16"),
             "jpeg_quality" / Int8un,
-            "color_temparature" / Int8un
+            "color_temparature" / Int8un,
         )
 
-        self.img_mot_comp_03_header = Struct (
+        self.img_mot_comp_03_header = Struct(
             "width" / Int32un,
             "height" / Int32un,
             "bits_per_pixel" / Int32un,
-            "num_slices" / Int32un
+            "num_slices" / Int32un,
         )
 
-        self.img_projection_header = Struct (
+        self.img_projection_header = Struct(
             "width" / Int32un,
             "height" / Int32un,
             "bits_per_pixel" / Int32un,
             "0x1000002" / Int32un,
-            "size" / Int32un
+            "size" / Int32un,
         )
 
-        self.effective_scan_range_header = Struct (
+        self.effective_scan_range_header = Struct(
             "bounding_box_fundus_pixel" / Int32un[4],
-            "bounding_box_trc_pixel" / Int32un[4]
+            "bounding_box_trc_pixel" / Int32un[4],
         )
 
-        self.regist_info_header = Struct (
+        self.regist_info_header = Struct(
             "bounding_box_in_fundus_pixels" / Int32un[4],
-            "bounding_box_in_trc_pixels" / Int32un[4]
+            "bounding_box_in_trc_pixels" / Int32un[4],
         )
 
-        self.result_cornea_curve_header = Struct (
+        self.result_cornea_curve_header = Struct(
             "id" / Int8un[20],
             "width" / Int32un,
             "height" / Int32un,
-            "8.0.1.21781" / Int8un[32]
+            "8.0.1.21781" / Int8un[32],
         )
 
-        self.result_cornea_thickness_header = Struct (
+        self.result_cornea_thickness_header = Struct(
             "8.0.1.21781" / Int8un[32],
             "id" / Int8un[20],
             "width" / Int32un,
-            "height" / Int32un
+            "height" / Int32un,
         )
 
-        self.contour_info_header = Struct (
+        self.contour_info_header = Struct(
             "id" / Int8un[20],
             "type" / Int16un,
             "width" / Int32un,
             "height" / Int32un,
-            "size" / Int32un
+            "size" / Int32un,
         )
 
         self.chunk_dict = self.get_list_of_file_chunks()
@@ -240,7 +240,6 @@ class FDA(object):
                 image = Image.open(io.BytesIO(raw_slice))
                 slice = np.asarray(image)
                 volume[:, :, i] = slice
-
 
         oct_volume = OCTVolumeWithMetaData(
             [volume[:, :, i] for i in range(volume.shape[2])]
@@ -309,18 +308,18 @@ class FDA(object):
             raw = f.read()
             hw_info_03_header = self.hw_info_03_header.parse(raw)
             hw_info_dict = {
-                            'model_name' : str(hw_info_03_header.model_name),
-                            'serial_number' : str(hw_info_03_header.serial_number),
-                            'zeros' : str(hw_info_03_header.zeros),
-                            'version' : str(hw_info_03_header.version),
-                            'build_year' : hw_info_03_header.build_year,
-                            'build_month' : hw_info_03_header.build_month,
-                            'build_day' : hw_info_03_header.build_day,
-                            'build_hour' : hw_info_03_header.build_hour,
-                            'build_minute' : hw_info_03_header.build_minute,
-                            'build_second' : hw_info_03_header.build_second,
-                            'version_numbers' : str(hw_info_03_header.version_numbers),
-                            }
+                "model_name": str(hw_info_03_header.model_name),
+                "serial_number": str(hw_info_03_header.serial_number),
+                "zeros": str(hw_info_03_header.zeros),
+                "version": str(hw_info_03_header.version),
+                "build_year": hw_info_03_header.build_year,
+                "build_month": hw_info_03_header.build_month,
+                "build_day": hw_info_03_header.build_day,
+                "build_hour": hw_info_03_header.build_hour,
+                "build_minute": hw_info_03_header.build_minute,
+                "build_second": hw_info_03_header.build_second,
+                "version_numbers": str(hw_info_03_header.version_numbers),
+            }
         return hw_info_dict
 
     def read_patient_info(self):
@@ -338,14 +337,14 @@ class FDA(object):
             raw = f.read()
             patient_info_02_header = self.patient_info_02_header.parse(raw)
             patient_info_dict = {
-                            'patient_id' : str(patient_info_02_header.patient_id),
-                            'patient_given_name' : str(patient_info_02_header.patient_given_name),
-                            'patient_surname' : str(patient_info_02_header.patient_surname),
-                            'birth_date_type' : patient_info_02_header.birth_date_type,
-                            'birth_year' : patient_info_02_header.birth_year,
-                            'birth_month' : patient_info_02_header.birth_month,
-                            'birth_day' : patient_info_02_header.birth_day,
-                                }
+                "patient_id": str(patient_info_02_header.patient_id),
+                "patient_given_name": str(patient_info_02_header.patient_given_name),
+                "patient_surname": str(patient_info_02_header.patient_surname),
+                "birth_date_type": patient_info_02_header.birth_date_type,
+                "birth_year": patient_info_02_header.birth_year,
+                "birth_month": patient_info_02_header.birth_month,
+                "birth_day": patient_info_02_header.birth_day,
+            }
         return patient_info_dict
 
     def read_fda_file_info(self):
@@ -363,10 +362,10 @@ class FDA(object):
             raw = f.read()
             fda_file_info_header = self.fda_file_info_header.parse(raw)
             fda_file_info_dict = {
-                            '0x2' : fda_file_info_header['0x2'],
-                            '0x3e8' : fda_file_info_header['0x3e8'],
-                            '8.0.1.20198' : fda_file_info_header['8.0.1.20198']
-                                 }
+                "0x2": fda_file_info_header["0x2"],
+                "0x3e8": fda_file_info_header["0x3e8"],
+                "8.0.1.20198": fda_file_info_header["8.0.1.20198"],
+            }
         return fda_file_info_dict
 
     def read_capture_info(self):
@@ -384,15 +383,15 @@ class FDA(object):
             raw = f.read()
             capture_info_02_header = self.capture_info_02_header.parse(raw)
             capture_info_02_dict = {
-                            'x' : capture_info_02_header.x,
-                            'zeros' : capture_info_02_header.zeros,
-                            'aquisition year' : capture_info_02_header.aquisition_year,
-                            'aquisition month' : capture_info_02_header.aquisition_month,
-                            'aquisition day': capture_info_02_header.aquisition_day,
-                            'aquisition hour': capture_info_02_header.aquisition_hour,
-                            'aquisition minute': capture_info_02_header.aquisition_minute,
-                            'aquisition second': capture_info_02_header.aquisition_second
-                                   }
+                "x": capture_info_02_header.x,
+                "zeros": capture_info_02_header.zeros,
+                "aquisition year": capture_info_02_header.aquisition_year,
+                "aquisition month": capture_info_02_header.aquisition_month,
+                "aquisition day": capture_info_02_header.aquisition_day,
+                "aquisition hour": capture_info_02_header.aquisition_hour,
+                "aquisition minute": capture_info_02_header.aquisition_minute,
+                "aquisition second": capture_info_02_header.aquisition_second,
+            }
         return capture_info_02_dict
 
     def read_param_scan(self):
@@ -410,9 +409,9 @@ class FDA(object):
             raw = f.read()
             param_scan_04_header = self.param_scan_04_header.parse(raw)
             param_scan_04_dict = {
-                'tomogram x dimension in mm' : param_scan_04_header.tomogram_x_dimension_in_mm,
-                'tomogram y dimension in mm' : param_scan_04_header.tomogram_y_dimension_in_mm,
-                'tomogram z dimension in um': param_scan_04_header.tomogram_z_dimension_in_um,
+                "tomogram x dimension in mm": param_scan_04_header.tomogram_x_dimension_in_mm,
+                "tomogram y dimension in mm": param_scan_04_header.tomogram_y_dimension_in_mm,
+                "tomogram z dimension in um": param_scan_04_header.tomogram_z_dimension_in_um,
             }
         return param_scan_04_dict
 
@@ -428,7 +427,7 @@ class FDA(object):
         with open(self.filepath, "rb") as f:
             chunk_location, chunk_size = self.chunk_dict[b"@IMG_TRC_02"]
             f.seek(chunk_location)  # Set the chunk’s current position.
-            raw = f.read(21) # skip 21 is important
+            raw = f.read(21)  # skip 21 is important
             img_trc_02_header = self.img_trc_02_header.parse(raw)
             number_pixels = img_trc_02_header.width * img_trc_02_header.height * 1
             raw_image = f.read(img_trc_02_header.size)
@@ -452,9 +451,9 @@ class FDA(object):
             raw = f.read(16)
             param_obs_02_header = self.param_obs_02_header.parse(raw)
             param_obs_02_dict = {
-                                'jpeg fine': param_obs_02_header.jpeg_quality,
-                                'color temparature': param_obs_02_header.color_temparature,
-                                }
+                "jpeg fine": param_obs_02_header.jpeg_quality,
+                "color temparature": param_obs_02_header.color_temparature,
+            }
         return param_obs_02_dict
 
     def read_img_mot_comp(self):
@@ -472,11 +471,11 @@ class FDA(object):
             raw = f.read()
             img_mot_comp_03_header = self.img_mot_comp_03_header.parse(raw)
             img_mot_comp_03_dict = {
-                                    'width': img_mot_comp_03_header.width,
-                                    'height': img_mot_comp_03_header.height,
-                                    'bits per pixel': img_mot_comp_03_header.bits_per_pixel,
-                                    'num slices': img_mot_comp_03_header.num_slices,
-                                    }
+                "width": img_mot_comp_03_header.width,
+                "height": img_mot_comp_03_header.height,
+                "bits per pixel": img_mot_comp_03_header.bits_per_pixel,
+                "num slices": img_mot_comp_03_header.num_slices,
+            }
         return img_mot_comp_03_dict
 
     def read_img_projection(self):
@@ -494,11 +493,11 @@ class FDA(object):
             raw = f.read()
             img_projection_header = self.img_projection_header.parse(raw)
             img_projection_dict = {
-                                    'width': img_projection_header.width,
-                                    'height': img_projection_header.height,
-                                    'bits per pixel': img_projection_header.bits_per_pixel,
-                                    'size': img_projection_header.size,
-                                    }
+                "width": img_projection_header.width,
+                "height": img_projection_header.height,
+                "bits per pixel": img_projection_header.bits_per_pixel,
+                "size": img_projection_header.size,
+            }
         return img_projection_dict
 
     def read_effective_scan_range(self):
@@ -516,9 +515,13 @@ class FDA(object):
             raw = f.read()
             effective_scan_range_header = self.effective_scan_range_header.parse(raw)
             effective_scan_range_dict = {
-                                    'bounding_box_fundus_pixel': list(effective_scan_range_header.bounding_box_fundus_pixel),
-                                    'bounding_box_trc_pixel': list(effective_scan_range_header.bounding_box_trc_pixel),
-                                    }
+                "bounding_box_fundus_pixel": list(
+                    effective_scan_range_header.bounding_box_fundus_pixel
+                ),
+                "bounding_box_trc_pixel": list(
+                    effective_scan_range_header.bounding_box_trc_pixel
+                ),
+            }
         return effective_scan_range_dict
 
     def read_regist_info(self):
@@ -536,9 +539,13 @@ class FDA(object):
             raw = f.read()
             regist_info_header = self.regist_info_header.parse(raw)
             regist_info_dict = {
-                                'bbox_in_fundus_pixel(min,max,x,y or center,x,y,radius)': list(regist_info_header.bounding_box_in_fundus_pixels),
-                                'bbox_in_trc_pixel(min,max,x,y or center,x,y,radius)': list(regist_info_header.bounding_box_in_trc_pixels),
-                                }
+                "bbox_in_fundus_pixel(min,max,x,y or center,x,y,radius)": list(
+                    regist_info_header.bounding_box_in_fundus_pixels
+                ),
+                "bbox_in_trc_pixel(min,max,x,y or center,x,y,radius)": list(
+                    regist_info_header.bounding_box_in_trc_pixels
+                ),
+            }
         return regist_info_dict
 
     def read_cornea_curve_result_info(self):
@@ -556,11 +563,11 @@ class FDA(object):
             raw = f.read()
             result_cornea_curve_header = self.result_cornea_curve_header.parse(raw)
             result_cornea_curve_dict = {
-                                'id': result_cornea_curve_header.id,
-                                'width': result_cornea_curve_header.width,
-                                'height' : result_cornea_curve_header.height,
-                                '8.0.1.21781' : result_cornea_curve_header["8.0.1.21781"]
-                                }
+                "id": result_cornea_curve_header.id,
+                "width": result_cornea_curve_header.width,
+                "height": result_cornea_curve_header.height,
+                "8.0.1.21781": result_cornea_curve_header["8.0.1.21781"],
+            }
         return result_cornea_curve_dict
 
     def read_result_cornea_thickness(self):
@@ -576,13 +583,15 @@ class FDA(object):
             chunk_location, chunk_size = self.chunk_dict[b"@RESULT_CORNEA_THICKNESS"]
             f.seek(chunk_location)  # Set the chunk’s current position.
             raw = f.read()
-            result_cornea_thickness_header = self.result_cornea_thickness_header.parse(raw)
+            result_cornea_thickness_header = self.result_cornea_thickness_header.parse(
+                raw
+            )
             result_cornea_thickness_dict = {
-                                'id': result_cornea_thickness_header.id,
-                                'width': result_cornea_thickness_header.width,
-                                'height' : result_cornea_thickness_header.height,
-                                '8.0.1.21781' : result_cornea_thickness_header["8.0.1.21781"]
-                                }
+                "id": result_cornea_thickness_header.id,
+                "width": result_cornea_thickness_header.width,
+                "height": result_cornea_thickness_header.height,
+                "8.0.1.21781": result_cornea_thickness_header["8.0.1.21781"],
+            }
         return result_cornea_thickness_dict
 
     def read_contour_info(self):
@@ -600,10 +609,10 @@ class FDA(object):
             raw = f.read()
             contour_info_header = self.contour_info_header.parse(raw)
             contour_info_dict = {
-                                'id': contour_info_header.id,
-                                'type' : contour_info_header.type,
-                                'width': contour_info_header.width,
-                                'height' : contour_info_header.height,
-                                'size' : contour_info_header.size
-                                }
+                "id": contour_info_header.id,
+                "type": contour_info_header.type,
+                "width": contour_info_header.width,
+                "height": contour_info_header.height,
+                "size": contour_info_header.size,
+            }
         return contour_info_dict
