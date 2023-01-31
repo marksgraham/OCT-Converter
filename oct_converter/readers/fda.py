@@ -3,7 +3,6 @@ from pathlib import Path
 import construct
 import numpy as np
 from construct import Int8un, Int16un, Int32un, PaddedString, Struct, GreedyString, Float64n, Float64b, Float64l
-from pylibjpeg import decode
 import io
 from PIL import Image
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
@@ -238,11 +237,8 @@ class FDA(object):
             for i in range(oct_header.number_slices):
                 size = np.fromstring(f.read(4), dtype=np.int32)[0]
                 raw_slice = f.read(size)
-                try:
-                    slice = decode(raw_slice)
-                except:
-                    image = Image.open(io.BytesIO(raw_slice))
-                    slice = np.asarray(image)
+                image = Image.open(io.BytesIO(raw_slice))
+                slice = np.asarray(image)
                 volume[:, :, i] = slice
 
 
