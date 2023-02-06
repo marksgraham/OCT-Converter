@@ -2,7 +2,7 @@ import io
 from pathlib import Path
 
 import numpy as np
-from construct import ListContainer, Struct
+from construct import ListContainer
 from PIL import Image
 
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData

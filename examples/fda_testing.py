@@ -70,7 +70,7 @@ def extract_fda_with_images_and_json(fda_file_path, output_dir):
         except KeyError:
             print(f"{key} there is no method for getting info from this chunk.")
 
-    info_json = json.dumps(output_json)
+    info_json = json.dumps(output_json, indent=4)
     json_name = filepath.split("/")[-1].split(".")[0]
     with open(f"{patient_folder}/{json_name}.json", "w") as outfile:
         outfile.write(info_json)
