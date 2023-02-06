@@ -107,6 +107,7 @@ class OCTVolumeWithMetaData(object):
         if extension.lower() in VIDEO_TYPES:
             video_writer = imageio.get_writer(filepath, macro_block_size=None)
             for slice in self.volume:
+                slice = slice.astype("uint8")
                 video_writer.append_data(slice)
             video_writer.close()
         elif extension.lower() in IMAGE_TYPES:
