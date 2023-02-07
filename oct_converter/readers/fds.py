@@ -1,9 +1,9 @@
 from pathlib import Path
 
 import numpy as np
-from construct import Int32un, PaddedString, Struct
 
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
+from oct_converter.readers.binary_structs import fds_binary
 
 
 class FDS(object):
@@ -15,9 +15,6 @@ class FDS(object):
 
     Attributes:
         filepath (str): Path to .img file for reading.
-        header (obj:Struct): Defines structure of volume's header.
-        oct_header (obj:Struct): Defines structure of OCT header.
-        fundus_header (obj:Struct): Defines structure of fundus header.
         chunk_dict (dict): Name of data chunks present in the file, and their start locations.
     """
 
@@ -26,29 +23,6 @@ class FDS(object):
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
 
-        self.header = Struct(
-            "FOCT" / PaddedString(4, "ascii"),
-            "FDA" / PaddedString(3, "ascii"),
-            "version_info_1" / Int32un,
-            "version_info_2" / Int32un,
-        )
-        self.oct_header = Struct(
-            "unknown" / PaddedString(1, "ascii"),
-            "width" / Int32un,
-            "height" / Int32un,
-            "bits_per_pixel" / Int32un,
-            "number_slices" / Int32un,
-            "unknown" / PaddedString(1, "ascii"),
-            "size" / Int32un,
-        )
-        self.fundus_header = Struct(
-            "width" / Int32un,
-            "height" / Int32un,
-            "bits_per_pixel" / Int32un,
-            "number_slices" / Int32un,
-            "unknown" / PaddedString(1, "ascii"),
-            "size" / Int32un,
-        )
         self.chunk_dict = self.get_list_of_file_chunks()
 
     def get_list_of_file_chunks(self):
@@ -61,7 +35,7 @@ class FDS(object):
         with open(self.filepath, "rb") as f:
             # skip header
             raw = f.read(15)
-            header = self.header.parse(raw)
+            header = fds_binary.header.parse(raw)
 
             eof = False
             while not eof:
@@ -91,7 +65,7 @@ class FDS(object):
             chunk_location, chunk_size = self.chunk_dict[b"@IMG_SCAN_03"]
             f.seek(chunk_location)
             raw = f.read(22)
-            oct_header = self.oct_header.parse(raw)
+            oct_header = fds_binary.oct_header.parse(raw)
             number_pixels = (
                 oct_header.width * oct_header.height * oct_header.number_slices
             )
@@ -118,7 +92,7 @@ class FDS(object):
             chunk_location, chunk_size = self.chunk_dict[b"@IMG_OBS"]
             f.seek(chunk_location)
             raw = f.read(21)
-            fundus_header = self.fundus_header.parse(raw)
+            fundus_header = fds_binary.fundus_header.parse(raw)
             # number_pixels = fundus_header.width * fundus_header.height * fundus_header.number_slices
             raw_image = np.fromstring(f.read(fundus_header.size), dtype=np.uint8)
             # raw_image = [struct.unpack('B', f.read(1)) for pixel in range(fundus_header.size)]

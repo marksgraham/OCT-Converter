@@ -11,8 +11,7 @@ from numpy.typing import NDArray
 
 from oct_converter.exceptions import InvalidOCTReaderError
 from oct_converter.image_types import OCTVolumeWithMetaData
-
-from .binary_structs import bioptigen_file_structure, bioptigen_oct_header_struct
+from oct_converter.readers.binary_structs import boct_binary
 
 
 class BOCT(object):
@@ -25,8 +24,8 @@ class BOCT(object):
     """
 
     bioptigen_scan_type_map = {0: "linear", 1: "rect", 3: "rad"}
-    file_structure = bioptigen_file_structure
-    header_structure = bioptigen_oct_header_struct
+    file_structure = boct_binary.bioptigen_file_structure
+    header_structure = boct_binary.bioptigen_oct_header_struct
 
     def __init__(self, filepath: Union[Path, str]):
         self.filepath = Path(filepath)

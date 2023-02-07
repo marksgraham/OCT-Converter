@@ -11,7 +11,7 @@ from construct import Float32n, Float64n, Int8un, Int16un, Int32un, PaddedString
         chunk_dict (dict): Name of data chunks present in the file, and their start locations.
         hw_info_03_header (obj:Struct) : Defines structure of hw info header
         patient_info_02_header (obj:Struct) : Defines patient info header
-        fda_file_info_header (obj:Struct) : Defines fda file info header
+        file_info_header (obj:Struct) : Defines fda file info header
         capture_info_02_header (obj:Struct) : Defines capture info header
         param_scan_04_header (obj:Struct) : Defines param scan header
         img_trc_02_header (obj:Struct) : Defines img trc header
@@ -89,7 +89,7 @@ patient_info_02_header = Struct(
     "birth_day" / Int16un,
 )
 
-fda_file_info_header = Struct(
+file_info_header = Struct(
     "0x2" / Int32un,
     "0x3e8" / Int32un,
     "8.0.1.20198" / PaddedString(32, "ascii"),
