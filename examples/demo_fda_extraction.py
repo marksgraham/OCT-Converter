@@ -1,3 +1,5 @@
+import json
+
 from oct_converter.readers import FDA
 
 # a sample .fda file can be downloaded from the Biobank resource here:
@@ -17,5 +19,22 @@ oct_volume.save(
 fundus_image = (
     fda.read_fundus_image()
 )  # returns a  Fundus image with additional metadata if available
-# fundus_image.save('mark_test.jpg')
 fundus_image.save("fda_testing_fundus.jpg")
+
+fundus_grayscale_image = fda.read_fundus_image_gray_scale()
+if fundus_grayscale_image:
+    fundus_grayscale_image.save("fda_testing_grayscalefundus.jpg")
+
+# extract all other metadata
+output_json = dict()
+for key in fda.chunk_dict.keys():
+    if key in [b"@IMG_JPEG", b"@IMG_FUNDUS", b"@IMG_TRC_02"]:
+        # these chunks are image chunks and extracted with previous methods
+        continue
+    json_key = key.decode().split("@")[-1].lower()
+    try:
+        output_json[json_key] = fda.read_any_info_and_make_dict(key)
+    except KeyError:
+        print(f"{key} there is no method for getting info from this chunk.")
+with open("fda_metadata.json", "w") as outfile:
+    outfile.write(json.dumps(output_json, indent=4))
