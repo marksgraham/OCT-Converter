@@ -52,6 +52,10 @@ class FDA(object):
     def read_oct_volume(self):
         """Reads OCT data.
 
+        Notes:
+            Mostly based on description of .fda file format here:
+            https://bitbucket.org/uocte/uocte/wiki/Topcon%20File%20Format
+
         Returns:
             obj:OCTVolumeWithMetaData
         """
