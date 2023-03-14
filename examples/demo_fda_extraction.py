@@ -10,7 +10,7 @@ fda = FDA(filepath)
 oct_volume = (
     fda.read_oct_volume()
 )  # returns an OCT volume with additional metadata if available
-oct_volume.peek()  # plots a montage of the volume
+oct_volume.peek(show_contours=True)  # plots a montage of the volume
 oct_volume.save("fda_testing.avi")  # save volume as a movie
 oct_volume.save(
     "fda_testing.png"

@@ -30,7 +30,7 @@ pip install oct-converter
 
 
 ## Usage
-A number of example usage scripts are included in examples/.
+A number of example usage scripts are included in `examples/`.
 
 Here is an example of reading a .fds file:
 
@@ -43,7 +43,7 @@ filepath = '/home/mark/Downloads/eg_oct_fds.fds'
 fds = FDS(filepath)
 
 oct_volume = fds.read_oct_volume()  # returns an OCT volume with additional metadata if available
-oct_volume.peek() # plots a montage of the volume
+oct_volume.peek(show_contours=True) # plots a montage of the volume, with layer segmentations is available
 oct_volume.save('fds_testing.avi')  # save volume as a movie
 oct_volume.save('fds_testing.png')  # save volume as a set of sequential images, fds_testing_[1...N].png
 oct_volume.save_projection('projection.png') # save 2D projection
