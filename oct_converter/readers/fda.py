@@ -1,4 +1,5 @@
 import io
+import struct
 from pathlib import Path
 
 import numpy as np
@@ -41,6 +42,15 @@ class FDA(object):
                     chunk_size = np.fromstring(f.read(4), dtype=np.uint32)[0]
                     chunk_location = f.tell()
                     f.seek(chunk_size, 1)
+                    if chunk_name in chunk_dict.keys():
+                        previous_location = chunk_dict[chunk_name][0]
+                        previous_size = chunk_dict[chunk_name][1]
+                        if not isinstance(previous_location, list):
+                            previous_location = [previous_location]
+                            previous_size = [previous_size]
+                        chunk_location = previous_location + [chunk_location]
+                        chunk_size = previous_size + [chunk_size]
+
                     chunk_dict[chunk_name] = [chunk_location, chunk_size]
         if printing:
             print("File {} contains the following chunks:".format(self.filepath))
@@ -68,20 +78,21 @@ class FDA(object):
             f.seek(chunk_location)  # Set the chunk’s current position.
             raw = f.read(25)
             oct_header = fda_binary.oct_header.parse(raw)
-            volume = np.zeros(
-                (oct_header.height, oct_header.width, oct_header.number_slices)
-            )
 
+            volume = []
             for i in range(oct_header.number_slices):
                 size = np.fromstring(f.read(4), dtype=np.int32)[0]
                 raw_slice = f.read(size)
                 image = Image.open(io.BytesIO(raw_slice))
-                slice = np.asarray(image)
-                volume[:, :, i] = slice
+                volume.append(np.asarray(image))
 
-        oct_volume = OCTVolumeWithMetaData(
-            [volume[:, :, i] for i in range(volume.shape[2])]
-        )
+        # read segmentation contours if possible and store them as distance
+        # from top of scan to be compatible with plotting in OCTVolume
+        contours = self.read_segmentation()
+        if contours:
+            contours = {k: oct_header.height - v for k, v in contours.items()}
+
+        oct_volume = OCTVolumeWithMetaData(volume, contours=contours)
         return oct_volume
 
     def read_oct_volume_2(self):
@@ -154,6 +165,52 @@ class FDA(object):
             image = np.asarray(image)
         fundus_gray_scale_image = FundusImageWithMetaData(image)
         return fundus_gray_scale_image
+
+    def read_segmentation(self):
+        """
+        Reads layer segmentation data.
+
+        Segmentation values are returned in a dictionary with a key for every
+        layer boundary and are measured in pixels from B-scan bottom.
+
+        Returns
+        -------
+            dict: dictionary with segmentation data.
+        """
+
+        if b"@CONTOUR_INFO" not in self.chunk_dict.keys():
+            print("The file does not have any segmentation chunk.")
+            return None
+
+        layer = {
+            "MULTILAYERS_1": "ILM",
+            "MULTILAYERS_2": "RNFL_GCL",
+            "MULTILAYERS_3": "GCL_IPL",
+            "MULTILAYERS_4": "IPL_INL",
+            "MULTILAYERS_5": "MZ_EZ",
+            "MULTILAYERS_6": "IZ_RPE",
+            "MULTILAYERS_7": "BM",
+            "MULTILAYERS_8": "INL_OPL",
+            "MULTILAYERS_9": "ELM",
+            "MULTILAYERS_10": "CSI",
+        }
+
+        seg_dict = {}
+        with open(self.filepath, "rb") as f:
+            for pos in self.chunk_dict[b"@CONTOUR_INFO"][0]:
+                f.seek(pos)
+                raw = f.read(34)
+                header = dict(fda_binary.__dict__["contour_info_header"].parse(raw))
+                n_voxel = header["width"] * header["height"]
+
+                data_bytes = f.read(n_voxel * 2)
+                seg = struct.unpack("H" * n_voxel, data_bytes)
+                seg = np.array(seg).reshape((header["height"], header["width"]))
+                seg = np.flip(seg, 0)
+                layer_name = layer.get(header["id"], header["id"])
+                seg_dict[layer_name] = seg
+
+        return seg_dict
 
     def read_any_info_and_make_dict(self, chunk_name):
         """

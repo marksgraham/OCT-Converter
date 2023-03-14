@@ -25,10 +25,13 @@ fundus_grayscale_image = fda.read_fundus_image_gray_scale()
 if fundus_grayscale_image:
     fundus_grayscale_image.save("fda_testing_grayscalefundus.jpg")
 
+# Read segmentation (contours)
+segmentation = fda.read_segmentation()
+
 # extract all other metadata
 output_json = dict()
 for key in fda.chunk_dict.keys():
-    if key in [b"@IMG_JPEG", b"@IMG_FUNDUS", b"@IMG_TRC_02"]:
+    if key in [b"@IMG_JPEG", b"@IMG_FUNDUS", b"@IMG_TRC_02", b"@CONTOUR_INFO"]:
         # these chunks are image chunks and extracted with previous methods
         continue
     json_key = key.decode().split("@")[-1].lower()

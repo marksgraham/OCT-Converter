@@ -167,7 +167,7 @@ result_cornea_thickness_header = Struct(
 )
 
 contour_info_header = Struct(
-    "id" / Int8un[20],
+    "id" / PaddedString(20, "ascii"),
     "type" / Int16un,
     "width" / Int32un,
     "height" / Int32un,
