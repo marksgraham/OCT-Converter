@@ -13,12 +13,12 @@ from oct_converter.readers.binary_structs import fda_binary
 class FDA(object):
     """Class for extracting data from Topcon's .fda file format."""
 
-    def __init__(self, filepath):
+    def __init__(self, filepath, printing=True):
         self.filepath = Path(filepath)
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
 
-        self.chunk_dict = self.get_list_of_file_chunks()
+        self.chunk_dict = self.get_list_of_file_chunks(printing=printing)
 
     def get_list_of_file_chunks(self, printing=True):
         """Find all data chunks present in the file.
