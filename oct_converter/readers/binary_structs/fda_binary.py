@@ -108,9 +108,9 @@ capture_info_02_header = Struct(
 
 param_scan_04_header = Struct(
     "unknown" / Int16un[6],
-    "tomogram_x_dimension_in_mm" / Float64n,
-    "tomogram_y_dimension_in_mm" / Float64n,
-    "tomogram_z_dimension_in_um" / Float64n,
+    "x_dimension_mm" / Float64n,
+    "y_dimension_mm" / Float64n,
+    "z_resolution_um" / Float64n,
 )
 
 img_trc_02_header = Struct(

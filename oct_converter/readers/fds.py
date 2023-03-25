@@ -75,8 +75,26 @@ class FDS(object):
                 oct_header.width, oct_header.height, oct_header.number_slices, order="F"
             )
             volume = np.transpose(volume, [1, 0, 2])
+            chunk_loc, chunk_size = self.chunk_dict.get(b"@PARAM_SCAN_04", (None, None))
+            pixel_spacing = None
+            if chunk_loc:
+                f.seek(chunk_loc)
+                scan_params = fds_binary.param_scan_04_header.parse(f.read(chunk_size))
+                # NOTE: this will need reordering for dicom pixel spacing and
+                # image orientation/position patient as well as possibly for nifti
+                # depending on what x,y,z means here.
+
+                # In either nifti/dicom coordinate systems, the x-y plan in raw space
+                # corresponds to the x-z plane, just depends which direction.
+                pixel_spacing = [
+                    scan_params.x_dimension_mm / oct_header.height,  # Left/Right
+                    scan_params.z_resolution_um / 1000,  # Up/Down
+                    scan_params.y_dimension_mm / oct_header.width,  # Depth
+                ]
+
         oct_volume = OCTVolumeWithMetaData(
-            [volume[:, :, i] for i in range(volume.shape[2])]
+            [volume[:, :, i] for i in range(volume.shape[2])],
+            pixel_spacing=pixel_spacing,
         )
         return oct_volume
 

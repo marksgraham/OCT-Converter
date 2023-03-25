@@ -1,4 +1,5 @@
 import os
+import typing as t
 
 import cv2
 import imageio
@@ -29,6 +30,7 @@ class OCTVolumeWithMetaData(object):
         num_slices (int): Number of b-scans present in volume.
         laterality (str): Left or right eye.
         contours (dict of list): Contours data.
+        pixel_spacing (list[float, float, float]): (x, y, z) pixel spacing in mm.
     """
 
     def __init__(
@@ -43,6 +45,7 @@ class OCTVolumeWithMetaData(object):
         acquisition_date=None,
         laterality=None,
         contours=None,
+        pixel_spacing: t.Optional[t.List[float]] = None,
     ):
         # image
         self.volume = volume
@@ -60,6 +63,9 @@ class OCTVolumeWithMetaData(object):
         self.laterality = laterality
         self.num_slices = len(self.volume)
         self.contours = contours
+
+        # geom data
+        self.pixel_spacing = pixel_spacing
 
     def peek(self, rows=5, cols=5, filepath=None, show_contours=False):
         """Plots a montage of the OCT volume. Optionally saves the plot if a filepath is provided.
