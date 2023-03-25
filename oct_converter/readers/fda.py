@@ -92,11 +92,14 @@ class FDA(object):
         if contours:
             contours = {k: oct_header.height - v for k, v in contours.items()}
 
-        oct_volume = OCTVolumeWithMetaData(volume, contours=contours)
+        # read all other metadata
+        metadata = self.read_all_metadata()
+
+        oct_volume = OCTVolumeWithMetaData(volume, contours=contours, metadata=metadata)
         return oct_volume
 
     def read_oct_volume_2(self):
-        """Reads OCT data.
+        """Reads OCT data. Worth trying if read_oct_volume fails.
 
         Returns:
             obj:OCTVolumeWithMetaData
@@ -174,7 +177,6 @@ class FDA(object):
         layer boundary and are measured in pixels from B-scan bottom.
 
         Returns
-        -------
             dict: dictionary with segmentation data.
         """
 
@@ -211,6 +213,29 @@ class FDA(object):
                 seg_dict[layer_name] = seg
 
         return seg_dict
+
+    def read_all_metadata(self, verbose=False):
+        """
+        Reads all available metadata and returns a dictionary.
+
+        Args:
+            verbose: If True, prints the chunks that are not supported.
+
+        Returns:
+            dict: dictionary with all metadata.
+        """
+        metadata = dict()
+        for key in self.chunk_dict.keys():
+            if key in [b"@IMG_JPEG", b"@IMG_FUNDUS", b"@IMG_TRC_02", b"@CONTOUR_INFO"]:
+                # these chunks have their own dedicated methods for extraction
+                continue
+            json_key = key.decode().split("@")[-1].lower()
+            try:
+                metadata[json_key] = self.read_any_info_and_make_dict(key)
+            except KeyError:
+                if verbose:
+                    print(f"{key} there is no method for getting info from this chunk.")
+        return metadata
 
     def read_any_info_and_make_dict(self, chunk_name):
         """

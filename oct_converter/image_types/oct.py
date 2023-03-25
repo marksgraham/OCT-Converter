@@ -31,6 +31,7 @@ class OCTVolumeWithMetaData(object):
         laterality (str): Left or right eye.
         contours (dict of list): Contours data.
         pixel_spacing (list[float, float, float]): (x, y, z) pixel spacing in mm.
+        metadata (dict): All metadata available in the OCT scan.
     """
 
     def __init__(
@@ -46,6 +47,7 @@ class OCTVolumeWithMetaData(object):
         laterality=None,
         contours=None,
         pixel_spacing: t.Optional[t.List[float]] = None,
+        metadata=None,
     ):
         # image
         self.volume = volume
@@ -66,6 +68,9 @@ class OCTVolumeWithMetaData(object):
 
         # geom data
         self.pixel_spacing = pixel_spacing
+
+        # metadata
+        self.metadata = metadata
 
     def peek(self, rows=5, cols=5, filepath=None, show_contours=False):
         """Plots a montage of the OCT volume. Optionally saves the plot if a filepath is provided.
