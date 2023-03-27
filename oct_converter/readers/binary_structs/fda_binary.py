@@ -129,6 +129,7 @@ param_obs_02_header = Struct(
 )
 
 img_mot_comp_03_header = Struct(
+    "0x0" / Int8un,
     "width" / Int32un,
     "height" / Int32un,
     "bits_per_pixel" / Int32un,
@@ -149,7 +150,10 @@ effective_scan_range_header = Struct(
 )
 
 regist_info_header = Struct(
+    "0x0" / Int8un,
+    "unknown" / Int32un[2],
     "bounding_box_in_fundus_pixels" / Int32un[4],
+    "version" / PaddedString(32, "ascii"),
     "bounding_box_in_trc_pixels" / Int32un[4],
 )
 
