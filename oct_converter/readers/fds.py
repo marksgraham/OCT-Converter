@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+from construct import ListContainer
 
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
 from oct_converter.readers.binary_structs import fds_binary
@@ -122,3 +123,52 @@ class FDS(object):
             image = image.astype(np.float32)
         fundus_image = FundusImageWithMetaData(image)
         return fundus_image
+
+    def read_all_metadata(self, verbose=False):
+        """
+        Reads all available metadata and returns a dictionary.
+
+        Args:
+            verbose: If True, prints the chunks that are not supported.
+
+        Returns:
+            dict: dictionary with all metadata.
+        """
+        metadata = dict()
+        for key in self.chunk_dict.keys():
+            if key in [b"IMG_SCAN_03", b"@IMG_OBS"]:
+                # these chunks have their own dedicated methods for extraction
+                continue
+            json_key = key.decode().split("@")[-1].lower()
+            try:
+                metadata[json_key] = self.read_any_info_and_make_dict(key)
+            except KeyError:
+                if verbose:
+                    print(f"{key} there is no method for getting info from this chunk.")
+        return metadata
+
+    def read_any_info_and_make_dict(self, chunk_name):
+        """
+        Reads chunks, get data and make dictionary
+        :param chunk_name: name of the chunk which data will be taken.
+        Returns:
+            dict:Chunk info Data
+        """
+        if chunk_name not in self.chunk_dict:
+            print(f"{chunk_name} is not in chunk list, skipping.")
+            return None
+        with open(self.filepath, "rb") as f:
+            chunk_location, chunk_size = self.chunk_dict[chunk_name]
+            f.seek(chunk_location)  # Set the chunk’s current position.
+            raw = f.read()
+            header_name = f"{chunk_name.decode().split('@')[-1].lower()}_header"
+            chunk_info_header = dict(fds_binary.__dict__[header_name].parse(raw))
+            chunks_info = dict()
+            for idx, key in enumerate(chunk_info_header.keys()):
+                if idx == 0:
+                    continue
+                if type(chunk_info_header[key]) is ListContainer:
+                    chunks_info[key] = list(chunk_info_header[key])
+                else:
+                    chunks_info[key] = chunk_info_header[key]
+        return chunks_info

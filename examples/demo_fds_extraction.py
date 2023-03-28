@@ -1,3 +1,5 @@
+import json
+
 from oct_converter.readers import FDS
 
 # An example .fds file can be downloaded from the Biobank website:
@@ -19,3 +21,8 @@ fundus_image = (
     fds.read_fundus_image()
 )  # returns a  Fundus image with additional metadata if available
 fundus_image.save("fds_testing_fundus.jpg")
+
+# extract all other metadata
+metadata = fds.read_all_metadata(verbose=True)
+with open("fds_metadata.json", "w") as outfile:
+    outfile.write(json.dumps(metadata, indent=4))
