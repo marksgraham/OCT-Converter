@@ -61,8 +61,11 @@ with open("fds_metadata.json", "w") as outfile:
 Are welcome! Here is a [development roadmap](https://github.com/marksgraham/OCT-Converter/issues/86), including some easy first issues. Please open a [new issue](https://github.com/marksgraham/OCT-Converter/issues/new) to discuss any potential contributions.
 
 ## Updates
+28 March 2023
+- Metadata extraction for .fds expanded to match that of .fda file.
+
 31 January 2023
-- Greatly extended support for extracting metadata from .fda files
+- Greatly extended support for extracting metadata from .fda files.
 
 18 November 2022
 - Initial support for reading the Zeiss Dicom format.
@@ -72,12 +75,12 @@ Are welcome! Here is a [development roadmap](https://github.com/marksgraham/OCT-
 - Acquisition date is now extracted from .e2e files.
 
 16 June 2022
-- Initial support for reading Optovue OCTs
+- Initial support for reading Optovue OCTs.
 - Laterality is now extracted separately for each OCT/fundus image for .e2e files.
-- More patient info extracted from .e2e files (name, sex, birthdate, patient ID)
+- More patient info extracted from .e2e files (name, sex, birthdate, patient ID).
 
 24 Aug 2021
-- Reading the Bioptigen .OCT format is now supported
+- Reading the Bioptigen .OCT format is now supported/
 
 11 June 2021
 - Can now specify whether Zeiss .img data needs to be de-interlaced during reading.
@@ -87,7 +90,7 @@ Are welcome! Here is a [development roadmap](https://github.com/marksgraham/OCT-
 
 30 October 2020
 - Extract fundus and laterality data from .e2e
-- Now attempts to extract additional volumetric data from .e2e files that was previously missed
+- Now attempts to extract additional volumetric data from .e2e files that was previously missed.
 
 22 August 2020
 - Experimental support for reading OCT data from .fda files.
@@ -98,7 +101,8 @@ Are welcome! Here is a [development roadmap](https://github.com/marksgraham/OCT-
 ## Related projects
 - [uocte](https://bitbucket.org/uocte/uocte/wiki/Home) inspired and enabled this project
 - [LibE2E](https://github.com/neurodial/LibE2E) and [LibOctData](https://github.com/neurodial/LibOctData) provided some additional descriptions of the .e2e file spec
-- [eyepy](https://github.com/MedVisBonn/eyepy) can read HEYEY XML and VOL formats, and [eyelab](https://github.com/MedVisBonn/eyelab) is a tool for annotating this data
+- [eyepy](https://github.com/MedVisBonn/eyepy) for python-based import, visualisation, and analysis of OCT data
+- [eyelab](https://github.com/MedVisBonn/eyelab) is a tool for annotating this data
 
 ## Clinical use
 We can't guarantee images extracted with OCT-Converter will match those extracted or viewed with the manufacturer's software. Any use in clinical settings is at the user's own risk.
