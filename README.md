@@ -51,8 +51,7 @@ oct_volume.save_projection('projection.png') # save 2D projection
 fundus_image = fds.read_fundus_image()  # returns a  Fundus image with additional metadata if available
 fundus_image.save('fds_testing_fundus.jpg')
 
-# extract all other metadata
-metadata = fds.read_all_metadata(verbose=True)
+metadata = fds.read_all_metadata(verbose=True) # extracts all other metadata
 with open("fds_metadata.json", "w") as outfile:
     outfile.write(json.dumps(metadata, indent=4))
 ```
