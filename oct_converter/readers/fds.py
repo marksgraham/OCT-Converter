@@ -121,6 +121,8 @@ class FDS(object):
             )
             image = np.transpose(image, [2, 1, 0])
             image = image.astype(np.float32)
+            # store with RGB channel order
+            image = np.flip(image, 2)
         fundus_image = FundusImageWithMetaData(image)
         return fundus_image
 

@@ -145,6 +145,7 @@ class FDA(object):
             raw_image = f.read(fundus_header.size)
             image = Image.open(io.BytesIO(raw_image))
             image = np.asarray(image)
+            # store with RGB channel order
             image = np.flip(image, 2)
         fundus_image = FundusImageWithMetaData(image)
         return fundus_image
