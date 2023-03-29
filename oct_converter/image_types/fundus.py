@@ -38,7 +38,9 @@ class FundusImageWithMetaData(object):
         """
         extension = os.path.splitext(filepath)[1]
         if extension.lower() in IMAGE_TYPES:
-            cv2.imwrite(filepath, self.image)
+            # change channel order from RGB to BGR and save with cv2
+            image = cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR)
+            cv2.imwrite(filepath, image)
         elif extension.lower() == ".npy":
             np.save(filepath, self.image)
         else:
