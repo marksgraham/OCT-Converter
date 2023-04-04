@@ -32,8 +32,10 @@ class E2E(object):
         self.surname = None
         self.acquisition_date = None
 
-    def read_oct_volume(self):
+    def read_oct_volume(self, legacy_intensity_transform=False):
         """Reads OCT data.
+        Args:
+            legacy_intensity_transform (bool): If True, use intensity transform used in v<=0.5.7. Defaults to False.
 
         Returns:
             obj:OCTVolumeWithMetaData
@@ -202,7 +204,10 @@ class E2E(object):
                                 UserWarning,
                             )
                         else:
-                            image = 256 * pow(image, 1.0 / 2.4)
+                            if legacy_intensity_transform:
+                                image = pow(image, 1.0 / 2.4)
+                            else:
+                                image = self.vol_intensity_transform(image)
 
                             if volume_string in volume_array_dict.keys():
                                 volume_array_dict[volume_string][
@@ -412,3 +417,18 @@ class E2E(object):
         exponent_sum = int(exponent, 2) - 63
         decimal_value = mantissa_sum * np.float_power(2, exponent_sum)
         return decimal_value
+
+    def vol_intensity_transform(self, data):
+        """Implementation of intensity transform used in .e2e files. Code thanks to @oli4, see discussion in
+        https://github.com/marksgraham/OCT-Converter/issues/21#issuecomment-1057455183
+        """
+        selection_0 = data == np.finfo(np.float32).max
+        selection_data = data <= 1
+
+        new = np.log(data[selection_data] + 2.44e-04)
+        new = (new + 8.3) / 8.285
+
+        data[selection_data] = new
+        data[selection_0] = 0
+        data = np.clip(data, 0, 1)
+        return data
