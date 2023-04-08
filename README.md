@@ -19,7 +19,7 @@ In ophthalmology, data acquired from the scanner is often exported in the manufa
 * .img (Zeiss)
 * .oct (Bioptigen)
 * .OCT (Optovue)
-* .dcm (both the standard kind, see [Dicom](oct_converter/readers/dicom.py), and Zeiss' obfuscated version, see [ZEISSDicom](oct_converter/readers/zeissdicom.py))
+* .dcm
 
 ## Installation
 Requires python 3.7 or higher.
@@ -65,9 +65,6 @@ Are welcome! Here is a [development roadmap](https://github.com/marksgraham/OCT-
 
 31 January 2023
 - Greatly extended support for extracting metadata from .fda files.
-
-18 November 2022
-- Initial support for reading the Zeiss Dicom format.
 
 7 August 2022
 - Contours (layer segmentations) are now extracted from .e2e files.
