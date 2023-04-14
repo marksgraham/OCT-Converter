@@ -29,6 +29,6 @@ if fundus_grayscale_image:
 segmentation = fda.read_segmentation()
 
 # extract all other metadata
-metadata = fda.read_metadata()
+metadata = fda.read_all_metadata()
 with open("metadata.json", "w") as outfile:
     outfile.write(json.dumps(metadata, indent=4))
