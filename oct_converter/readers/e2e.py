@@ -111,7 +111,7 @@ class E2E(object):
 
             # traverse all chunks and extract slices
             for start, pos in chunk_stack:
-                f.seek(start+ self.byte_skip)
+                f.seek(start + self.byte_skip)
                 raw = f.read(60)
                 chunk = e2e_binary.chunk_structure.parse(raw)
 
