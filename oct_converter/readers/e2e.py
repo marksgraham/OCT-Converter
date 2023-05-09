@@ -50,9 +50,15 @@ class E2E(object):
         LUT = _make_lut()
 
         with open(self.filepath, "rb") as f:
+            raw = f.read(200)
+            self.byte_skip = raw.find(b"CMDb")
+            if self.byte_skip == -1:
+                raise ValueError("CMDb not found in file header")
+            else:
+                f.seek(self.byte_skip)
             raw = f.read(36)
-            header = e2e_binary.header_structure.parse(raw)
 
+            header = e2e_binary.header_structure.parse(raw)
             raw = f.read(52)
             main_directory = e2e_binary.main_directory_structure.parse(raw)
 
@@ -62,7 +68,7 @@ class E2E(object):
             current = main_directory.current
             while current != 0:
                 directory_stack.append(current)
-                f.seek(current)
+                f.seek(current + self.byte_skip)
                 raw = f.read(52)
                 directory_chunk = e2e_binary.main_directory_structure.parse(raw)
                 current = directory_chunk.prev
@@ -71,7 +77,7 @@ class E2E(object):
             chunk_stack = []
             volume_dict = {}
             for position in directory_stack:
-                f.seek(position)
+                f.seek(position + self.byte_skip)
                 raw = f.read(52)
                 directory_chunk = e2e_binary.main_directory_structure.parse(raw)
 
@@ -105,7 +111,7 @@ class E2E(object):
 
             # traverse all chunks and extract slices
             for start, pos in chunk_stack:
-                f.seek(start)
+                f.seek(start+ self.byte_skip)
                 raw = f.read(60)
                 chunk = e2e_binary.chunk_structure.parse(raw)
 
@@ -246,7 +252,8 @@ class E2E(object):
                 volume_array_dict.items(), volume_array_dict_additional.items()
             ):
                 # remove any initalised volumes that never had image data attached
-                if isinstance(volume[0], int):
+                volume = [slc for slc in volume if not isinstance(slc, int)]
+                if volume is None:
                     continue
                 oct_volumes.append(
                     OCTVolumeWithMetaData(
@@ -271,9 +278,14 @@ class E2E(object):
             obj:FundusImageWithMetaData
         """
         with open(self.filepath, "rb") as f:
+            raw = f.read(200)
+            self.byte_skip = raw.find(b"CMDb")
+            if self.byte_skip == -1:
+                raise ValueError("CMDb not found in file header")
+            else:
+                f.seek(self.byte_skip)
             raw = f.read(36)
             header = e2e_binary.header_structure.parse(raw)
-
             raw = f.read(52)
             main_directory = e2e_binary.main_directory_structure.parse(raw)
 
@@ -285,7 +297,7 @@ class E2E(object):
             current = main_directory.current
             while current != 0:
                 directory_stack.append(current)
-                f.seek(current)
+                f.seek(current + self.byte_skip)
                 raw = f.read(52)
                 directory_chunk = e2e_binary.main_directory_structure.parse(raw)
                 current = directory_chunk.prev
@@ -293,7 +305,7 @@ class E2E(object):
             # traverse in second pass and  get all subdirectories
             chunk_stack = []
             for position in directory_stack:
-                f.seek(position)
+                f.seek(position + self.byte_skip)
                 raw = f.read(52)
                 directory_chunk = e2e_binary.main_directory_structure.parse(raw)
 
@@ -309,7 +321,7 @@ class E2E(object):
 
             # traverse all chunks and extract slices
             for start, pos in chunk_stack:
-                f.seek(start)
+                f.seek(start + self.byte_skip)
                 raw = f.read(60)
                 chunk = e2e_binary.chunk_structure.parse(raw)
 
