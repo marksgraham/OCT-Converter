@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 import numpy as np
@@ -9,11 +11,11 @@ class POCT(object):
     """Class for extracting data from Optovues's .oct file format.
 
     Attributes:
-        filepath (str): Path to .oct file for reading. Reader expects a file with the same name and a .txt extension
+        filepath: Path to .oct file for reading. Reader expects a file with the same name and a .txt extension
             exists at the same location.
     """
 
-    def __init__(self, filepath):
+    def __init__(self, filepath: str | Path) -> None:
         self.filepath = Path(filepath)
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
@@ -23,7 +25,7 @@ class POCT(object):
                 f"Could not find filespec {self.filespec} in the same location as {self.filepath}"
             )
 
-    def _read_filespec(self):
+    def _read_filespec(self) -> None:
         scan_info = []
         with open(self.filespec, "r", encoding="iso-8859-1") as f:
             lines = f.readlines()
@@ -40,11 +42,11 @@ class POCT(object):
                     )
         self.scan_info = scan_info
 
-    def read_oct_volume(self):
+    def read_oct_volume(self) -> list[OCTVolumeWithMetaData]:
         """Reads OCT data.
-        Args:
-            Returns:
-                obj:OCTVolumeWithMetaData
+
+        Returns:
+            OCTVolumeWithMetaData
         """
         self._read_filespec()
 

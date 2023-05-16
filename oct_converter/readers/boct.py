@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from typing import BinaryIO, List, Tuple, Union
+from typing import BinaryIO
 
 import h5py
 import numpy as np
@@ -16,18 +16,19 @@ from oct_converter.readers.binary_structs import boct_binary
 
 class BOCT(object):
     """Class for extracting data from Bioptigen's .OCT file format.
-    .OCT stores 4d volumes (time series of 3D volumes with the same shape)
+
+    .OCT stores 4D volumes (time series of 3D volumes with the same shape)
 
     Attributes:
-        filepath (str): Path to .img file for reading.
-        file_structure (obj:Struct): Defines structure of volume's header.
+        filepath: Path to .img file for reading.
+        file_structure: Defines structure of volume's header.
     """
 
     bioptigen_scan_type_map = {0: "linear", 1: "rect", 3: "rad"}
     file_structure = boct_binary.bioptigen_file_structure
     header_structure = boct_binary.bioptigen_oct_header_struct
 
-    def __init__(self, filepath: Union[Path, str]):
+    def __init__(self, filepath: Path | str) -> None:
         self.filepath = Path(filepath)
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
@@ -44,13 +45,14 @@ class BOCT(object):
 
     def read_oct_volume(
         self, diskbuffered: bool = False
-    ) -> List[OCTVolumeWithMetaData]:
+    ) -> list[OCTVolumeWithMetaData]:
         """Reads OCT data.
+
         Args:
-            diskbuffered (bool): If True, reduces memory usage by storing volume on disk using HDF5
+            diskbuffered: If True, reduces memory usage by storing volume on disk using HDF5
 
         Returns:
-            list(obj):[OCTVolumeWithMetaData]
+            OCT volumes with metadata.
         """
         # Laterality/patient_id data not contained in .OCT file (often in filename)
         self.laterality = None
@@ -85,7 +87,7 @@ class BOCT(object):
         return self.load_oct_volume()
 
     def _create_disk_buffer(
-        self, buffer_shape: Tuple[int, int], name: str = "vol"
+        self, buffer_shape: tuple[int, int], name: str = "vol"
     ) -> h5py.Dataset:
         x, y = buffer_shape
         chunksize = (1, 1, x, y)
@@ -94,7 +96,7 @@ class BOCT(object):
             name, shape=self.volume_shape, dtype=np.uint16, chunks=chunksize
         )
 
-    def load_oct_volume(self) -> List[OCTVolumeWithMetaData]:
+    def load_oct_volume(self) -> list[OCTVolumeWithMetaData]:
         volFrames = np.reshape(self.frames.data, self.vol_frames_shape)
         try:
             with open(self.filepath, "rb") as f:
@@ -115,8 +117,8 @@ class BOCT(object):
         return
 
 
-class OCTFrame:
-    def __init__(self, frame: Struct):
+class OCTFrame(object):
+    def __init__(self, frame: Struct) -> None:
         self.count = frame.image.totalpixels
         self.abs_pos = frame.image.offset
 
@@ -129,8 +131,8 @@ class OCTFrame:
         return np.resize(self.from_bytes(f), (Ascans, depth))
 
 
-class FrameGenerator:
-    def __init__(self, oct_data: Struct):
+class FrameGenerator(object):
+    def __init__(self, oct_data: Struct) -> None:
         self.Ascans = oct_data[0].image.columns
         self.depth = oct_data[0].image.rows
         self.data = np.asarray([OCTFrame(frame) for frame in oct_data])

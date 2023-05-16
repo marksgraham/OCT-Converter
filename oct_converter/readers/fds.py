@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 import numpy as np
@@ -15,22 +17,22 @@ class FDS(object):
         https://bitbucket.org/uocte/uocte/wiki/Topcon%20File%20Format
 
     Attributes:
-        filepath (str): Path to .img file for reading.
-        chunk_dict (dict): Name of data chunks present in the file, and their start locations.
+        filepath: Path to .img file for reading.
+        chunk_dict: Name of data chunks present in the file, and their start locations.
     """
 
-    def __init__(self, filepath):
+    def __init__(self, filepath: str | Path) -> None:
         self.filepath = Path(filepath)
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
 
         self.chunk_dict = self.get_list_of_file_chunks()
 
-    def get_list_of_file_chunks(self):
+    def get_list_of_file_chunks(self) -> dict:
         """Find all data chunks present in the file.
 
         Returns:
-            dict
+            dictionary of chunk names, containing their locations in the file and size.
         """
         chunk_dict = {}
         with open(self.filepath, "rb") as f:
@@ -54,11 +56,11 @@ class FDS(object):
             print(key)
         return chunk_dict
 
-    def read_oct_volume(self):
+    def read_oct_volume(self) -> OCTVolumeWithMetaData:
         """Reads OCT data.
 
         Returns:
-            obj:OCTVolumeWithMetaData
+            OCTVolumeWithMetaData
         """
         if b"@IMG_SCAN_03" not in self.chunk_dict:
             raise ValueError("Could not find OCT header @IMG_SCAN_03 in chunk list")
@@ -99,11 +101,11 @@ class FDS(object):
         )
         return oct_volume
 
-    def read_fundus_image(self):
+    def read_fundus_image(self) -> FundusImageWithMetaData:
         """Reads fundus image.
 
         Returns:
-            obj:FundusImageWithMetaData
+            FundusImageWithMetaData
         """
         if b"@IMG_OBS" not in self.chunk_dict:
             raise ValueError("Could not find fundus header @IMG_OBS in chunk list")
@@ -126,7 +128,7 @@ class FDS(object):
         fundus_image = FundusImageWithMetaData(image)
         return fundus_image
 
-    def read_all_metadata(self, verbose=False):
+    def read_all_metadata(self, verbose: bool = False):
         """
         Reads all available metadata and returns a dictionary.
 
@@ -134,7 +136,7 @@ class FDS(object):
             verbose: If True, prints the chunks that are not supported.
 
         Returns:
-            dict: dictionary with all metadata.
+            dictionary with all metadata.
         """
         metadata = dict()
         for key in self.chunk_dict.keys():
@@ -149,12 +151,14 @@ class FDS(object):
                     print(f"{key} there is no method for getting info from this chunk.")
         return metadata
 
-    def read_any_info_and_make_dict(self, chunk_name):
-        """
-        Reads chunks, get data and make dictionary
-        :param chunk_name: name of the chunk which data will be taken.
+    def read_any_info_and_make_dict(self, chunk_name: str) -> dict:
+        """Reads any chunk and constructs a dictionary.
+
+        Args:
+            chunk_name: name of the chunk which data will be taken.
+
         Returns:
-            dict:Chunk info Data
+            Chunk info data
         """
         if chunk_name not in self.chunk_dict:
             print(f"{chunk_name} is not in chunk list, skipping.")

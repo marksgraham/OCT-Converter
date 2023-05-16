@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import os
-import typing as t
+from collections.abc import Sequence
+from datetime import datetime
 
 import cv2
 import imageio
@@ -17,38 +20,39 @@ class OCTVolumeWithMetaData(object):
     """Class to hold the OCT volume and any related metadata, and enable viewing and saving.
 
     Attributes:
-        volume (list of np.array): All the volume's b-scans.
+        volume: All the volume's b-scans.
 
-        patient_id (str): Patient ID.
-        first_name (str): Patient first name.
-        surname (str): Patient second name.
-        sex (str): Patient sex.
-        DOB (str): Patient date of birth.
+        patient_id: Patient ID.
+        first_name: Patient first name.
+        surname: Patient second name.
+        sex: Patient sex.
+        DOB: Patient date of birth.
 
-        volume_id (str): Volume ID.
-        acquisition_date (datetime): date image acquired.
-        num_slices (int): Number of b-scans present in volume.
-        laterality (str): Left or right eye.
-        contours (dict of list): Contours data.
-        pixel_spacing (list[float, float, float]): (x, y, z) pixel spacing in mm.
-        metadata (dict): All metadata available in the OCT scan.
+        volume_id: Volume ID.
+        acquisition_date: date image acquired.
+        num_slices: Number of b-scans present in volume.
+        laterality: Left or right eye.
+
+        contours: contours data.
+        pixel_spacing: (x, y, z) pixel spacing in mm.
+        metadata: All metadata available in the OCT scan.
     """
 
     def __init__(
         self,
-        volume,
-        patient_id=None,
-        first_name=None,
-        surname=None,
-        sex=None,
-        patient_dob=None,
-        volume_id=None,
-        acquisition_date=None,
-        laterality=None,
-        contours=None,
-        pixel_spacing: t.Optional[t.List[float]] = None,
-        metadata=None,
-    ):
+        volume: Sequence[np.array],
+        patient_id: str | None = None,
+        first_name: str | None = None,
+        surname: str | None = None,
+        sex: str | None = None,
+        patient_dob: str | None = None,
+        volume_id: str | None = None,
+        acquisition_date: datetime | None = None,
+        laterality: str | None = None,
+        contours: dict[Sequence] | None = None,
+        pixel_spacing: Sequence[float] | None = None,
+        metadata: dict | None = None,
+    ) -> None:
         # image
         self.volume = volume
 
@@ -72,14 +76,20 @@ class OCTVolumeWithMetaData(object):
         # metadata
         self.metadata = metadata
 
-    def peek(self, rows=5, cols=5, filepath=None, show_contours=False):
+    def peek(
+        self,
+        rows: int = 5,
+        cols: int = 5,
+        filepath: str | None = None,
+        show_contours: bool | None = False,
+    ) -> None:
         """Plots a montage of the OCT volume. Optionally saves the plot if a filepath is provided.
 
         Args:
-            rows (int) : Number of rows in the plot.
-            cols (int) : Number of columns in the plot.
-            filepath (str): Location to save montage to.
-            show_contours (bool): If set to ``True``, will plot contours on the OCT volume.
+            rows: Number of rows in the plot.
+            cols: Number of columns in the plot.
+            filepath: Location to save montage to.
+            show_contours: If set to ``True``, will plot contours on the OCT volume.
         """
         images = rows * cols
         x_size = rows * self.volume[0].shape[0]
@@ -108,11 +118,11 @@ class OCTVolumeWithMetaData(object):
         else:
             plt.show()
 
-    def save(self, filepath):
+    def save(self, filepath: str) -> None:
         """Saves OCT volume as a video or stack of slices.
 
         Args:
-            filepath (str): Location to save volume to. Extension must be in VIDEO_TYPES or IMAGE_TYPES.
+            filepath: Location to save volume to. Extension must be in VIDEO_TYPES or IMAGE_TYPES.
         """
         extension = os.path.splitext(filepath)[1]
         if extension.lower() in VIDEO_TYPES:
@@ -141,16 +151,16 @@ class OCTVolumeWithMetaData(object):
                 "Saving with file extension {} not supported".format(extension)
             )
 
-    def get_projection(self):
+    def get_projection(self) -> np.array:
         """Produces a 2D projection image from the volume."""
         projection = np.mean(self.volume, axis=1)
         return projection
 
-    def save_projection(self, filepath):
+    def save_projection(self, filepath: str) -> None:
         """Save a 2D projection image from the volume.
 
         Args:
-            filepath (str): Location to save volume to. Extension must be in IMAGE_TYPES.
+            filepath: Location to save volume to. Extension must be in IMAGE_TYPES.
         """
         extension = os.path.splitext(filepath)[1]
         if extension.lower() in IMAGE_TYPES:
