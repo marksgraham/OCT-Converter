@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 import numpy as np
@@ -9,23 +11,26 @@ class IMG(object):
     """Class for extracting data from Zeiss's .img file format.
 
     Attributes:
-        filepath (str): Path to .img file for reading.
+        filepath: path to .img file for reading.
     """
 
-    def __init__(self, filepath):
+    def __init__(self, filepath: str | Path) -> None:
         self.filepath = Path(filepath)
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
 
-    def read_oct_volume(self, rows=1024, cols=512, interlaced=False):
+    def read_oct_volume(
+        self, rows: int = 1024, cols: int = 512, interlaced: bool = False
+    ):
         """Reads OCT data.
-        Args:
-            rows (int): Can be used to specify a custom row dimension of the image slice. Defaults to 1024 pixels if not specified.
-            cols (int): Can be used to specify a custom column dimension of the image slice. Defaults to 512 pixels if not specified.
-            interlaced (bool): Determines whether data needs to be de-interlaced.
 
-            Returns:
-                obj:OCTVolumeWithMetaData
+        Args:
+            rows: can be used to specify a custom row dimension of the image slice. Defaults to 1024 pixels.
+            cols: dan be used to specify a custom column dimension of the image slice. Defaults to 512 pixels.
+            interlaced: determines whether data needs to be de-interlaced.
+
+        Returns:
+            OCTVolumeWithMetaData
         """
         with open(self.filepath, "rb") as f:
             volume = np.frombuffer(

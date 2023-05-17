@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 import struct
 from pathlib import Path
@@ -11,20 +13,25 @@ from oct_converter.readers.binary_structs import fda_binary
 
 
 class FDA(object):
-    """Class for extracting data from Topcon's .fda file format."""
+    """Class for extracting data from Topcon's .fda file format.
 
-    def __init__(self, filepath, printing=True):
+    Attributes:
+        filepath: path to .fda file for reading.
+        chunk_dict: names of data chunks present in the file, and their start locations.
+    """
+
+    def __init__(self, filepath: str | Path, printing: bool = True) -> None:
         self.filepath = Path(filepath)
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
 
         self.chunk_dict = self.get_list_of_file_chunks(printing=printing)
 
-    def get_list_of_file_chunks(self, printing=True):
+    def get_list_of_file_chunks(self, printing: bool = True) -> dict:
         """Find all data chunks present in the file.
 
         Returns:
-            dict
+            dictionary of chunk names, containing their locations in the file and size.
         """
         chunk_dict = {}
         with open(self.filepath, "rb") as f:
@@ -59,7 +66,7 @@ class FDA(object):
             print("")
         return chunk_dict
 
-    def read_oct_volume(self):
+    def read_oct_volume(self) -> OCTVolumeWithMetaData:
         """Reads OCT data.
 
         Notes:
@@ -67,7 +74,7 @@ class FDA(object):
             https://bitbucket.org/uocte/uocte/wiki/Topcon%20File%20Format
 
         Returns:
-            obj:OCTVolumeWithMetaData
+            OCTVolumeWithMetaData
         """
 
         if b"@IMG_JPEG" not in self.chunk_dict:
@@ -98,11 +105,11 @@ class FDA(object):
         oct_volume = OCTVolumeWithMetaData(volume, contours=contours, metadata=metadata)
         return oct_volume
 
-    def read_oct_volume_2(self):
+    def read_oct_volume_2(self) -> OCTVolumeWithMetaData:
         """Reads OCT data. Worth trying if read_oct_volume fails.
 
         Returns:
-            obj:OCTVolumeWithMetaData
+            OCTVolumeWithMetaData
         """
 
         if b"@IMG_MOT_COMP_03" not in self.chunk_dict:
@@ -127,11 +134,11 @@ class FDA(object):
         )
         return oct_volume
 
-    def read_fundus_image(self):
+    def read_fundus_image(self) -> FundusImageWithMetaData:
         """Reads fundus image.
 
         Returns:
-            obj:FundusImageWithMetaData
+            FundusImageWithMetaData
         """
         if b"@IMG_FUNDUS" not in self.chunk_dict:
             print("@IMG_FUNDUS is not in chunk list, skipping.")
@@ -150,11 +157,11 @@ class FDA(object):
         fundus_image = FundusImageWithMetaData(image)
         return fundus_image
 
-    def read_fundus_image_gray_scale(self):
-        """Reads gray scale fundus image.
+    def read_fundus_image_gray_scale(self) -> FundusImageWithMetaData:
+        """Reads grayscale fundus image.
 
         Returns:
-            obj:FundusImageWithMetaData
+            FundusImageWithMetaData
         """
         if b"@IMG_TRC_02" not in self.chunk_dict:
             print("@IMG_TRC_02 is not in chunk list, skipping.")
@@ -171,15 +178,14 @@ class FDA(object):
         fundus_gray_scale_image = FundusImageWithMetaData(image)
         return fundus_gray_scale_image
 
-    def read_segmentation(self):
-        """
-        Reads layer segmentation data.
+    def read_segmentation(self) -> dict:
+        """Reads layer segmentation data.
 
         Segmentation values are returned in a dictionary with a key for every
         layer boundary and are measured in pixels from B-scan bottom.
 
         Returns
-            dict: dictionary with segmentation data.
+            dictionary with segmentation data.
         """
 
         if b"@CONTOUR_INFO" not in self.chunk_dict.keys():
@@ -216,15 +222,15 @@ class FDA(object):
 
         return seg_dict
 
-    def read_all_metadata(self, verbose=False):
+    def read_all_metadata(self, verbose: bool = False):
         """
         Reads all available metadata and returns a dictionary.
 
         Args:
-            verbose: If True, prints the chunks that are not supported.
+            verbose: if True, prints the chunks that are not supported.
 
         Returns:
-            dict: dictionary with all metadata.
+            dictionary with all metadata.
         """
         metadata = dict()
         for key in self.chunk_dict.keys():
@@ -239,12 +245,14 @@ class FDA(object):
                     print(f"{key} there is no method for getting info from this chunk.")
         return metadata
 
-    def read_any_info_and_make_dict(self, chunk_name):
-        """
-        Reads chunks, get data and make dictionary
-        :param chunk_name: name of the chunk which data will be taken.
+    def read_any_info_and_make_dict(self, chunk_name: str) -> dict:
+        """Reads any chunk and constructs a dictionary.
+
+        Args:
+            chunk_name: name of the chunk which data will be taken.
+
         Returns:
-            dict:Chunk info Data
+            Chunk info data
         """
         if chunk_name not in self.chunk_dict:
             print(f"{chunk_name} is not in chunk list, skipping.")

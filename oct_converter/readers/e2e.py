@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -18,10 +20,10 @@ class E2E(object):
         https://bitbucket.org/uocte/uocte/wiki/Heidelberg%20File%20Format.
 
     Attributes:
-        filepath (str): Path to .img file for reading.
+        filepath: path to .e2e file for reading.
     """
 
-    def __init__(self, filepath):
+    def __init__(self, filepath: str | Path) -> None:
         self.filepath = Path(filepath)
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
@@ -32,13 +34,16 @@ class E2E(object):
         self.surname = None
         self.acquisition_date = None
 
-    def read_oct_volume(self, legacy_intensity_transform=False):
+    def read_oct_volume(
+        self, legacy_intensity_transform: bool = False
+    ) -> list[OCTVolumeWithMetaData]:
         """Reads OCT data.
+
         Args:
-            legacy_intensity_transform (bool): If True, use intensity transform used in v<=0.5.7. Defaults to False.
+            legacy_intensity_transform: if True, use intensity transform used in v<=0.5.7. Defaults to False.
 
         Returns:
-            obj:OCTVolumeWithMetaData
+            A list of OCTVolumeWithMetaData.
         """
 
         def _make_lut():
@@ -271,11 +276,11 @@ class E2E(object):
 
         return oct_volumes
 
-    def read_fundus_image(self):
+    def read_fundus_image(self) -> list[FundusImageWithMetaData]:
         """Reads fundus data.
 
         Returns:
-            obj:FundusImageWithMetaData
+            A sequence of FundusImageWithMetaData.
         """
         with open(self.filepath, "rb") as f:
             raw = f.read(200)
@@ -381,14 +386,14 @@ class E2E(object):
 
         return fundus_images
 
-    def read_custom_float(self, bytes):
+    def read_custom_float(self, bytes: str) -> float:
         """Implementation of bespoke float type used in .e2e files.
 
         Notes:
             Custom float is a floating point type with no sign, 6-bit exponent, and 10-bit mantissa.
 
         Args:
-            bytes (str): The two bytes.
+            bytes: the two bytes.
 
         Returns:
             float
@@ -406,14 +411,14 @@ class E2E(object):
         decimal_value = mantissa_sum * pow(2, exponent_sum)
         return decimal_value
 
-    def uint16_to_ufloat16(self, uint16):
+    def uint16_to_ufloat16(self, uint16: int) -> float:
         """Implementation of bespoke float type used in .e2e files.
 
         Notes:
             Custom float is a floating point type with no sign, 6-bit exponent, and 10-bit mantissa.
 
         Args:
-            uint16 (int):
+            uint16
 
         Returns:
             float
@@ -430,9 +435,11 @@ class E2E(object):
         decimal_value = mantissa_sum * np.float_power(2, exponent_sum)
         return decimal_value
 
-    def vol_intensity_transform(self, data):
-        """Implementation of intensity transform used in .e2e files. Code thanks to @oli4, see discussion in
-        https://github.com/marksgraham/OCT-Converter/issues/21#issuecomment-1057455183
+    def vol_intensity_transform(self, data: np.array) -> np.array:
+        """Implementation of intensity transform used in .e2e files.
+
+        Notes:
+            Code thanks to @oli4, see discussion in https://github.com/marksgraham/OCT-Converter/issues/21#issuecomment-1057455183
         """
         selection_0 = data == np.finfo(np.float32).max
         selection_data = data <= 1

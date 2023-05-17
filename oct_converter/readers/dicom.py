@@ -1,19 +1,21 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 from oct_converter.image_types import OCTVolumeWithMetaData
 
 
 class Dicom(object):
-    def __init__(self, filepath):
+    def __init__(self, filepath: str | Path) -> None:
         self.filepath = Path(filepath)
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
 
-    def read_oct_volume(self):
+    def read_oct_volume(self) -> OCTVolumeWithMetaData:
         """Reads OCT data.
 
         Returns:
-            obj:OCTVolumeWithMetaData
+            OCTVolumeWithMetaData
         """
         import pydicom
 
