@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -13,14 +13,16 @@ IMAGE_TYPES = [".png", ".bmp", ".tiff", ".jpg", ".jpeg"]
 
 
 class FundusImageWithMetaData(object):
-    """Class to hold a fundus image and any related metadata, and methods for saving.
+    """Class to hold a fundus image and any related metadata.
+
+    Also provides methods for viewing and saving.
 
     Attributes:
         image: fundus image.
-        laterality: Left or right eye.
-        patient_id: Patient ID.
-        image_id: Image ID.
-        DOB: Patient date of birth.
+        laterality: left or right eye.
+        patient_id: patient ID.
+        image_id: image ID.
+        DOB: patient date of birth.
     """
 
     def __init__(
@@ -37,13 +39,13 @@ class FundusImageWithMetaData(object):
         self.image_id = image_id
         self.DOB = patient_dob
 
-    def save(self, filepath: str) -> None:
+    def save(self, filepath: str | Path) -> None:
         """Saves fundus image.
 
         Args:
-            filepath: Location to save volume to. Extension must be in IMAGE_TYPES.
+            filepath: location to save volume to. Extension must be in IMAGE_TYPES.
         """
-        extension = os.path.splitext(filepath)[1]
+        extension = Path(filepath).suffix
         if extension.lower() in IMAGE_TYPES:
             # change channel order from RGB to BGR and save with cv2
             image = cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR)

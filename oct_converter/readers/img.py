@@ -11,7 +11,7 @@ class IMG(object):
     """Class for extracting data from Zeiss's .img file format.
 
     Attributes:
-        filepath: Path to .img file for reading.
+        filepath: path to .img file for reading.
     """
 
     def __init__(self, filepath: str | Path) -> None:
@@ -25,9 +25,9 @@ class IMG(object):
         """Reads OCT data.
 
         Args:
-            rows: Can be used to specify a custom row dimension of the image slice. Defaults to 1024 pixels.
-            cols: Can be used to specify a custom column dimension of the image slice. Defaults to 512 pixels.
-            interlaced: Determines whether data needs to be de-interlaced.
+            rows: can be used to specify a custom row dimension of the image slice. Defaults to 1024 pixels.
+            cols: dan be used to specify a custom column dimension of the image slice. Defaults to 512 pixels.
+            interlaced: determines whether data needs to be de-interlaced.
 
         Returns:
             OCTVolumeWithMetaData

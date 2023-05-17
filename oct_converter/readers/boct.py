@@ -20,8 +20,8 @@ class BOCT(object):
     .OCT stores 4D volumes (time series of 3D volumes with the same shape)
 
     Attributes:
-        filepath: Path to .img file for reading.
-        file_structure: Defines structure of volume's header.
+        filepath: path to .img file for reading.
+        file_structure: defines structure of volume's header.
     """
 
     bioptigen_scan_type_map = {0: "linear", 1: "rect", 3: "rad"}
@@ -49,7 +49,7 @@ class BOCT(object):
         """Reads OCT data.
 
         Args:
-            diskbuffered: If True, reduces memory usage by storing volume on disk using HDF5
+            diskbuffered: if True, reduces memory usage by storing volume on disk using HDF5.
 
         Returns:
             OCT volumes with metadata.

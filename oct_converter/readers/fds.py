@@ -17,8 +17,8 @@ class FDS(object):
         https://bitbucket.org/uocte/uocte/wiki/Topcon%20File%20Format
 
     Attributes:
-        filepath: Path to .img file for reading.
-        chunk_dict: Name of data chunks present in the file, and their start locations.
+        filepath: path to .img file for reading.
+        chunk_dict: names of data chunks present in the file, and their start locations.
     """
 
     def __init__(self, filepath: str | Path) -> None:
@@ -133,7 +133,7 @@ class FDS(object):
         Reads all available metadata and returns a dictionary.
 
         Args:
-            verbose: If True, prints the chunks that are not supported.
+            verbose: if True, prints the chunks that are not supported.
 
         Returns:
             dictionary with all metadata.

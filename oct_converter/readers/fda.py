@@ -16,9 +16,8 @@ class FDA(object):
     """Class for extracting data from Topcon's .fda file format.
 
     Attributes:
-        filepath: Path to .fda file for reading.
-        chunk_dict: Name of data chunks present in the file, and their start locations.
-
+        filepath: path to .fda file for reading.
+        chunk_dict: names of data chunks present in the file, and their start locations.
     """
 
     def __init__(self, filepath: str | Path, printing: bool = True) -> None:
@@ -159,7 +158,7 @@ class FDA(object):
         return fundus_image
 
     def read_fundus_image_gray_scale(self) -> FundusImageWithMetaData:
-        """Reads gray scale fundus image.
+        """Reads grayscale fundus image.
 
         Returns:
             FundusImageWithMetaData
@@ -228,7 +227,7 @@ class FDA(object):
         Reads all available metadata and returns a dictionary.
 
         Args:
-            verbose: If True, prints the chunks that are not supported.
+            verbose: if True, prints the chunks that are not supported.
 
         Returns:
             dictionary with all metadata.

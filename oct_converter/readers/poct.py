@@ -11,7 +11,7 @@ class POCT(object):
     """Class for extracting data from Optovues's .oct file format.
 
     Attributes:
-        filepath: Path to .oct file for reading. Reader expects a file with the same name and a .txt extension
+        filepath: path to .oct file for reading. Expects a file with the same name and a .txt extension
             exists at the same location.
     """
 

@@ -20,7 +20,7 @@ class E2E(object):
         https://bitbucket.org/uocte/uocte/wiki/Heidelberg%20File%20Format.
 
     Attributes:
-        filepath: Path to .e2e file for reading.
+        filepath: path to .e2e file for reading.
     """
 
     def __init__(self, filepath: str | Path) -> None:
@@ -40,10 +40,10 @@ class E2E(object):
         """Reads OCT data.
 
         Args:
-            legacy_intensity_transform: If True, use intensity transform used in v<=0.5.7. Defaults to False.
+            legacy_intensity_transform: if True, use intensity transform used in v<=0.5.7. Defaults to False.
 
         Returns:
-            A sequence of OCTVolumeWithMetaData.
+            A list of OCTVolumeWithMetaData.
         """
 
         def _make_lut():
@@ -393,7 +393,7 @@ class E2E(object):
             Custom float is a floating point type with no sign, 6-bit exponent, and 10-bit mantissa.
 
         Args:
-            bytes: The two bytes.
+            bytes: the two bytes.
 
         Returns:
             float
