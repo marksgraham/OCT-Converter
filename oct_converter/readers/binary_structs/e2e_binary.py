@@ -85,8 +85,8 @@ contour_structure = Struct(
 # https://github.com/neurodial/LibE2E/blob/d26d2d9db64c5f765c0241ecc22177bb0c440c87/E2E/dataelements/bscanmetadataelement.cpp#L75
 bscan_metadata = Struct(
     "unknown1" / Int32un,
-    "imgSizeX" / Int32un,
     "imgSizeY" / Int32un,
+    "imgSizeX" / Int32un,
     "posX1" / Float32l,
     "posY1" / Float32l,
     "posX2" / Float32l,
