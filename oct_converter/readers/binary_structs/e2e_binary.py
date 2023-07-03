@@ -61,8 +61,8 @@ image_structure = Struct(
     "size" / Int32un,
     "type" / Int32un,
     "unknown" / Int32un,
-    "width" / Int32un,
     "height" / Int32un,
+    "width" / Int32un,
 )
 patient_id_structure = Struct(
     "first_name" / PaddedString(31, "ascii"),

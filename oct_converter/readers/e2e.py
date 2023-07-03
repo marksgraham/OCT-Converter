@@ -202,15 +202,15 @@ class E2E(object):
                         )
                         try:
                             image = LUT[raw_volume].reshape(
-                                image_data.width, image_data.height
+                                image_data.height, image_data.width
                             )
                         except Exception:
                             warnings.warn(
                                 (
                                     f"Could not reshape image id {volume_string} with "
                                     f"{len(LUT[raw_volume])} elements into a "
-                                    f"{image_data.width}x"
-                                    f"{image_data.height} array"
+                                    f"{image_data.height}x"
+                                    f"{image_data.width} array"
                                 ),
                                 UserWarning,
                             )
