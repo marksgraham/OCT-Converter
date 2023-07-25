@@ -56,7 +56,7 @@ class E2E(object):
 
         with open(self.filepath, "rb") as f:
             raw = f.read(200)
-            self.byte_skip = raw.find(b"CMDb")-1
+            self.byte_skip = raw.find(b"CMDb") - 1
             if self.byte_skip == -1:
                 raise ValueError("CMDb not found in file header")
             else:
