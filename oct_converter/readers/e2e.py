@@ -56,7 +56,7 @@ class E2E(object):
 
         with open(self.filepath, "rb") as f:
             raw = f.read(200)
-            self.byte_skip = raw.find(b"CMDb")
+            self.byte_skip = raw.find(b"CMDb")-1
             if self.byte_skip == -1:
                 raise ValueError("CMDb not found in file header")
             else:
@@ -258,7 +258,7 @@ class E2E(object):
             ):
                 # remove any initalised volumes that never had image data attached
                 volume = [slc for slc in volume if not isinstance(slc, int)]
-                if volume is None:
+                if volume is None or len(volume) == 0:
                     continue
                 oct_volumes.append(
                     OCTVolumeWithMetaData(
@@ -284,7 +284,7 @@ class E2E(object):
         """
         with open(self.filepath, "rb") as f:
             raw = f.read(200)
-            self.byte_skip = raw.find(b"CMDb")
+            self.byte_skip = raw.find(b"CMDb") - 1
             if self.byte_skip == -1:
                 raise ValueError("CMDb not found in file header")
             else:
