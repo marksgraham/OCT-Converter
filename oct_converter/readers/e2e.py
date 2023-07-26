@@ -56,7 +56,7 @@ class E2E(object):
 
         with open(self.filepath, "rb") as f:
             raw = f.read(21)
-            if raw == b'E2EMultipleVolumeFile':
+            if raw == b"E2EMultipleVolumeFile":
                 self.byte_skip = 64
             else:
                 self.byte_skip = 0
@@ -284,7 +284,7 @@ class E2E(object):
         """
         with open(self.filepath, "rb") as f:
             raw = f.read(21)
-            if raw == b'E2EMultipleVolumeFile':
+            if raw == b"E2EMultipleVolumeFile":
                 self.byte_skip = 64
             else:
                 self.byte_skip = 0
