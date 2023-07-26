@@ -55,12 +55,12 @@ class E2E(object):
         LUT = _make_lut()
 
         with open(self.filepath, "rb") as f:
-            raw = f.read(200)
-            self.byte_skip = raw.find(b"CMDb")
-            if self.byte_skip == -1:
-                raise ValueError("CMDb not found in file header")
+            raw = f.read(21)
+            if raw == b"E2EMultipleVolumeFile":
+                self.byte_skip = 64
             else:
-                f.seek(self.byte_skip)
+                self.byte_skip = 0
+            f.seek(self.byte_skip)
             raw = f.read(36)
 
             header = e2e_binary.header_structure.parse(raw)
@@ -258,7 +258,7 @@ class E2E(object):
             ):
                 # remove any initalised volumes that never had image data attached
                 volume = [slc for slc in volume if not isinstance(slc, int)]
-                if volume is None:
+                if volume is None or len(volume) == 0:
                     continue
                 oct_volumes.append(
                     OCTVolumeWithMetaData(
@@ -283,12 +283,12 @@ class E2E(object):
             A sequence of FundusImageWithMetaData.
         """
         with open(self.filepath, "rb") as f:
-            raw = f.read(200)
-            self.byte_skip = raw.find(b"CMDb")
-            if self.byte_skip == -1:
-                raise ValueError("CMDb not found in file header")
+            raw = f.read(21)
+            if raw == b"E2EMultipleVolumeFile":
+                self.byte_skip = 64
             else:
-                f.seek(self.byte_skip)
+                self.byte_skip = 0
+            f.seek(self.byte_skip)
             raw = f.read(36)
             header = e2e_binary.header_structure.parse(raw)
             raw = f.read(52)
