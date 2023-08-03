@@ -1,3 +1,5 @@
+import json
+
 from oct_converter.readers import E2E
 
 filepath = "../sample_files/sample.E2E"
@@ -14,3 +16,8 @@ fundus_images = (
 )  # returns a list of all fundus images with additional metadata if available
 for image in fundus_images:
     image.save("{}+{}.png".format(image.image_id, image.laterality))
+
+# extract all other metadata
+metadata = file.read_all_metadata()
+with open("metadata.json", "w") as outfile:
+    outfile.write(json.dumps(metadata, indent=4))
