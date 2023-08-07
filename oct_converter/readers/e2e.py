@@ -34,6 +34,31 @@ class E2E(object):
         self.surname = None
         self.acquisition_date = None
 
+        # get initial directory structure
+        with open(self.filepath, "rb") as f:
+            raw = f.read(21)
+            if raw == b"E2EMultipleVolumeFile":
+                self.byte_skip = 64
+            else:
+                self.byte_skip = 0
+            f.seek(self.byte_skip)
+            raw = f.read(36)
+
+            header = e2e_binary.header_structure.parse(raw)
+            raw = f.read(52)
+            main_directory = e2e_binary.main_directory_structure.parse(raw)
+
+            # traverse list of main directories in first pass
+            self.directory_stack = []
+
+            current = main_directory.current
+            while current != 0:
+                self.directory_stack.append(current)
+                f.seek(current + self.byte_skip)
+                raw = f.read(52)
+                directory_chunk = e2e_binary.main_directory_structure.parse(raw)
+                current = directory_chunk.prev
+
     def read_oct_volume(
         self, legacy_intensity_transform: bool = False
     ) -> list[OCTVolumeWithMetaData]:
@@ -55,33 +80,10 @@ class E2E(object):
         LUT = _make_lut()
 
         with open(self.filepath, "rb") as f:
-            raw = f.read(21)
-            if raw == b"E2EMultipleVolumeFile":
-                self.byte_skip = 64
-            else:
-                self.byte_skip = 0
-            f.seek(self.byte_skip)
-            raw = f.read(36)
-
-            header = e2e_binary.header_structure.parse(raw)
-            raw = f.read(52)
-            main_directory = e2e_binary.main_directory_structure.parse(raw)
-
-            # traverse list of main directories in first pass
-            directory_stack = []
-
-            current = main_directory.current
-            while current != 0:
-                directory_stack.append(current)
-                f.seek(current + self.byte_skip)
-                raw = f.read(52)
-                directory_chunk = e2e_binary.main_directory_structure.parse(raw)
-                current = directory_chunk.prev
-
-            # traverse in second pass and  get all subdirectories
+            # get all subdirectories
             chunk_stack = []
             volume_dict = {}
-            for position in directory_stack:
+            for position in self.directory_stack:
                 f.seek(position + self.byte_skip)
                 raw = f.read(52)
                 directory_chunk = e2e_binary.main_directory_structure.parse(raw)
@@ -283,33 +285,9 @@ class E2E(object):
             A sequence of FundusImageWithMetaData.
         """
         with open(self.filepath, "rb") as f:
-            raw = f.read(21)
-            if raw == b"E2EMultipleVolumeFile":
-                self.byte_skip = 64
-            else:
-                self.byte_skip = 0
-            f.seek(self.byte_skip)
-            raw = f.read(36)
-            header = e2e_binary.header_structure.parse(raw)
-            raw = f.read(52)
-            main_directory = e2e_binary.main_directory_structure.parse(raw)
-
-            # traverse list of main directories in first pass
-            directory_stack = []
-
-            laterality = None
-
-            current = main_directory.current
-            while current != 0:
-                directory_stack.append(current)
-                f.seek(current + self.byte_skip)
-                raw = f.read(52)
-                directory_chunk = e2e_binary.main_directory_structure.parse(raw)
-                current = directory_chunk.prev
-
             # traverse in second pass and  get all subdirectories
             chunk_stack = []
-            for position in directory_stack:
+            for position in self.directory_stack:
                 f.seek(position + self.byte_skip)
                 raw = f.read(52)
                 directory_chunk = e2e_binary.main_directory_structure.parse(raw)
@@ -385,6 +363,90 @@ class E2E(object):
                 )
 
         return fundus_images
+
+    def read_all_metadata(self):
+        """
+        Reads all available metadata and returns a dictionary.
+
+        The metadata is a raw dump of everything available.
+
+        Returns:
+            dictionary with all metadata.
+        """
+
+        def _convert_to_dict(container):
+            """Converts a container object to a dictionary"""
+            return dict(
+                (name, getattr(container, name))
+                for name in container
+                if not name.startswith("_")
+            )
+
+        metadata = dict()
+        metadata["image_data"] = []
+        metadata["bscan_data"] = []
+        metadata["patient_data"] = []
+        metadata["laterality_data"] = []
+        metadata["contour_data"] = []
+        metadata["fundus_data"] = []
+
+        with open(self.filepath, "rb") as f:
+            # get all subdirectories
+            chunk_stack = []
+
+            for position in self.directory_stack:
+                f.seek(position + self.byte_skip)
+                raw = f.read(52)
+                directory_chunk = e2e_binary.main_directory_structure.parse(raw)
+
+                for ii in range(directory_chunk.num_entries):
+                    raw = f.read(44)
+                    chunk = e2e_binary.sub_directory_structure.parse(raw)
+                    if chunk.start > chunk.pos:
+                        chunk_stack.append([chunk.start, chunk.size])
+
+            # traverse all chunks and extract slices
+            for start, pos in chunk_stack:
+                f.seek(start + self.byte_skip)
+                raw = f.read(60)
+                chunk = e2e_binary.chunk_structure.parse(raw)
+
+                if chunk.type == 9:  # patient data
+                    raw = f.read(127)
+                    try:
+                        patient_data = e2e_binary.patient_id_structure.parse(raw)
+                        metadata["patient_data"].append(_convert_to_dict(patient_data))
+                    except Exception:
+                        pass
+
+                elif chunk.type == 10004:  # bscan metadata
+                    raw = f.read(104)
+                    bscan_metadata = e2e_binary.bscan_metadata.parse(raw)
+                    metadata["bscan_data"].append(_convert_to_dict(bscan_metadata))
+
+                if chunk.type == 1073741824:  # fundus data
+                    raw = f.read(20)
+                    fundus_data = e2e_binary.image_structure.parse(raw)
+                    metadata["fundus_data"].append(_convert_to_dict(fundus_data))
+
+                elif chunk.type == 11:  # laterality data
+                    raw = f.read(20)
+                    laterality_data = e2e_binary.lat_structure.parse(raw)
+                    metadata["laterality_data"].append(
+                        _convert_to_dict(laterality_data)
+                    )
+
+                elif chunk.type == 10019:  # contour data
+                    raw = f.read(16)
+                    contour_data = e2e_binary.contour_structure.parse(raw)
+                    metadata["contour_data"].append(_convert_to_dict(contour_data))
+
+                elif chunk.type == 1073741824:  # image data
+                    raw = f.read(20)
+                    image_data = e2e_binary.image_structure.parse(raw)
+                    metadata["image_data"].append(_convert_to_dict(image_data))
+
+        return metadata
 
     def read_custom_float(self, bytes: str) -> float:
         """Implementation of bespoke float type used in .e2e files.
