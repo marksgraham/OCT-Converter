@@ -1,4 +1,4 @@
-from construct import Float32n, Float64n, Int8un, Int16un, Int32un, PaddedString, Struct
+from construct import Float32n, Float64n, Int8un, Int16un, Int32un, PaddedString, Struct, Array, this
 
 """
         Notes:
@@ -6,36 +6,49 @@ from construct import Float32n, Float64n, Int8un, Int16un, Int32un, PaddedString
         https://bitbucket.org/uocte/uocte/wiki/Topcon%20File%20Format
 
         header (obj:Struct): Defines structure of volume's header.
-        oct_header (obj:Struct): Defines structure of OCT header.
-        fundus_header (obj:Struct): Defines structure of fundus header.
-        chunk_dict (dict): Name of data chunks present in the file, and their start locations.
-        hw_info_03_header (obj:Struct) : Defines structure of hw info header
-        patient_info_02_header (obj:Struct) : Defines patient info header
-        file_info_header (obj:Struct) : Defines fda file info header
-        capture_info_02_header (obj:Struct) : Defines capture info header
-        param_scan_04_header (obj:Struct) : Defines param scan header
-        img_trc_02_header (obj:Struct) : Defines img trc header
-        param_obs_02_header (obj:Struct) : Defines param obs header
-        img_mot_comp_03_header (obj:Struct) : Defines img mot comp header
-        effective_scan_range_header (obj:Struct) : Defines effective scan range header
-        regist_info_header (obj:Struct) : Defines regist info header
-        result_cornea_curve_header (obj:Struct) : Defines result cornea curve header
-        result_cornea_thickness_header (obj:Struct) : Defines result cornea thickness header
-        contour_info_header (obj:Struct) : Defines contour info header
-        align_info_header (obj:Struct) : Defines align info header
-        fast_q2_info_header (obj:Struct) : Defines fast q2 info header
-        gla_littmann_01_header (obj : Struct) : Defines gla littmann 01 header
+        oct_header (obj:Struct): Defines structure of OCT header (IMG_JPEG).
+        oct_header_2 (obj:Struct): Defines structure of OCT header (IMG_MOT_COMP_03).
+        img_mot_comp_02_header (obj:Struct): Defines IMG_MOT_COMP_02 header.
+        img_mot_comp_header (obj:Struct): Defines IMG_MOT_COMP header.
+        fundus_header (obj:Struct): Defines structure of fundus header (IMG_FUNDUS).
+        hw_info_03_header (obj:Struct) : Defines structure of HW_INFO_03 header.
+        hw_info_02_header (obj:Struct) : Defines structure of HW_INFO_02 header.
+        hw_info_01_header (obj:Struct) : Defines structure of HW_INFO_01 header.
+        patient_info_02_header (obj:Struct) : Defines PATIENT_INFO_02 header.
+        file_info_header (obj:Struct) : Defines fda FILE_INFO header.
+        fda_file_info_header (obj:Struct) : Defines FDA_FILE_INFO header.
+        capture_info_02_header (obj:Struct) : Defines CAPTURE_INFO_02 header.
+        capture_info_header (obj:Struct) : Defines CAPTURE_INFO header.
+        param_scan_04_header (obj:Struct) : Defines PARAM_SCAN_04 header.
+        param_scan_02_header (obj:Struct) : Defines PARAM_SCAN_02 header.
+        img_trc_02_header (obj:Struct) : Defines IMG_TRC_02 header (Fundus grayscale).
+        img_trc_header (obj:Struct) : Defines IMG_TRC header.
+        param_obs_02_header (obj:Struct) : Defines PARAM_OBS_02 header.
+        img_projection_header (obj:Struct) : Defines IMG_PROJECTION header.
+        img_mot_comp_03_header (obj:Struct) : Defines IMG_MOT_COMP_03 header (Duplicate of oct_header_2)
+        effective_scan_range_header (obj:Struct) : Defines EFFECTIVE_SCAN_RANGE header.
+        regist_info_header (obj:Struct) : Defines REGIST_INFO header.
+        result_cornea_curve_header (obj:Struct) : Defines RESULT_CORNEA_CURVE header.
+        result_cornea_thickness_header (obj:Struct) : Defines RESULT_CORNEA_THICKNESS header.
+        contour_info_header (obj:Struct) : Defines CONTOUR_INFO header.
+        align_info_header (obj:Struct) : Defines ALIGN_INFO header.
+        main_module_info_header (obj:Struct) : Defines MAIN_MODULE_INFO header.
+        fast_q2_info_header (obj:Struct) : Defines FAST_Q2_INFO header.
+        gla_littmann_01_header (obj:Struct) : Defines GLA_LITTMANN_01 header.
+        thumbnail_header (obj:Struct) : Defines THUMBNAIL header.
+        patientext_info_header (obj:Struct) : Defines PATIENTEXT_INFO header.
 """
 
 header = Struct(
-    "FOCT" / PaddedString(4, "ascii"),
-    "FDA" / PaddedString(3, "ascii"),
-    "version_info_1" / Int32un,
-    "version_info_2" / Int32un,
+    "file_code" / PaddedString(4, "ascii"), # Always "FOCT"
+    "file_type" / PaddedString(3, "ascii"), # "FDA" or "FAA", denoting "macula" or "external" fixation
+    "major_ver" / Int32un,
+    "minor_ver" / Int32un,
 )
 
+# IMG_JPEG
 oct_header = Struct(
-    "type" / PaddedString(1, "ascii"),
+    "scan_mode" / Int8un,
     "unknown1" / Int32un,
     "unknown2" / Int32un,
     "width" / Int32un,
@@ -44,22 +57,47 @@ oct_header = Struct(
     "unknown3" / Int32un,
 )
 
+# IMG_MOT_COMP_03
 oct_header_2 = Struct(
-    "unknown" / PaddedString(1, "ascii"),
+    "scan_mode" / Int8un,
     "width" / Int32un,
     "height" / Int32un,
     "bits_per_pixel" / Int32un,
     "number_slices" / Int32un,
-    "unknown" / PaddedString(1, "ascii"),
+    "format" / Int8un,
     "size" / Int32un,
 )
 
+# There may be earlier versions of IMG_MOT_COMP
+# that could also be used here, but needs testing.
+img_mot_comp_02_header = Struct(
+    "temp" / Int8un,
+    "motion_width" / Int32un,
+    "motion_height" / Int32un,
+    "motion_depth" / Int32un,
+    "motion_number" / Int32un,
+    "motion_format" / Int8un,
+    "motion_start_x_pos" / Int32un,
+    "motion_start_y_pos" / Int32un,
+    "motion_end_x_pos" / Int32un,
+    "motion_end_y_pos" / Int32un,
+    "size" / Int32un,
+)
+
+img_mot_comp_header = Struct(
+    "motion_width" / Int32un,
+    "motion_height" / Int32un,
+    "motion_depth" / Int32un,
+    "size" / Int32un,
+)
+
+# IMG_FUNDUS
 fundus_header = Struct(
     "width" / Int32un,
     "height" / Int32un,
     "bits_per_pixel" / Int32un,
     "number_slices" / Int32un,
-    "unknown" / PaddedString(4, "ascii"),
+    "format" / PaddedString(4, "ascii"),
     "size" / Int32un,
     # 'img' / Int8un,
 )
@@ -67,26 +105,68 @@ fundus_header = Struct(
 hw_info_03_header = Struct(
     "model_name" / PaddedString(16, "ascii"),
     "serial_number" / PaddedString(16, "ascii"),
-    "zeros" / PaddedString(32, "ascii"),
-    "version" / PaddedString(16, "ascii"),
-    "build_year" / Int16un,
-    "build_month" / Int16un,
-    "build_day" / Int16un,
-    "build_hour" / Int16un,
-    "build_minute" / Int16un,
-    "build_second" / Int16un,
-    "zeros" / PaddedString(8, "ascii"),
-    "version_numbers" / PaddedString(8, "ascii"),
+    "spect_sn" / PaddedString(16, "ascii"),
+    "rom_ver" / PaddedString(16, "ascii"),
+    "unknown" / PaddedString(16, "ascii"),
+    "eq_calib_year" / Int16un,
+    "eq_calib_month" / Int16un,
+    "eq_calib_day" / Int16un,
+    "eq_calib_hour" / Int16un,
+    "eq_calib_minute" / Int16un,
+    "spect_calib_year" / Int16un,
+    "spect_calib_month" / Int16un,
+    "spect_calib_day" / Int16un,
+    "spect_calib_hour" / Int16un,
+    "spect_calib_minute" / Int16un,
+)
+
+hw_info_02_header = Struct(
+    "model_name" / PaddedString(16, "ascii"),
+    "serial_number" / PaddedString(16, "ascii"),
+    "spect_sn" / PaddedString(16, "ascii"),
+    "rom_ver" / PaddedString(16, "ascii"),
+    "eq_calib_year" / Int16un,
+    "eq_calib_month" / Int16un,
+    "eq_calib_day" / Int16un,
+    "spect_calib_year" / Int16un,
+    "spect_calib_month" / Int16un,
+    "spect_calib_day" / Int16un,
+)
+
+hw_info_01_header = Struct(
+    "model_name" / PaddedString(16, "ascii"),
+    "serial_number" / PaddedString(16, "ascii"),
+    "spect_sn" / PaddedString(16, "ascii"),
+    "rom_ver" / PaddedString(16, "ascii"),
+    "eq_calib_year" / Int16un,
+    "eq_calib_month" / Int16un,
+    "eq_calib_day" / Int16un,
+    "spect_calib_year" / Int16un,
+    "spect_calib_month" / Int16un,
+    "spect_calib_day" / Int16un,
 )
 
 patient_info_02_header = Struct(
-    "patient_id" / PaddedString(8, "ascii"),
-    "patient_given_name" / PaddedString(8, "ascii"),
-    "patient_surname" / PaddedString(8, "ascii"),
-    "birth_date_type" / Int8un,
-    "birth_year" / Int16un,
-    "birth_month" / Int16un,
-    "birth_day" / Int16un,
+    "patient_id" / PaddedString(32, "ascii"),
+    "first_name" / PaddedString(32, "ascii"),
+    "last_name" / PaddedString(32, "ascii"),
+    "mid_name" / PaddedString(8, "ascii"),
+    "sex" / Int8un, # 1: "M", 2: "F", 3: "O"
+    "birth_date" / Int16un[3],
+    "occup_reg" / Int8un[20][2],
+    "r_date" / Int16un[3],
+    "record_id" / Int8un[16],
+    "lv_date" / Int16un[3],
+    # I've not found files that have the below information,
+    # so it's difficult to confirm the remaining.
+    "physician" / Int8un[64][2], # [64 2] ???
+    "zip_code" / Int8un[12], #how does this make sense.
+    "addr" / Int8un[48][2], # [48 2]
+    "phones" / Int8un[16][2], # [16 2]
+    "nx_date" / Int16un[6], # [1 6]
+    "multipurpose_field" / Int8un[20][3], # [20 3]
+    "descp" / Int8un[64],
+    "reserved" / Int8un[32],
 )
 
 file_info_header = Struct(
@@ -95,30 +175,62 @@ file_info_header = Struct(
     "8.0.1.20198" / PaddedString(32, "ascii"),
 )
 
+fda_file_info_header = Struct(
+    "0x2" / Int32un,
+    "0x3e8" / Int32un,
+    "8.0.1.20198" / Int8un[32],
+)
+
 capture_info_02_header = Struct(
-    "x" / Int16un,
-    "zeros" / PaddedString(52, "ascii"),
-    "aquisition_year" / Int16un,
-    "aquisition_month" / Int16un,
-    "aquisition_day" / Int16un,
-    "aquisition_hour" / Int16un,
-    "aquisition_minute" / Int16un,
-    "aquisition_second" / Int16un,
+    "eye" / Int8un, # 0: R, 1: L
+    "scan_mode" / Int8un,
+    "session_id" / Int32un,
+    "label" / PaddedString(100, "ascii"),
+    "cap_date" / Int16un[6],
+)
+
+capture_info_header = Struct(
+    "eye" / Int8un, # 0: R, 1: L
+    "cap_date" / Int16un[6],
 )
 
 param_scan_04_header = Struct(
-    "unknown" / Int16un[6],
+    "fixation" / Int32un,
+    "mirror_pos" / Int32un,
+    "polar" / Int32un,
     "x_dimension_mm" / Float64n,
     "y_dimension_mm" / Float64n,
     "z_resolution_um" / Float64n,
+    "comp_eff_2" / Float64n,
+    "comp_eff_3" / Float64n,
+    "base_pos" / Int8un,
+    "used_calib_data" / Int8un,
 )
 
+param_scan_02_header = Struct(
+    "scan_mode" / Int8un,
+    "light_level" / Int32un,
+    "fixation" / Int32un,
+    "mirror_pos" / Int32un,
+    "nd" / Int32un,
+    "polar" / Int32un,
+    "x_dimension_mm" / Float64n,
+    "y_dimension_mm" / Float64n,
+    "z_resolution_um" / Float64n,
+    "comp_eff_2" / Float64n,
+    "comp_eff_3" / Float64n,
+    "noise_thresh" / Float64n,
+    "range_adj" / Float64n,
+    "base_pos" / Int8un,
+)
+
+# Fundus Grayscale
 img_trc_02_header = Struct(
     "width" / Int32un,
     "height" / Int32un,
     "bits_per_pixel" / Int32un,
     "num_slices_0x2" / Int32un,
-    "0x1" / Int8un,
+    "format" / Int8un,
     "size" / Int32un,
 )
 
@@ -127,13 +239,23 @@ param_obs_02_header = Struct(
     "jpeg_quality" / Int8un,
     "color_temparature" / Int8un,
 )
+# The above might instead be...
+# param_obs_02_header = Struct(
+#     "ph_mode" / Int8un,
+#     "ph_angle" / Int8un,
+#     "ph_light_level" / Int16un,
+# )
 
+# This is the same as oct_header_02, just called
+# by its actual chunk name
 img_mot_comp_03_header = Struct(
-    "0x0" / Int8un,
+    "scan_mode" / Int8un,
     "width" / Int32un,
     "height" / Int32un,
     "bits_per_pixel" / Int32un,
-    "num_slices" / Int32un,
+    "number_slices" / Int32un,
+    "format" / Int8un,
+    "size" / Int32un,
 )
 
 img_projection_header = Struct(
@@ -173,7 +295,8 @@ result_cornea_thickness_header = Struct(
 
 contour_info_header = Struct(
     "id" / PaddedString(20, "ascii"),
-    "type" / Int16un,
+    "method" / Int8un,
+    "format" / Int8un,
     "width" / Int32un,
     "height" / Int32un,
     "size" / Int32un,
@@ -182,3 +305,32 @@ contour_info_header = Struct(
 fast_q2_info_header = Struct("various_quality_statistics" / Float32n[6])
 
 gla_littmann_01_header = Struct("0xffff" / Int32un, "0x1" / Int32un)
+
+align_info_header = Struct(
+    "unlabeled_1" / Int8un,
+    "unlabeled_2" / Int8un,
+    "w" / Int32un,
+    "n_size" / Int32un,
+    "aligndata" / Array(this.w * 2, Int16un), # if n_size > 0
+    # if nblockbytes - (10+n_size) >= 16
+    "keyframe_1" / Int32un,
+    "keyframe_2" / Int32un,
+    "unlabeled_3" / Int32un,
+    "unlabeled_4" / Int32un,
+)
+
+main_module_info_header = Struct(
+    "software_name" / PaddedString(128, "ascii"),
+    "file_version_1" / Int16un,
+    "file_version_2" / Int16un,
+    "file_version_3" / Int16un,
+    "file_version_4" / Int16un,
+    "string" / PaddedString(128, "ascii")
+)
+
+thumbnail_header = Struct(
+    "size" / Int32un,
+    # "img" / Int8un[this.size]
+)
+
+patientext_info_header = Struct("unknown" / Int8un[128])
