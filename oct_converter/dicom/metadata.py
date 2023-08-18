@@ -2,6 +2,7 @@ import dataclasses
 import enum
 import datetime
 import typing as t
+from dataclasses import field
 
 class OPTAcquisitionDevice(enum.Enum):
 	"""OPT Acquisition Device enumeration.
@@ -24,25 +25,25 @@ class OPTAnatomyStructure(enum.Enum):
 
 	Contains code designator, code value and code meaning for each entry.
 	"""
-	AnteriorChamberOfEye = ('SRT', 'T-AA050', 'Anterior chamber of eye'),
-	BothEyes = ('SRT', 'T-AA180', 'Both eyes'),
-	ChoroidOfEye = ('SRT', 'T-AA310', 'Choroid of eye'),
-	CiliaryBody = ('SRT', 'T-AA400', 'Ciliary body'),
-	Conjunctiva = ('SRT', 'T-AA860', 'Conjunctiva'),
-	Cornea = ('SRT', 'T-AA200', 'Cornea'),
-	Eye = ('SRT', 'T-AA000', 'Eye'),
-	Eyelid = ('SRT', 'T-AA810', 'Eyelid'),
-	FoveaCentralis = ('SRT', 'T-AA621', 'Fovea centralis'),
-	Iris = ('SRT', 'T-AA500', 'Iris'),
-	LacrimalCaruncle = ('SRT', 'T-AA862', 'Lacrimal caruncle'),
-	LacrimalGland = ('SRT', 'T-AA910', 'Lacrimal gland'),
-	LacrimalSac = ('SRT', 'T-AA940', 'Lacrimal sac'),
-	Lens = ('SRT', 'T-AA700', 'Lens'),
-	LowerEyeLid = ('SRT', 'T-AA830', 'Lower Eyelid'),
-	OphthalmicArtery = ('SRT', 'T-45400', 'Ophthalmic artery'),
-	OpticNerveHead = ('SRT', 'T-AA630', 'Optic nerve head'),
-	Retina = ('SRT', 'T-AA610', 'Retina'),
-	Sclera = ('SRT', 'T-AA110', 'Sclera'),
+	AnteriorChamberOfEye = ('SRT', 'T-AA050', 'Anterior chamber of eye')
+	BothEyes = ('SRT', 'T-AA180', 'Both eyes')
+	ChoroidOfEye = ('SRT', 'T-AA310', 'Choroid of eye')
+	CiliaryBody = ('SRT', 'T-AA400', 'Ciliary body')
+	Conjunctiva = ('SRT', 'T-AA860', 'Conjunctiva')
+	Cornea = ('SRT', 'T-AA200', 'Cornea')
+	Eye = ('SRT', 'T-AA000', 'Eye')
+	Eyelid = ('SRT', 'T-AA810', 'Eyelid')
+	FoveaCentralis = ('SRT', 'T-AA621', 'Fovea centralis')
+	Iris = ('SRT', 'T-AA500', 'Iris')
+	LacrimalCaruncle = ('SRT', 'T-AA862', 'Lacrimal caruncle')
+	LacrimalGland = ('SRT', 'T-AA910', 'Lacrimal gland')
+	LacrimalSac = ('SRT', 'T-AA940', 'Lacrimal sac')
+	Lens = ('SRT', 'T-AA700', 'Lens')
+	LowerEyeLid = ('SRT', 'T-AA830', 'Lower Eyelid')
+	OphthalmicArtery = ('SRT', 'T-45400', 'Ophthalmic artery')
+	OpticNerveHead = ('SRT', 'T-AA630', 'Optic nerve head')
+	Retina = ('SRT', 'T-AA610', 'Retina')
+	Sclera = ('SRT', 'T-AA110', 'Sclera')
 	UpperEyeLid = ('SRT', 'T-AA820', 'Upper Eyelid')
 	Unspecified = ('OCT-converter', 'A-0001', 'Unspecified anatomy')
 
@@ -88,9 +89,9 @@ class ManufacturerMeta():
 @dataclasses.dataclass
 class ImageGeometry():
 	# Image geometry info
-	pixel_spacing: t.List[float] = [1.0, 1.0]
+	pixel_spacing: list[float] = field(default_factory=list)
 	slice_thickness: float = 1.0
-	image_orientation: t.List[float] = [1, 0, 0, 0 , 1, 0]
+	image_orientation: list[float] = field(default_factory=list)
 
 
 @dataclasses.dataclass
