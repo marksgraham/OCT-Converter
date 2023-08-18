@@ -1,4 +1,14 @@
-from construct import Float32n, Float64n, Int8un, Int16un, Int32un, PaddedString, Struct, Array, this
+from construct import (
+    Array,
+    Float32n,
+    Float64n,
+    Int8un,
+    Int16un,
+    Int32un,
+    PaddedString,
+    Struct,
+    this,
+)
 
 """
         Notes:
@@ -41,15 +51,18 @@ from construct import Float32n, Float64n, Int8un, Int16un, Int32un, PaddedString
 """
 
 header = Struct(
-    "file_code" / PaddedString(4, "ascii"), # Always "FOCT"
-    "file_type" / PaddedString(3, "ascii"), # "FDA" or "FAA", denoting "macula" or "external" fixation
+    "file_code" / PaddedString(4, "ascii"),  # Always "FOCT"
+    "file_type"
+    / PaddedString(
+        3, "ascii"
+    ),  # "FDA" or "FAA", denoting "macula" or "external" fixation
     "major_ver" / Int32un,
     "minor_ver" / Int32un,
 )
 
 # IMG_SCAN_03
 oct_header = Struct(
-    "scan_mode" / Int8un, # 2 = 3D, 3 = Radial, 4 = Cross
+    "scan_mode" / Int8un,  # 2 = 3D, 3 = Radial, 4 = Cross
     "width" / Int32un,
     "height" / Int32un,
     "bits_per_pixel" / Int32un,
@@ -60,7 +73,7 @@ oct_header = Struct(
 
 # IMG_SCAN_02
 oct_header_2 = Struct(
-    "scan_mode" / Int8un, # 2 = 3D, 3 = Radial, 4 = Cross
+    "scan_mode" / Int8un,  # 2 = 3D, 3 = Radial, 4 = Cross
     "width" / Int32un,
     "height" / Int32un,
     "bits_per_pixel" / Int32un,
@@ -167,12 +180,12 @@ patient_info_02_header = Struct(
     "lv_date" / Int16un[3],
     # I've not found files that have the below information,
     # so it's difficult to confirm the remaining.
-    "physician" / Int8un[64][2], # [64 2] ???
-    "zip_code" / Int8un[12], #how does this make sense.
-    "addr" / Int8un[48][2], # [48 2]
-    "phones" / Int8un[16][2], # [16 2]
-    "nx_date" / Int16un[6], # [1 6]
-    "multipurpose_field" / Int8un[20][3], # [20 3]
+    "physician" / Int8un[64][2],  # [64 2] ???
+    "zip_code" / Int8un[12],  # how does this make sense.
+    "addr" / Int8un[48][2],  # [48 2]
+    "phones" / Int8un[16][2],  # [16 2]
+    "nx_date" / Int16un[6],  # [1 6]
+    "multipurpose_field" / Int8un[20][3],  # [20 3]
     "descp" / Int8un[64],
     "reserved" / Int8un[32],
 )
@@ -212,7 +225,7 @@ img_trc_header = Struct(
     "size" / Int32un,
 )
 
-# TODO This chunk still needs work. 
+# TODO This chunk still needs work.
 # Total [3] Int16un
 param_obs_02_header = Struct(
     "camera_model" / PaddedString(12, "utf16"),
@@ -302,7 +315,7 @@ align_info_header = Struct(
     "unlabeled_2" / Int8un,
     "w" / Int32un,
     "n_size" / Int32un,
-    "aligndata" / Array(this.w * 2, Int16un), # if n_size > 0
+    "aligndata" / Array(this.w * 2, Int16un),  # if n_size > 0
     # if nblockbytes - (10+n_size) >= 16
     "keyframe_1" / Int32un,
     "keyframe_2" / Int32un,
@@ -316,7 +329,7 @@ main_module_info_header = Struct(
     "file_version_2" / Int16un,
     "file_version_3" / Int16un,
     "file_version_4" / Int16un,
-    "string" / PaddedString(128, "ascii")
+    "string" / PaddedString(128, "ascii"),
 )
 
 fast_q2_info_header = Struct("various_quality_statistics" / Float32n[6])

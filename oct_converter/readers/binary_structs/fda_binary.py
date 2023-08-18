@@ -1,4 +1,14 @@
-from construct import Float32n, Float64n, Int8un, Int16un, Int32un, PaddedString, Struct, Array, this
+from construct import (
+    Array,
+    Float32n,
+    Float64n,
+    Int8un,
+    Int16un,
+    Int32un,
+    PaddedString,
+    Struct,
+    this,
+)
 
 """
         Notes:
@@ -40,8 +50,11 @@ from construct import Float32n, Float64n, Int8un, Int16un, Int32un, PaddedString
 """
 
 header = Struct(
-    "file_code" / PaddedString(4, "ascii"), # Always "FOCT"
-    "file_type" / PaddedString(3, "ascii"), # "FDA" or "FAA", denoting "macula" or "external" fixation
+    "file_code" / PaddedString(4, "ascii"),  # Always "FOCT"
+    "file_type"
+    / PaddedString(
+        3, "ascii"
+    ),  # "FDA" or "FAA", denoting "macula" or "external" fixation
     "major_ver" / Int32un,
     "minor_ver" / Int32un,
 )
@@ -151,7 +164,7 @@ patient_info_02_header = Struct(
     "first_name" / PaddedString(32, "ascii"),
     "last_name" / PaddedString(32, "ascii"),
     "mid_name" / PaddedString(8, "ascii"),
-    "sex" / Int8un, # 1: "M", 2: "F", 3: "O"
+    "sex" / Int8un,  # 1: "M", 2: "F", 3: "O"
     "birth_date" / Int16un[3],
     "occup_reg" / Int8un[20][2],
     "r_date" / Int16un[3],
@@ -159,12 +172,12 @@ patient_info_02_header = Struct(
     "lv_date" / Int16un[3],
     # I've not found files that have the below information,
     # so it's difficult to confirm the remaining.
-    "physician" / Int8un[64][2], # [64 2] ???
-    "zip_code" / Int8un[12], #how does this make sense.
-    "addr" / Int8un[48][2], # [48 2]
-    "phones" / Int8un[16][2], # [16 2]
-    "nx_date" / Int16un[6], # [1 6]
-    "multipurpose_field" / Int8un[20][3], # [20 3]
+    "physician" / Int8un[64][2],  # [64 2] ???
+    "zip_code" / Int8un[12],  # how does this make sense.
+    "addr" / Int8un[48][2],  # [48 2]
+    "phones" / Int8un[16][2],  # [16 2]
+    "nx_date" / Int16un[6],  # [1 6]
+    "multipurpose_field" / Int8un[20][3],  # [20 3]
     "descp" / Int8un[64],
     "reserved" / Int8un[32],
 )
@@ -182,7 +195,7 @@ fda_file_info_header = Struct(
 )
 
 capture_info_02_header = Struct(
-    "eye" / Int8un, # 0: R, 1: L
+    "eye" / Int8un,  # 0: R, 1: L
     "scan_mode" / Int8un,
     "session_id" / Int32un,
     "label" / PaddedString(100, "ascii"),
@@ -190,7 +203,7 @@ capture_info_02_header = Struct(
 )
 
 capture_info_header = Struct(
-    "eye" / Int8un, # 0: R, 1: L
+    "eye" / Int8un,  # 0: R, 1: L
     "cap_date" / Int16un[6],
 )
 
@@ -311,7 +324,7 @@ align_info_header = Struct(
     "unlabeled_2" / Int8un,
     "w" / Int32un,
     "n_size" / Int32un,
-    "aligndata" / Array(this.w * 2, Int16un), # if n_size > 0
+    "aligndata" / Array(this.w * 2, Int16un),  # if n_size > 0
     # if nblockbytes - (10+n_size) >= 16
     "keyframe_1" / Int32un,
     "keyframe_2" / Int32un,
@@ -325,7 +338,7 @@ main_module_info_header = Struct(
     "file_version_2" / Int16un,
     "file_version_3" / Int16un,
     "file_version_4" / Int16un,
-    "string" / PaddedString(128, "ascii")
+    "string" / PaddedString(128, "ascii"),
 )
 
 thumbnail_header = Struct(
