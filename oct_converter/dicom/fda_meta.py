@@ -1,10 +1,30 @@
-from oct_converter.dicom.metadata import *
 from datetime import datetime
 
+from oct_converter.dicom.metadata import (
+    DicomMetadata,
+    ImageGeometry,
+    ManufacturerMeta,
+    OCTDetectorType,
+    OCTImageParams,
+    OPTAcquisitionDevice,
+    OPTAnatomyStructure,
+    PatientMeta,
+    SeriesMeta,
+)
 from oct_converter.image_types import OCTVolumeWithMetaData
 
-def fda_patient_meta(fds_metadata: dict) -> PatientMeta:
-    patient_info = fds_metadata.get("patient_info_02") or fds_metadata.get("patient_info", {})
+
+def fda_patient_meta(fda_metadata: dict) -> PatientMeta:
+    """Creates PatientMeta from FDA metadata
+
+    Args:
+        fda_metadata: Nested dictionary of metadata collected by the fda reader
+    Returns:
+        PatientMeta: Patient metadata populated by fda_metadata
+    """
+    patient_info = fda_metadata.get("patient_info_02") or fda_metadata.get(
+        "patient_info", {}
+    )
     sex_map = {1: "M", 2: "F", 3: "O", None: ""}
     patient = PatientMeta()
 
@@ -12,38 +32,71 @@ def fda_patient_meta(fds_metadata: dict) -> PatientMeta:
     patient.last_name = patient_info.get("last_name")
     patient.patient_id = patient_info.get("patient_id")
     patient.patient_sex = sex_map[patient_info.get("sex", None)]
-    patient.patient_dob = datetime(*patient_info.get("birth_date")) if patient_info.get('birth_date')[0] != 0 else None
+    patient.patient_dob = (
+        datetime(*patient_info.get("birth_date"))
+        if patient_info.get("birth_date")[0] != 0
+        else None
+    )
 
     return patient
 
 
-def fda_series_meta(fds_metadata: dict) -> SeriesMeta:
-    capture_info = fds_metadata.get("capture_info_02") or fds_metadata.get("capture_info", {})
+def fda_series_meta(fda_metadata: dict) -> SeriesMeta:
+    """Creates SeriesMeta from FDA metadata
+
+    Args:
+        fda_metadata: Nested dictionary of metadata collected by the fda reader
+    Returns:
+        SeriesMeta: Series metadata populated by fda_metadata
+    """
+    capture_info = fda_metadata.get("capture_info_02") or fda_metadata.get(
+        "capture_info", {}
+    )
     lat_map = {0: "R", 1: "L", None: ""}
     series = SeriesMeta()
 
     series.study_id = ""
     series.series_id = capture_info.get("session_id", "")
     series.laterality = lat_map[capture_info.get("eye", None)]
-    series.acquisition_date = datetime(*capture_info.get('cap_date'))
+    series.acquisition_date = datetime(*capture_info.get("cap_date"))
     series.opt_anatomy = OPTAnatomyStructure.Retina
 
     return series
 
 
-def fda_manu_meta(fds_metadata: dict, fds_header: dict) -> ManufacturerMeta:
-    hw_info = fds_metadata.get("hw_info_03") or fds_metadata.get("hw_info_02") or fds_metadata.get("hw_info_01", {})
+def fda_manu_meta(fda_metadata: dict, fda_header: dict) -> ManufacturerMeta:
+    """Creates ManufacturerMeta from FDA metadata
+
+    Args:
+        fda_metadata: Nested dictionary of metadata collected by the fda reader
+    Returns:
+        ManufacturerMeta: Manufacture metadata populated by fda_metadata
+    """
+    hw_info = (
+        fda_metadata.get("hw_info_03")
+        or fda_metadata.get("hw_info_02")
+        or fda_metadata.get("hw_info_01", {})
+    )
     manufacture = ManufacturerMeta()
 
     manufacture.manufacturer = "Topcon"
     manufacture.manufacturer_model = hw_info.get("model_name")
     manufacture.device_serial = hw_info.get("serial_number")
-    manufacture.software_version = f"{fds_header.get('major_ver')}.{fds_header.get('minor_ver')}"
+    manufacture.software_version = (
+        f"{fda_header.get('major_ver')}.{fda_header.get('minor_ver')}"
+    )
 
     return manufacture
 
 
 def fda_image_geom(pixel_spacing: list) -> ImageGeometry:
+    """Creates ImageGeometry from FDA metadata
+
+    Args:
+        pixel_spacing: Pixel spacing calculated in the fda reader
+    Returns:
+        ImageGeometry: Geometry data populated by pixel_spacing
+    """
     image_geom = ImageGeometry()
     image_geom.pixel_spacing = [pixel_spacing[2], pixel_spacing[0]]
     image_geom.slice_thickness = pixel_spacing[1]
@@ -53,6 +106,13 @@ def fda_image_geom(pixel_spacing: list) -> ImageGeometry:
 
 
 def fda_image_params() -> OCTImageParams:
+    """Creates OCTImageParams specific to Topcon
+
+    Args:
+        None
+    Returns:
+        OCTImageParams: Image params populated with Topcon defaults
+    """
     image_params = OCTImageParams()
     image_params.opt_acquisition_device = OPTAcquisitionDevice.OCTScanner
     image_params.DetectorType = OCTDetectorType.CCD
@@ -70,6 +130,13 @@ def fda_image_params() -> OCTImageParams:
 
 
 def fda_dicom_metadata(oct: OCTVolumeWithMetaData) -> DicomMetadata:
+    """Creates DicomMetadata and populates each module
+
+    Args:
+        oct: OCTVolumeWithMetaData created by the fda reader
+    Returns:
+        DicomMetadata: Populated DicomMetadata created with OCT metadata
+    """
     meta = DicomMetadata
     meta.patient_info = fda_patient_meta(oct.metadata)
     meta.series_info = fda_series_meta(oct.metadata)
