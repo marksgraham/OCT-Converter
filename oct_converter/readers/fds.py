@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-
+from datetime import datetime
 import numpy as np
 from construct import ListContainer
 
@@ -26,9 +26,9 @@ class FDS(object):
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
 
-        self.chunk_dict = self.get_list_of_file_chunks()
+        self.chunk_dict, self.header = self.get_list_of_file_chunks()
 
-    def get_list_of_file_chunks(self) -> dict:
+    def get_list_of_file_chunks(self, printing: bool = True) -> dict:
         """Find all data chunks present in the file.
 
         Returns:
@@ -51,10 +51,12 @@ class FDS(object):
                     chunk_location = f.tell()
                     f.seek(chunk_size, 1)
                     chunk_dict[chunk_name] = [chunk_location, chunk_size]
-        print("File {} contains the following chunks:".format(self.filepath))
-        for key in chunk_dict.keys():
-            print(key)
-        return chunk_dict
+        if printing:
+            print("File {} contains the following chunks:".format(self.filepath))
+            for key in chunk_dict.keys():
+                print(key)
+            print("")
+        return chunk_dict, header
 
     def read_oct_volume(self) -> OCTVolumeWithMetaData:
         """Reads OCT data.
@@ -95,9 +97,33 @@ class FDS(object):
                     scan_params.y_dimension_mm / oct_header.width,  # Depth
                 ]
 
+                # Other code uses the following, listed as 
+                # WidthPixelS, FramePixelS, and zHeightPixelS
+                pixel_spacing_2 = [
+                    scan_params.get("x_dimension_mm") / oct_header.width, # WidthPixelS, PixelSpacing[1]
+                    scan_params.get("y_dimension_mm") / oct_header.number_slices, # FramePixelS / SliceThickness
+                    scan_params.get("z_resolution_um") / 1000, # zHeightPixelS, PixelSpacing[0]
+                ]
+        # read all other metadata
+        metadata = self.read_all_metadata()
+        patient_info = metadata.get("patient_info_02") or metadata.get("patient_info", {})
+        capture_info = metadata.get("capture_info_02") or metadata.get("capture_info", {})
+        sex_map = {1: "M", 2: "F", 3: "O", None: ""}
+        lat_map = {0: "R", 1: "L", None: ""}
+
         oct_volume = OCTVolumeWithMetaData(
             [volume[:, :, i] for i in range(volume.shape[2])],
-            pixel_spacing=pixel_spacing,
+            patient_id=patient_info.get("patient_id"),
+            first_name=patient_info.get("first_name"),
+            surname=patient_info.get("last_name"),
+            sex=sex_map[patient_info.get("sex", None)],
+            patient_dob=datetime(*patient_info.get("birth_date")) if patient_info.get("birth_date")[0] != 0 else None,
+            acquisition_date=datetime(*capture_info.get("cap_date")),
+            laterality=lat_map[capture_info.get("eye", None)],
+            pixel_spacing=pixel_spacing_2,
+            metadata=metadata,
+            header=self.header,
+            oct_header=dict(oct_header),
         )
         return oct_volume
 
