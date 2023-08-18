@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 from construct import ListContainer
+from datetime import datetime
 from PIL import Image
 
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
@@ -25,7 +26,7 @@ class FDA(object):
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
 
-        self.chunk_dict = self.get_list_of_file_chunks(printing=printing)
+        self.chunk_dict, self.header = self.get_list_of_file_chunks(printing=printing)
 
     def get_list_of_file_chunks(self, printing: bool = True) -> dict:
         """Find all data chunks present in the file.
@@ -64,7 +65,7 @@ class FDA(object):
             for key in chunk_dict.keys():
                 print(key)
             print("")
-        return chunk_dict
+        return chunk_dict, header
 
     def read_oct_volume(self) -> OCTVolumeWithMetaData:
         """Reads OCT data.
@@ -92,6 +93,31 @@ class FDA(object):
                 raw_slice = f.read(size)
                 image = Image.open(io.BytesIO(raw_slice))
                 volume.append(np.asarray(image))
+            
+            chunk_loc, chunk_size = self.chunk_dict.get(b"@PARAM_SCAN_04", (None, None))
+            pixel_spacing = None
+            if chunk_loc:
+                f.seek(chunk_loc)
+                scan_params = fda_binary.param_scan_04_header.parse(f.read(chunk_size))
+                # NOTE: this will need reordering for dicom pixel spacing and
+                # image orientation/position patient as well as possibly for nifti
+                # depending on what x,y,z means here.
+
+                # In either nifti/dicom coordinate systems, the x-y plan in raw space
+                # corresponds to the x-z plane, just depends which direction.
+                pixel_spacing = [
+                    scan_params.x_dimension_mm / oct_header.height,  # Left/Right
+                    scan_params.z_resolution_um / 1000,  # Up/Down
+                    scan_params.y_dimension_mm / oct_header.width,  # Depth
+                ]
+
+                # Other code uses the following, listed as 
+                # WidthPixelS, FramePixelS, and zHeightPixelS
+                pixel_spacing_2 = [
+                    scan_params.get("x_dimension_mm") / oct_header.width, # WidthPixelS, PixelSpacing[1]
+                    scan_params.get("y_dimension_mm") / oct_header.number_slices, # FramePixelS / SliceThickness
+                    scan_params.get("z_resolution_um") / 1000, # zHeightPixelS, PixelSpacing[0]
+                ]
 
         # read segmentation contours if possible and store them as distance
         # from top of scan to be compatible with plotting in OCTVolume
@@ -101,8 +127,26 @@ class FDA(object):
 
         # read all other metadata
         metadata = self.read_all_metadata()
+        patient_info = metadata.get("patient_info_02") or metadata.get("patient_info", {})
+        capture_info = metadata.get("capture_info_02") or metadata.get("capture_info", {})
+        sex_map = {1: "M", 2: "F", 3: "O", None: ""}
+        lat_map = {0: "R", 1: "L", None: ""}
 
-        oct_volume = OCTVolumeWithMetaData(volume, contours=contours, metadata=metadata)
+        oct_volume = OCTVolumeWithMetaData(
+            volume,
+            patient_id=patient_info.get("patient_id"),
+            first_name=patient_info.get("first_name"),
+            surname=patient_info.get("last_name"),
+            sex=sex_map[patient_info.get("sex", None)],
+            patient_dob=datetime(*patient_info.get("birth_date")) if patient_info.get("birth_date")[0] != 0 else None,
+            acquisition_date=datetime(*capture_info.get("cap_date")),
+            laterality=lat_map[capture_info.get("eye", None)],
+            contours=contours,
+            pixel_spacing=pixel_spacing_2,
+            metadata=metadata,
+            header=self.header,
+            oct_header=dict(oct_header),
+            )
         return oct_volume
 
     def read_oct_volume_2(self) -> OCTVolumeWithMetaData:
