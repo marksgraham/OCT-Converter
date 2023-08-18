@@ -60,16 +60,18 @@ def populate_manufacturer_info(ds: Dataset, meta: DicomMetadata) -> Dataset:
 def populate_opt_series(ds: Dataset, meta: DicomMetadata) -> Dataset:
 	# General study module PS3.3 C.7.2.1
 	# Deterministic StudyInstanceUID based on study ID
-	ds.StudyInstanceUID = generate_uid(entropy_srcs=[
-		uuid.uuid4(),
-		meta.series_info.study_id
-	])
+	# ds.StudyInstanceUID = generate_uid(entropy_srcs=[
+	# 	# str(uuid.uuid4()),
+	# 	str(meta.series_info.study_id)
+	# ])
 
-	# General series module PS3.3 C.7.3.1
-	ds.SeriesInstanceUID = generate_uid(entropy_srcs=[
-		uuid.uuid4(),
-		meta.series_info.series_id
-	])
+	# # General series module PS3.3 C.7.3.1
+	# ds.SeriesInstanceUID = generate_uid(entropy_srcs=[
+	# 	# str(uuid.uuid4()),
+	# 	str(meta.series_info.series_id)
+	# ])
+	ds.StudyInstanceUID = generate_uid()
+	ds.SeriesInstanceUID = generate_uid()
 	ds.Laterality = meta.series_info.laterality
 	# Ophthalmic Tomography Series PS3.3 C.8.17.6
 	ds.Modality = 'OPT'
