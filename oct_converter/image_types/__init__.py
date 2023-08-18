@@ -5,7 +5,7 @@ from .oct import OCTVolumeWithMetaData
 
 __all__ = [
     "version",
-    "implementaation_uid",
+    "implementation_uid",
     "FundusImageWithMetaData",
-    "OCTVolumeWithMetaData"
+    "OCTVolumeWithMetaData",
 ]
