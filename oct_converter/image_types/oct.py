@@ -53,6 +53,8 @@ class OCTVolumeWithMetaData(object):
         contours: dict | None = None,
         pixel_spacing: list[float] | None = None,
         metadata: dict | None = None,
+        header: dict | None = None,
+        oct_header: dict | None = None,
     ) -> None:
         # image
         self.volume = volume
@@ -76,6 +78,8 @@ class OCTVolumeWithMetaData(object):
 
         # metadata
         self.metadata = metadata
+        self.header = header
+        self.oct_header = oct_header
 
     def peek(
         self,
