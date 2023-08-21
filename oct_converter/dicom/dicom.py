@@ -1,3 +1,4 @@
+import os
 import shutil
 import tempfile
 import typing as t
@@ -241,15 +242,24 @@ def write_opt_dicom(meta: DicomMetadata, frames: t.List[np.ndarray]) -> Path:
     return file_
 
 
-def create_dicom_from_oct(input_file: str, output_dest: str = None) -> Path:
+def create_dicom_from_oct(
+        input_file: str,
+        output_dir: str = None,
+        output_filename: str = None
+) -> Path:
     """Creates a DICOM file with the data parsed from
     the input file.
 
     Args:
-            input_file: File with OCT data
-                    (Currently only Topcon files supported)
-            output_dest: Output directory OR output path
-                    i.e. `"/tmp"` or `"/tmp/filename.dcm"`
+            input_file: File with OCT data (Currently only Topcon
+            files supported)
+            output_dir: Output directory, will be created if
+            not currently exists. Default None places file in
+            current working directory.
+            output_filename: Name to save the file under, i.e. 
+            `filename.dcm`. Default None saves the file under
+            the input filename (if input_file = `test.fds`,
+            output_filename = `test.dcm`)
 
     Returns:
             Path to DICOM file
@@ -268,7 +278,17 @@ def create_dicom_from_oct(input_file: str, output_dest: str = None) -> Path:
     else:
         raise TypeError("Invalid input_file type.")
     file = write_opt_dicom(meta, oct.volume)
-    if output_dest:
-        dst = shutil.move(file, output_dest)
-        return dst
-    return file
+
+    # This could be broken into a separate function
+    if output_dir:
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+    else:
+        output_dir = os.getcwd()
+    if output_filename:
+        dst = shutil.move(file, f"{output_dir}/{output_filename}")
+    else:
+        base = os.path.basename(input_file)
+        base = base.removesuffix(f".{file_suffix}")
+        dst = shutil.move(file, f"{output_dir}/{base}.dcm")
+    return dst
