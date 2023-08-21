@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import typing as t
 from datetime import datetime
 from pathlib import Path
 
@@ -29,17 +30,19 @@ class FDS(object):
 
         self.chunk_dict, self.header = self.get_list_of_file_chunks()
 
-    def get_list_of_file_chunks(self, printing: bool = True) -> dict:
+    def get_list_of_file_chunks(self, printing: bool = False) -> t.Tuple[dict, dict]:
         """Find all data chunks present in the file.
 
         Returns:
-            dictionary of chunk names, containing their locations in the file and size.
+            chunk_dict: dictionary of chunk names, containing their locations
+            in the file and size.
+            header: dictionary of file header information
+
         """
         chunk_dict = {}
         with open(self.filepath, "rb") as f:
-            # skip header
             raw = f.read(15)
-            header = fds_binary.header.parse(raw)
+            header = dict(fds_binary.header.parse(raw))
 
             eof = False
             while not eof:
@@ -65,6 +68,7 @@ class FDS(object):
         Returns:
             OCTVolumeWithMetaData
         """
+        # TODO: could support the other IMG_SCAN variants as well.
         if b"@IMG_SCAN_03" not in self.chunk_dict:
             raise ValueError("Could not find OCT header @IMG_SCAN_03 in chunk list")
         with open(self.filepath, "rb") as f:
@@ -81,33 +85,10 @@ class FDS(object):
                 oct_header.width, oct_header.height, oct_header.number_slices, order="F"
             )
             volume = np.transpose(volume, [1, 0, 2])
-            chunk_loc, chunk_size = self.chunk_dict.get(b"@PARAM_SCAN_04", (None, None))
-            pixel_spacing = None
-            if chunk_loc:
-                f.seek(chunk_loc)
-                scan_params = fds_binary.param_scan_04_header.parse(f.read(chunk_size))
-                # NOTE: this will need reordering for dicom pixel spacing and
-                # image orientation/position patient as well as possibly for nifti
-                # depending on what x,y,z means here.
+        
+        # calculate pixel spacing
+        pixel_spacing = self.read_scan_params(oct_header)
 
-                # In either nifti/dicom coordinate systems, the x-y plan in raw space
-                # corresponds to the x-z plane, just depends which direction.
-                pixel_spacing = [
-                    scan_params.x_dimension_mm / oct_header.height,  # Left/Right
-                    scan_params.z_resolution_um / 1000,  # Up/Down
-                    scan_params.y_dimension_mm / oct_header.width,  # Depth
-                ]
-
-                # Other code uses the following, listed as
-                # WidthPixelS, FramePixelS, and zHeightPixelS
-                pixel_spacing_2 = [
-                    scan_params.get("x_dimension_mm")
-                    / oct_header.width,  # WidthPixelS, PixelSpacing[1]
-                    scan_params.get("y_dimension_mm")
-                    / oct_header.number_slices,  # FramePixelS / SliceThickness
-                    scan_params.get("z_resolution_um")
-                    / 1000,  # zHeightPixelS, PixelSpacing[0]
-                ]
         # read all other metadata
         metadata = self.read_all_metadata()
         patient_info = metadata.get("patient_info_02") or metadata.get(
@@ -130,7 +111,7 @@ class FDS(object):
             else None,
             acquisition_date=datetime(*capture_info.get("cap_date")),
             laterality=lat_map[capture_info.get("eye", None)],
-            pixel_spacing=pixel_spacing_2,
+            pixel_spacing=pixel_spacing,
             metadata=metadata,
             header=self.header,
             oct_header=dict(oct_header),
@@ -163,6 +144,47 @@ class FDS(object):
             image = np.flip(image, 2)
         fundus_image = FundusImageWithMetaData(image)
         return fundus_image
+    
+    def read_scan_params(self, oct_header: dict) -> list:
+        """Given available chunks, identifies available PARAM_SCAN chunk
+        and calculates pixel spacing.
+
+        Args:
+            oct_header: OCT header information as dict
+
+        Returns:
+            pixel_spacing: list of pixel spacing, ordered by width, slice thickness, height.
+        """
+        if (
+            b"@PARAM_SCAN_04" not in self.chunk_dict
+            and b"@PARAM_SCAN_02" not in self.chunk_dict
+        ):
+            print(
+                "Neither @PARAM_SCAN_04 nor @PARAM_SCAN_02 found. Pixel spacing not calculated."
+            )
+            return None
+        with open(self.filepath, "rb") as f:
+            if b"@PARAM_SCAN_04" in self.chunk_dict:
+                chunk_loc, chunk_size = self.chunk_dict.get(
+                    b"@PARAM_SCAN_04", (None, None)
+                )
+                f.seek(chunk_loc)
+                scan_params = fds_binary.param_scan_04_header.parse(f.read(chunk_size))
+            elif b"@PARAM_SCAN_02" in self.chunk_dict:
+                chunk_loc, chunk_size = self.chunk_dict.get(
+                    b"@PARAM_SCAN_02", (None, None)
+                )
+                f.seek(chunk_loc)
+                scan_params = fds_binary.param_scan_02_header.parse(f.read(chunk_size))
+            pixel_spacing = [
+                scan_params.get("x_dimension_mm")
+                / oct_header.get("width"),  # WidthPixelS, PixelSpacing[1]
+                scan_params.get("y_dimension_mm")
+                / oct_header.get("number_slices"),  # FramePixelS / SliceThickness
+                scan_params.get("z_resolution_um")
+                / 1000,  # zHeightPixelS, PixelSpacing[0]
+            ]
+        return pixel_spacing
 
     def read_all_metadata(self, verbose: bool = False):
         """
