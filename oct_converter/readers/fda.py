@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import struct
+import typing as t
 from datetime import datetime
 from pathlib import Path
 
@@ -21,24 +22,25 @@ class FDA(object):
         chunk_dict: names of data chunks present in the file, and their start locations.
     """
 
-    def __init__(self, filepath: str | Path, printing: bool = True) -> None:
+    def __init__(self, filepath: str | Path, printing: bool = False) -> None:
         self.filepath = Path(filepath)
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
 
         self.chunk_dict, self.header = self.get_list_of_file_chunks(printing=printing)
 
-    def get_list_of_file_chunks(self, printing: bool = True) -> dict:
+    def get_list_of_file_chunks(self, printing: bool = False) -> t.Tuple[dict, dict]:
         """Find all data chunks present in the file.
 
         Returns:
-            dictionary of chunk names, containing their locations in the file and size.
+            chunk_dict: dictionary of chunk names, containing their locations
+            in the file and size.
+            header: dictionary of file header information
         """
         chunk_dict = {}
         with open(self.filepath, "rb") as f:
-            # skip header
             raw = f.read(15)
-            header = fda_binary.header.parse(raw)
+            header = dict(fda_binary.header.parse(raw))
 
             eof = False
             while not eof:
@@ -77,56 +79,20 @@ class FDA(object):
         Returns:
             OCTVolumeWithMetaData
         """
-
-        if b"@IMG_JPEG" not in self.chunk_dict:
-            print("@IMG_JPEG is not in chunk list, skipping.")
-            return None
-        with open(self.filepath, "rb") as f:
-            chunk_location, chunk_size = self.chunk_dict[b"@IMG_JPEG"]
-            f.seek(chunk_location)  # Set the chunk’s current position.
-            raw = f.read(25)
-            oct_header = fda_binary.oct_header.parse(raw)
-
-            volume = []
-            for i in range(oct_header.number_slices):
-                size = np.fromstring(f.read(4), dtype=np.int32)[0]
-                raw_slice = f.read(size)
-                image = Image.open(io.BytesIO(raw_slice))
-                volume.append(np.asarray(image))
-
-            chunk_loc, chunk_size = self.chunk_dict.get(b"@PARAM_SCAN_04", (None, None))
+        # read oct data chunk, whether that's IMG_JPEG or IMG_MOT_COMP_03
+        # TODO: could support the other IMG_MOT_COMP variants as well.
+        volume, oct_header = self.read_oct_data_chunk()
+        # if oct data is found, calculate pixel spacing.
+        if oct_header:
+            pixel_spacing = self.read_scan_params(oct_header)
+        else:
             pixel_spacing = None
-            if chunk_loc:
-                f.seek(chunk_loc)
-                scan_params = fda_binary.param_scan_04_header.parse(f.read(chunk_size))
-                # NOTE: this will need reordering for dicom pixel spacing and
-                # image orientation/position patient as well as possibly for nifti
-                # depending on what x,y,z means here.
-
-                # In either nifti/dicom coordinate systems, the x-y plan in raw space
-                # corresponds to the x-z plane, just depends which direction.
-                pixel_spacing = [
-                    scan_params.x_dimension_mm / oct_header.height,  # Left/Right
-                    scan_params.z_resolution_um / 1000,  # Up/Down
-                    scan_params.y_dimension_mm / oct_header.width,  # Depth
-                ]
-
-                # Other code uses the following, listed as
-                # WidthPixelS, FramePixelS, and zHeightPixelS
-                pixel_spacing_2 = [
-                    scan_params.get("x_dimension_mm")
-                    / oct_header.width,  # WidthPixelS, PixelSpacing[1]
-                    scan_params.get("y_dimension_mm")
-                    / oct_header.number_slices,  # FramePixelS / SliceThickness
-                    scan_params.get("z_resolution_um")
-                    / 1000,  # zHeightPixelS, PixelSpacing[0]
-                ]
 
         # read segmentation contours if possible and store them as distance
         # from top of scan to be compatible with plotting in OCTVolume
         contours = self.read_segmentation()
         if contours:
-            contours = {k: oct_header.height - v for k, v in contours.items()}
+            contours = {k: oct_header.get("height") - v for k, v in contours.items()}
 
         # read all other metadata
         metadata = self.read_all_metadata()
@@ -151,41 +117,103 @@ class FDA(object):
             acquisition_date=datetime(*capture_info.get("cap_date")),
             laterality=lat_map[capture_info.get("eye", None)],
             contours=contours,
-            pixel_spacing=pixel_spacing_2,
+            pixel_spacing=pixel_spacing,
             metadata=metadata,
             header=self.header,
-            oct_header=dict(oct_header),
+            oct_header=oct_header,
         )
         return oct_volume
 
-    def read_oct_volume_2(self) -> OCTVolumeWithMetaData:
-        """Reads OCT data. Worth trying if read_oct_volume fails.
+    def read_oct_data_chunk(self) -> t.Tuple[np.ndarray, dict]:
+        """Given available chunks, identifies which chunk to utilize
+        as the primary OCT data and returns the volume.
 
         Returns:
-            OCTVolumeWithMetaData
+            volume: OCT volume as array
+            oct_header: OCT header as dict
         """
+        if b"@IMG_JPEG" in self.chunk_dict:
+            with open(self.filepath, "rb") as f:
+                chunk_location, chunk_size = self.chunk_dict[b"@IMG_JPEG"]
+                f.seek(chunk_location)  # Set the chunk’s current position.
+                raw = f.read(25)
+                oct_header = fda_binary.oct_header.parse(raw)
 
-        if b"@IMG_MOT_COMP_03" not in self.chunk_dict:
-            print("@IMG_MOT_COMP_03 is not in chunk list, skipping.")
+                volume = []
+                for i in range(oct_header.number_slices):
+                    size = np.fromstring(f.read(4), dtype=np.int32)[0]
+                    raw_slice = f.read(size)
+                    image = Image.open(io.BytesIO(raw_slice))
+                    volume.append(np.asarray(image))
+            return volume, dict(oct_header)
+
+        elif b"@IMG_MOT_COMP_03" in self.chunk_dict:
+            with open(self.filepath, "rb") as f:
+                chunk_location, chunk_size = self.chunk_dict[b"@IMG_MOT_COMP_03"]
+                f.seek(chunk_location)  # Set the chunk’s current position.
+                raw = f.read(22)
+                oct_header = fda_binary.oct_header_2.parse(raw)
+                number_pixels = (
+                    oct_header.width * oct_header.height * oct_header.number_slices
+                )
+                raw_volume = np.fromstring(f.read(number_pixels * 2), dtype=np.uint16)
+                volume = np.array(raw_volume)
+                volume = volume.reshape(
+                    oct_header.width,
+                    oct_header.height,
+                    oct_header.number_slices,
+                    order="F",
+                )
+                volume = np.transpose(volume, [1, 0, 2])
+                adjusted_volume = [volume[:, :, i] for i in range(volume.shape[2])]
+            return adjusted_volume, dict(oct_header)
+
+        else:
+            print(
+                "Neither @IMG_JPEG nor @IMG_MOT_COMP_03 found. OCT volume not identified."
+            )
+            return None, None
+
+    def read_scan_params(self, oct_header: dict) -> list:
+        """Given available chunks, identifies available PARAM_SCAN chunk
+        and calculates pixel spacing.
+
+        Args:
+            oct_header: OCT header information as dict
+
+        Returns:
+            pixel_spacing: list of pixel spacing, ordered by width, slice thickness, height.
+        """
+        if (
+            b"@PARAM_SCAN_04" not in self.chunk_dict
+            and b"@PARAM_SCAN_02" not in self.chunk_dict
+        ):
+            print(
+                "Neither @PARAM_SCAN_04 nor @PARAM_SCAN_02 found. Pixel spacing not calculated."
+            )
             return None
         with open(self.filepath, "rb") as f:
-            chunk_location, chunk_size = self.chunk_dict[b"@IMG_MOT_COMP_03"]
-            f.seek(chunk_location)  # Set the chunk’s current position.
-            raw = f.read(22)
-            oct_header = fda_binary.oct_header_2.parse(raw)
-            number_pixels = (
-                oct_header.width * oct_header.height * oct_header.number_slices
-            )
-            raw_volume = np.fromstring(f.read(number_pixels * 2), dtype=np.uint16)
-            volume = np.array(raw_volume)
-            volume = volume.reshape(
-                oct_header.width, oct_header.height, oct_header.number_slices, order="F"
-            )
-            volume = np.transpose(volume, [1, 0, 2])
-        oct_volume = OCTVolumeWithMetaData(
-            [volume[:, :, i] for i in range(volume.shape[2])]
-        )
-        return oct_volume
+            if b"@PARAM_SCAN_04" in self.chunk_dict:
+                chunk_loc, chunk_size = self.chunk_dict.get(
+                    b"@PARAM_SCAN_04", (None, None)
+                )
+                f.seek(chunk_loc)
+                scan_params = fda_binary.param_scan_04_header.parse(f.read(chunk_size))
+            elif b"@PARAM_SCAN_02" in self.chunk_dict:
+                chunk_loc, chunk_size = self.chunk_dict.get(
+                    b"@PARAM_SCAN_02", (None, None)
+                )
+                f.seek(chunk_loc)
+                scan_params = fda_binary.param_scan_02_header.parse(f.read(chunk_size))
+            pixel_spacing = [
+                scan_params.get("x_dimension_mm")
+                / oct_header.get("width"),  # WidthPixelS, PixelSpacing[1]
+                scan_params.get("y_dimension_mm")
+                / oct_header.get("number_slices"),  # FramePixelS / SliceThickness
+                scan_params.get("z_resolution_um")
+                / 1000,  # zHeightPixelS, PixelSpacing[0]
+            ]
+        return pixel_spacing
 
     def read_fundus_image(self) -> FundusImageWithMetaData:
         """Reads fundus image.
