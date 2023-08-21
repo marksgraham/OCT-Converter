@@ -85,7 +85,7 @@ class FDS(object):
                 oct_header.width, oct_header.height, oct_header.number_slices, order="F"
             )
             volume = np.transpose(volume, [1, 0, 2])
-        
+
         # calculate pixel spacing
         pixel_spacing = self.read_scan_params(oct_header)
 
@@ -144,7 +144,7 @@ class FDS(object):
             image = np.flip(image, 2)
         fundus_image = FundusImageWithMetaData(image)
         return fundus_image
-    
+
     def read_scan_params(self, oct_header: dict) -> list:
         """Given available chunks, identifies available PARAM_SCAN chunk
         and calculates pixel spacing.
