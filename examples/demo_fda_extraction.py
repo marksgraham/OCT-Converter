@@ -1,6 +1,7 @@
 import json
 
 from oct_converter.readers import FDA
+from oct_converter.dicom.dicom import create_dicom_from_oct
 
 # a sample .fda file can be downloaded from the Biobank resource here:
 # https://biobank.ndph.ox.ac.uk/showcase/refer.cgi?id=31
@@ -32,3 +33,10 @@ segmentation = fda.read_segmentation()
 metadata = fda.read_all_metadata()
 with open("metadata.json", "w") as outfile:
     outfile.write(json.dumps(metadata, indent=4))
+
+# create a DICOM from FDA
+dcm = create_dicom_from_oct(filepath)
+# Output dir can be specified, otherwise will
+# default to current working directory.
+# Output filename can be specified, otherwise
+# will default to the input filename.
