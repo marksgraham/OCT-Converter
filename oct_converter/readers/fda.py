@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import io
 import struct
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 from construct import ListContainer
-from datetime import datetime
 from PIL import Image
 
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
@@ -93,7 +93,7 @@ class FDA(object):
                 raw_slice = f.read(size)
                 image = Image.open(io.BytesIO(raw_slice))
                 volume.append(np.asarray(image))
-            
+
             chunk_loc, chunk_size = self.chunk_dict.get(b"@PARAM_SCAN_04", (None, None))
             pixel_spacing = None
             if chunk_loc:
@@ -111,12 +111,15 @@ class FDA(object):
                     scan_params.y_dimension_mm / oct_header.width,  # Depth
                 ]
 
-                # Other code uses the following, listed as 
+                # Other code uses the following, listed as
                 # WidthPixelS, FramePixelS, and zHeightPixelS
                 pixel_spacing_2 = [
-                    scan_params.get("x_dimension_mm") / oct_header.width, # WidthPixelS, PixelSpacing[1]
-                    scan_params.get("y_dimension_mm") / oct_header.number_slices, # FramePixelS / SliceThickness
-                    scan_params.get("z_resolution_um") / 1000, # zHeightPixelS, PixelSpacing[0]
+                    scan_params.get("x_dimension_mm")
+                    / oct_header.width,  # WidthPixelS, PixelSpacing[1]
+                    scan_params.get("y_dimension_mm")
+                    / oct_header.number_slices,  # FramePixelS / SliceThickness
+                    scan_params.get("z_resolution_um")
+                    / 1000,  # zHeightPixelS, PixelSpacing[0]
                 ]
 
         # read segmentation contours if possible and store them as distance
@@ -127,8 +130,12 @@ class FDA(object):
 
         # read all other metadata
         metadata = self.read_all_metadata()
-        patient_info = metadata.get("patient_info_02") or metadata.get("patient_info", {})
-        capture_info = metadata.get("capture_info_02") or metadata.get("capture_info", {})
+        patient_info = metadata.get("patient_info_02") or metadata.get(
+            "patient_info", {}
+        )
+        capture_info = metadata.get("capture_info_02") or metadata.get(
+            "capture_info", {}
+        )
         sex_map = {1: "M", 2: "F", 3: "O", None: ""}
         lat_map = {0: "R", 1: "L", None: ""}
 
@@ -138,7 +145,9 @@ class FDA(object):
             first_name=patient_info.get("first_name"),
             surname=patient_info.get("last_name"),
             sex=sex_map[patient_info.get("sex", None)],
-            patient_dob=datetime(*patient_info.get("birth_date")) if patient_info.get("birth_date")[0] != 0 else None,
+            patient_dob=datetime(*patient_info.get("birth_date"))
+            if patient_info.get("birth_date")[0] != 0
+            else None,
             acquisition_date=datetime(*capture_info.get("cap_date")),
             laterality=lat_map[capture_info.get("eye", None)],
             contours=contours,
@@ -146,7 +155,7 @@ class FDA(object):
             metadata=metadata,
             header=self.header,
             oct_header=dict(oct_header),
-            )
+        )
         return oct_volume
 
     def read_oct_volume_2(self) -> OCTVolumeWithMetaData:

@@ -51,7 +51,7 @@ from construct import (
 
 header = Struct(
     "file_code" / PaddedString(4, "ascii"),  # Always "FOCT"
-    "file_type" / PaddedString(3, "ascii"),  
+    "file_type" / PaddedString(3, "ascii"),
     # file_type is "FDA" or "FAA",
     # denoting "macula" or "external" fixation
     "major_ver" / Int32un,

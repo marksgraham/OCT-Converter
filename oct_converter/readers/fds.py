@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
 import numpy as np
 from construct import ListContainer
 
@@ -97,17 +98,24 @@ class FDS(object):
                     scan_params.y_dimension_mm / oct_header.width,  # Depth
                 ]
 
-                # Other code uses the following, listed as 
+                # Other code uses the following, listed as
                 # WidthPixelS, FramePixelS, and zHeightPixelS
                 pixel_spacing_2 = [
-                    scan_params.get("x_dimension_mm") / oct_header.width, # WidthPixelS, PixelSpacing[1]
-                    scan_params.get("y_dimension_mm") / oct_header.number_slices, # FramePixelS / SliceThickness
-                    scan_params.get("z_resolution_um") / 1000, # zHeightPixelS, PixelSpacing[0]
+                    scan_params.get("x_dimension_mm")
+                    / oct_header.width,  # WidthPixelS, PixelSpacing[1]
+                    scan_params.get("y_dimension_mm")
+                    / oct_header.number_slices,  # FramePixelS / SliceThickness
+                    scan_params.get("z_resolution_um")
+                    / 1000,  # zHeightPixelS, PixelSpacing[0]
                 ]
         # read all other metadata
         metadata = self.read_all_metadata()
-        patient_info = metadata.get("patient_info_02") or metadata.get("patient_info", {})
-        capture_info = metadata.get("capture_info_02") or metadata.get("capture_info", {})
+        patient_info = metadata.get("patient_info_02") or metadata.get(
+            "patient_info", {}
+        )
+        capture_info = metadata.get("capture_info_02") or metadata.get(
+            "capture_info", {}
+        )
         sex_map = {1: "M", 2: "F", 3: "O", None: ""}
         lat_map = {0: "R", 1: "L", None: ""}
 
@@ -117,7 +125,9 @@ class FDS(object):
             first_name=patient_info.get("first_name"),
             surname=patient_info.get("last_name"),
             sex=sex_map[patient_info.get("sex", None)],
-            patient_dob=datetime(*patient_info.get("birth_date")) if patient_info.get("birth_date")[0] != 0 else None,
+            patient_dob=datetime(*patient_info.get("birth_date"))
+            if patient_info.get("birth_date")[0] != 0
+            else None,
             acquisition_date=datetime(*capture_info.get("cap_date")),
             laterality=lat_map[capture_info.get("eye", None)],
             pixel_spacing=pixel_spacing_2,
