@@ -1,8 +1,6 @@
-import os
-import shutil
-import tempfile
 import typing as t
 from datetime import datetime
+from importlib import metadata
 from pathlib import Path
 
 import numpy as np
@@ -13,25 +11,24 @@ from pydicom.uid import (
     generate_uid,
 )
 
-from oct_converter.dicom import implementation_uid
 from oct_converter.dicom.fda_meta import fda_dicom_metadata
 from oct_converter.dicom.fds_meta import fds_dicom_metadata
 from oct_converter.dicom.metadata import DicomMetadata
 from oct_converter.readers import FDA, FDS
 
+# Deterministic implentation UID based on package name and version
+version = metadata.version("oct_converter")
+implementation_uid = generate_uid(entropy_srcs=["oct_converter", version])
 
-def opt_base_dicom() -> t.Tuple[Path, Dataset]:
+
+def opt_base_dicom(filepath: Path) -> Dataset:
     """Creates the base dicom to be populated.
 
     Args:
-            None
+            filepath: Path to where output file is to be saved
     Returns:
-            file_: Path to created .dcm,
             ds: FileDataset with file meta, preamble, and empty dataset
     """
-    suffix = ".dcm"
-    file_ = Path(tempfile.NamedTemporaryFile(suffix=suffix).name)
-
     # Populate required values for file meta information
     file_meta = FileMetaDataset()
     file_meta.MediaStorageSOPClassUID = OphthalmicTomographyImageStorage
@@ -40,10 +37,10 @@ def opt_base_dicom() -> t.Tuple[Path, Dataset]:
     file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
 
     # Create the FileDataset instance with file meta, preamble and empty DS
-    ds = FileDataset(str(file_), {}, file_meta=file_meta, preamble=b"\0" * 128)
+    ds = FileDataset(str(filepath), {}, file_meta=file_meta, preamble=b"\0" * 128)
     ds.is_little_endian = True
     ds.is_implicit_VR = False  # Explicit VR
-    return file_, ds
+    return ds
 
 
 def populate_patient_info(ds: Dataset, meta: DicomMetadata) -> Dataset:
@@ -171,16 +168,19 @@ def opt_shared_functional_groups(ds: Dataset, meta: DicomMetadata) -> Dataset:
     return ds
 
 
-def write_opt_dicom(meta: DicomMetadata, frames: t.List[np.ndarray]) -> Path:
+def write_opt_dicom(
+    meta: DicomMetadata, frames: t.List[np.ndarray], filepath: Path
+) -> Path:
     """Writes required DICOM metadata and pixel data to .dcm file.
 
     Args:
             meta: DICOM metadata information
             frames: list of frames of pixel data
+            filepath: Path to where output file is being saved
     Returns:
             Path to created DICOM file
     """
-    file_, ds = opt_base_dicom()
+    ds = opt_base_dicom(filepath)
     ds = populate_patient_info(ds, meta)
     ds = populate_manufacturer_info(ds, meta)
     ds = populate_opt_series(ds, meta)
@@ -237,8 +237,8 @@ def write_opt_dicom(meta: DicomMetadata, frames: t.List[np.ndarray]) -> Path:
         per_frame.append(frame_fgs)
     ds.PerFrameFunctionalGroupsSequence = per_frame
     ds.PixelData = pixel_data.tobytes()
-    ds.save_as(file_)
-    return file_
+    ds.save_as(filepath)
+    return filepath
 
 
 def create_dicom_from_oct(
@@ -278,18 +278,18 @@ def create_dicom_from_oct(
         raise TypeError(
             f"DICOM conversion for {file_suffix} is not supported. Currently supported filetypes are .fds, .fda."
         )
-    file = write_opt_dicom(meta, oct.volume)
 
-    # This could be broken into a separate function
     if output_dir:
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir, exist_ok=True)
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True)
     else:
-        output_dir = os.getcwd()
-    if output_filename:
-        dst = shutil.move(file, f"{output_dir}/{output_filename}")
-    else:
-        base = os.path.basename(input_file)
-        base = base.removesuffix(f".{file_suffix}")
-        dst = shutil.move(file, f"{output_dir}/{base}.dcm")
-    return dst
+        output_dir = Path.cwd()
+
+    if not output_filename:
+        output_filename = Path(input_file).stem + ".dcm"
+
+    filepath = Path(output_dir, output_filename)
+
+    file = write_opt_dicom(meta, oct.volume, filepath)
+
+    return file
