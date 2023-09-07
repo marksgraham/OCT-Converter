@@ -1,6 +1,6 @@
 import json
 
-from oct_converter.dicom.dicom import create_dicom_from_oct
+from oct_converter.dicom import create_dicom_from_oct
 from oct_converter.readers import FDS
 
 # An example .fds file can be downloaded from the Biobank website:

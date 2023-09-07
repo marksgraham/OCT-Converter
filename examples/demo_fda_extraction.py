@@ -1,6 +1,6 @@
 import json
 
-from oct_converter.dicom.dicom import create_dicom_from_oct
+from oct_converter.dicom import create_dicom_from_oct
 from oct_converter.readers import FDA
 
 # a sample .fda file can be downloaded from the Biobank resource here:

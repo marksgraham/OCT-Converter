@@ -2,7 +2,6 @@ import os
 import shutil
 import tempfile
 import typing as t
-# import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -262,7 +261,7 @@ def create_dicom_from_oct(
     Returns:
             Path to DICOM file
     """
-    file_suffix = input_file.split(".")[-1]
+    file_suffix = input_file.split(".")[-1].lower()
     if file_suffix == "fds":
         fds = FDS(input_file)
         oct = fds.read_oct_volume()
@@ -271,10 +270,14 @@ def create_dicom_from_oct(
         fda = FDA(input_file)
         oct = fda.read_oct_volume()
         meta = fda_dicom_metadata(oct)
-    elif file_suffix in ["e2e", "img", "oct", "OCT"]:
-        raise NotImplementedError("Filetype not yet supported.")
+    elif file_suffix in ["e2e", "img", "oct"]:
+        raise NotImplementedError(
+            f"DICOM conversion for {file_suffix} is not yet supported. Currently supported filetypes are .fds, .fda."
+        )
     else:
-        raise TypeError("Invalid input_file type.")
+        raise TypeError(
+            f"DICOM conversion for {file_suffix} is not supported. Currently supported filetypes are .fds, .fda."
+        )
     file = write_opt_dicom(meta, oct.volume)
 
     # This could be broken into a separate function

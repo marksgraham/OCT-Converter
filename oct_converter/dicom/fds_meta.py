@@ -69,6 +69,7 @@ def fds_manu_meta(fds_metadata: dict, fds_header: dict) -> ManufacturerMeta:
 
     Args:
         fds_metadata: Nested dictionary of metadata collected by the fds reader
+        fds_header: Dictionary of file header information parsed by the fda reader
     Returns:
         ManufacturerMeta: Manufacture metadata populated by fds_metadata
     """
