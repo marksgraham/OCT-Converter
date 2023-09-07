@@ -41,7 +41,6 @@ from construct import (
         regist_scan_02_header (obj:Struct) : Defines REGIST_SCAN_02 header.
         result_cornea_curve_header (obj:Struct) : Defines RESULT_CORNEA_CURVE header.
         result_cornea_thickness_header (obj:Struct) : Defines RESULT_CORNEA_THICKNESS header.
-        contour_info_header (obj:Struct) : Defines CONTOUR_INFO header.
         align_info_header (obj:Struct) : Defines ALIGN_INFO header.
         main_module_info_header (obj:Struct) : Defines MAIN_MODULE_INFO header.
         fast_q2_info_header (obj:Struct) : Defines FAST_Q2_INFO header.
@@ -299,14 +298,6 @@ result_cornea_thickness_header = Struct(
     "id" / Int8un[20],
     "width" / Int32un,
     "height" / Int32un,
-)
-
-contour_info_header = Struct(
-    "id" / PaddedString(20, "ascii"),
-    "type" / Int16un,
-    "width" / Int32un,
-    "height" / Int32un,
-    "size" / Int32un,
 )
 
 align_info_header = Struct(
