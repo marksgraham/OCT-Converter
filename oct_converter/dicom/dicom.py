@@ -281,7 +281,7 @@ def create_dicom_from_oct(
 
     if output_dir:
         output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
     else:
         output_dir = Path.cwd()
 
