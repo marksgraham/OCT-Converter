@@ -100,15 +100,18 @@ class FDS(object):
         sex_map = {1: "M", 2: "F", 3: "O", None: ""}
         lat_map = {0: "R", 1: "L", None: ""}
 
+        try:
+            patient_dob = datetime(*patient_info.get("birth_date"))
+        except (TypeError, ValueError):
+            patient_dob = None
+
         oct_volume = OCTVolumeWithMetaData(
             [volume[:, :, i] for i in range(volume.shape[2])],
             patient_id=patient_info.get("patient_id"),
             first_name=patient_info.get("first_name"),
             surname=patient_info.get("last_name"),
             sex=sex_map[patient_info.get("sex", None)],
-            patient_dob=datetime(*patient_info.get("birth_date"))
-            if patient_info.get("birth_date")[0] != 0
-            else None,
+            patient_dob=patient_dob,
             acquisition_date=datetime(*capture_info.get("cap_date")),
             laterality=lat_map[capture_info.get("eye", None)],
             pixel_spacing=pixel_spacing,
@@ -201,6 +204,9 @@ class FDS(object):
             if key in [b"IMG_SCAN_03", b"@IMG_OBS"]:
                 # these chunks have their own dedicated methods for extraction
                 continue
+            elif key == b"@PARAM_OBS_02":
+                metadata["param_obs_02"] = self.read_param_obs()
+                continue
             json_key = key.decode().split("@")[-1].lower()
             try:
                 metadata[json_key] = self.read_any_info_and_make_dict(key)
@@ -227,6 +233,34 @@ class FDS(object):
             raw = f.read()
             header_name = f"{chunk_name.decode().split('@')[-1].lower()}_header"
             chunk_info_header = dict(fds_binary.__dict__[header_name].parse(raw))
+            chunks_info = dict()
+            for idx, key in enumerate(chunk_info_header.keys()):
+                if idx == 0:
+                    continue
+                if type(chunk_info_header[key]) is ListContainer:
+                    chunks_info[key] = list(chunk_info_header[key])
+                else:
+                    chunks_info[key] = chunk_info_header[key]
+        return chunks_info
+
+    def read_param_obs(self) -> dict:
+        """Reads PARAM_OBS_02 while accounting for varied chunk sizes.
+
+        Returns:
+            Chunk info data for PARAM_OBS_02
+        """
+        with open(self.filepath, "rb") as f:
+            chunk_location, chunk_size = self.chunk_dict[b"@PARAM_OBS_02"]
+            f.seek(chunk_location)  # Set the chunk’s current position.
+            raw = f.read()
+            # PARAM_OBS_02 is either of size 90 or size 6.
+            if chunk_size == 90:
+                chunk_info_header = dict(fds_binary.param_obs_02_header.parse(raw))
+            else:  # chunk_size == 6
+                chunk_info_header = dict(
+                    fds_binary.param_obs_02_short_header.parse(raw)
+                )
+
             chunks_info = dict()
             for idx, key in enumerate(chunk_info_header.keys()):
                 if idx == 0:

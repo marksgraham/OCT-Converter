@@ -33,7 +33,8 @@ from construct import (
         param_scan_02_header (obj:Struct) : Defines PARAM_SCAN_02 header.
         img_trc_02_header (obj:Struct) : Defines IMG_TRC_02 header (Fundus grayscale).
         img_trc_header (obj:Struct) : Defines IMG_TRC header.
-        param_obs_02_header (obj:Struct) : Defines PARAM_OBS_02 header.
+        param_obs_02_header (obj:Struct) : Defines PARAM_OBS_02 when size is 90.
+        param_obs_02_short_header (obj:Struct) : Defines PARAM_OBS_02 when size is 6.
         img_projection_header (obj:Struct) : Defines IMG_PROJECTION header.
         img_mot_comp_03_header (obj:Struct) : Defines IMG_MOT_COMP_03 header (Duplicate of oct_header_2)
         effective_scan_range_header (obj:Struct) : Defines EFFECTIVE_SCAN_RANGE header.
@@ -246,17 +247,27 @@ img_trc_02_header = Struct(
     "size" / Int32un,
 )
 
+# param_obs_02 has been found to be 90 or 6.
+# This first struct handles 90, next handles 6.
+# The first "0x1" seems to indicate which type
+# of header to expect (0: long, 1: short)
 param_obs_02_header = Struct(
-    "camera_model" / PaddedString(12, "utf16"),
-    "jpeg_quality" / Int8un,
-    "color_temparature" / Int8un,
+    "0x1" / Int16un,
+    "0xffff" / Int16un[2],
+    "camera_model" / PaddedString(12, "ascii"),
+    "image_quality" / PaddedString(24, "ascii"),
+    "0x300" / Int16un,
+    "0x1" / Int16un,
+    "0x0" / Int16un,
+    "color_temp" / PaddedString(24, "ascii"),
+    "0x2014" / Int16un,
+    "zeros" / Int8un[12],
 )
-# The above might instead be...
-# param_obs_02_header = Struct(
-#     "ph_mode" / Int8un,
-#     "ph_angle" / Int8un,
-#     "ph_light_level" / Int16un,
-# )
+
+param_obs_02_short_header = Struct(
+    "0x1" / Int16un,
+    "0xffff" / Int16un[2],
+)
 
 # This is the same as oct_header_02, just called
 # by its actual chunk name

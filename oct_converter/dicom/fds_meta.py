@@ -32,11 +32,10 @@ def fds_patient_meta(fds_metadata: dict) -> PatientMeta:
     patient.last_name = patient_info.get("last_name")
     patient.patient_id = patient_info.get("patient_id")
     patient.patient_sex = sex_map[patient_info.get("sex", None)]
-    patient.patient_dob = (
-        datetime(*patient_info.get("birth_date"))
-        if patient_info.get("birth_date")[0] != 0
-        else None
-    )
+    try:
+        patient.patient_dob = datetime(*patient_info.get("birth_date"))
+    except (TypeError, ValueError):
+        pass
 
     return patient
 

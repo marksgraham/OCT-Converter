@@ -30,7 +30,8 @@ from construct import (
         capture_info_header (obj:Struct) : Defines CAPTURE_INFO header.
         img_trc_02_header (obj:Struct) : Defines IMG_TRC_02 header.
         img_trc_header (obj:Struct) : Defines IMG_TRC header.
-        param_obs_02_header (obj:Struct) : Defines PARAM_OBS_02 header.
+        param_obs_02_header (obj:Struct) : Defines PARAM_OBS_02 when size is 90.
+        param_obs_02_short_header (obj:Struct) : Defines PARAM_OBS_02 when size is 6.
         param_trc_02_header (obj:Struct) : Defines PARAM_TRC_02 header.
         img_mot_comp_03_header (obj:Struct) : Defines IMG_MOT_COMP_03 header.
         img_mot_comp_02_header (obj:Struct) : Defines IMG_MOT_COMP_02 header.
@@ -223,13 +224,30 @@ img_trc_header = Struct(
     "size" / Int32un,
 )
 
-# TODO This chunk still needs work.
-# Total [3] Int16un
+# param_obs_02 has been found to be 90 or 6.
+# This first struct handles 90, next handles 6.
+# The first "0x1" seems to indicate which type
+# of header to expect (0: long, 1: short)
 param_obs_02_header = Struct(
-    "camera_model" / PaddedString(12, "utf16"),
-    "jpeg_quality" / Int8un,
-    "color_temparature" / Int8un,
+    "0x1" / Int16un,
+    "0xffff" / Int16un[2],
+    "camera_model" / PaddedString(12, "ascii"),
+    "image_quality" / PaddedString(24, "ascii"),
+    "0x300" / Int16un,
+    "0x1" / Int16un,
+    "0x0" / Int16un,
+    "color_temp" / PaddedString(24, "ascii"),
+    "0x2014" / Int16un,
+    "zeros" / Int8un[12],
 )
+
+param_obs_02_short_header = Struct(
+    "0x1" / Int16un,
+    "0xffff" / Int16un[2],
+)
+# phMode = fread(fid, 1, 'uint8');
+# phAngle = fread(fid, 1, 'uint8');
+# phLightLevel = fread(fid, 1, 'uint16');
 
 img_mot_comp_03_header = Struct(
     "0x0" / Int8un,
