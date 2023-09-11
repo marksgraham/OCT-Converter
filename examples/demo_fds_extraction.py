@@ -1,5 +1,6 @@
 import json
 
+from oct_converter.dicom import create_dicom_from_oct
 from oct_converter.readers import FDS
 
 # An example .fds file can be downloaded from the Biobank website:
@@ -26,3 +27,10 @@ fundus_image.save("fds_testing_fundus.jpg")
 metadata = fds.read_all_metadata(verbose=True)
 with open("fds_metadata.json", "w") as outfile:
     outfile.write(json.dumps(metadata, indent=4))
+
+# create a DICOM from FDS
+dcm = create_dicom_from_oct(filepath)
+# Output dir can be specified, otherwise will
+# default to current working directory.
+# Output filename can be specified, otherwise
+# will default to the input filename.

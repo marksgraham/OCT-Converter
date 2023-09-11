@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import typing as t
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -26,19 +28,21 @@ class FDS(object):
         if not self.filepath.exists():
             raise FileNotFoundError(self.filepath)
 
-        self.chunk_dict = self.get_list_of_file_chunks()
+        self.chunk_dict, self.header = self.get_list_of_file_chunks()
 
-    def get_list_of_file_chunks(self) -> dict:
+    def get_list_of_file_chunks(self, printing: bool = False) -> t.Tuple[dict, dict]:
         """Find all data chunks present in the file.
 
         Returns:
-            dictionary of chunk names, containing their locations in the file and size.
+            chunk_dict: dictionary of chunk names, containing their locations
+            in the file and size.
+            header: dictionary of file header information
+
         """
         chunk_dict = {}
         with open(self.filepath, "rb") as f:
-            # skip header
             raw = f.read(15)
-            header = fds_binary.header.parse(raw)
+            header = dict(fds_binary.header.parse(raw))
 
             eof = False
             while not eof:
@@ -51,10 +55,12 @@ class FDS(object):
                     chunk_location = f.tell()
                     f.seek(chunk_size, 1)
                     chunk_dict[chunk_name] = [chunk_location, chunk_size]
-        print("File {} contains the following chunks:".format(self.filepath))
-        for key in chunk_dict.keys():
-            print(key)
-        return chunk_dict
+        if printing:
+            print("File {} contains the following chunks:".format(self.filepath))
+            for key in chunk_dict.keys():
+                print(key)
+            print("")
+        return chunk_dict, header
 
     def read_oct_volume(self) -> OCTVolumeWithMetaData:
         """Reads OCT data.
@@ -62,6 +68,7 @@ class FDS(object):
         Returns:
             OCTVolumeWithMetaData
         """
+        # TODO: could support the other IMG_SCAN variants as well.
         if b"@IMG_SCAN_03" not in self.chunk_dict:
             raise ValueError("Could not find OCT header @IMG_SCAN_03 in chunk list")
         with open(self.filepath, "rb") as f:
@@ -78,26 +85,39 @@ class FDS(object):
                 oct_header.width, oct_header.height, oct_header.number_slices, order="F"
             )
             volume = np.transpose(volume, [1, 0, 2])
-            chunk_loc, chunk_size = self.chunk_dict.get(b"@PARAM_SCAN_04", (None, None))
-            pixel_spacing = None
-            if chunk_loc:
-                f.seek(chunk_loc)
-                scan_params = fds_binary.param_scan_04_header.parse(f.read(chunk_size))
-                # NOTE: this will need reordering for dicom pixel spacing and
-                # image orientation/position patient as well as possibly for nifti
-                # depending on what x,y,z means here.
 
-                # In either nifti/dicom coordinate systems, the x-y plan in raw space
-                # corresponds to the x-z plane, just depends which direction.
-                pixel_spacing = [
-                    scan_params.x_dimension_mm / oct_header.height,  # Left/Right
-                    scan_params.z_resolution_um / 1000,  # Up/Down
-                    scan_params.y_dimension_mm / oct_header.width,  # Depth
-                ]
+        # calculate pixel spacing
+        pixel_spacing = self.read_scan_params(oct_header)
+
+        # read all other metadata
+        metadata = self.read_all_metadata()
+        patient_info = metadata.get("patient_info_02") or metadata.get(
+            "patient_info", {}
+        )
+        capture_info = metadata.get("capture_info_02") or metadata.get(
+            "capture_info", {}
+        )
+        sex_map = {1: "M", 2: "F", 3: "O", None: ""}
+        lat_map = {0: "R", 1: "L", None: ""}
+
+        try:
+            patient_dob = datetime(*patient_info.get("birth_date"))
+        except (TypeError, ValueError):
+            patient_dob = None
 
         oct_volume = OCTVolumeWithMetaData(
             [volume[:, :, i] for i in range(volume.shape[2])],
+            patient_id=patient_info.get("patient_id"),
+            first_name=patient_info.get("first_name"),
+            surname=patient_info.get("last_name"),
+            sex=sex_map[patient_info.get("sex", None)],
+            patient_dob=patient_dob,
+            acquisition_date=datetime(*capture_info.get("cap_date")),
+            laterality=lat_map[capture_info.get("eye", None)],
             pixel_spacing=pixel_spacing,
+            metadata=metadata,
+            header=self.header,
+            oct_header=dict(oct_header),
         )
         return oct_volume
 
@@ -128,6 +148,47 @@ class FDS(object):
         fundus_image = FundusImageWithMetaData(image)
         return fundus_image
 
+    def read_scan_params(self, oct_header: dict) -> list:
+        """Given available chunks, identifies available PARAM_SCAN chunk
+        and calculates pixel spacing.
+
+        Args:
+            oct_header: OCT header information as dict
+
+        Returns:
+            pixel_spacing: list of pixel spacing, ordered by width, slice thickness, height.
+        """
+        if (
+            b"@PARAM_SCAN_04" not in self.chunk_dict
+            and b"@PARAM_SCAN_02" not in self.chunk_dict
+        ):
+            print(
+                "Neither @PARAM_SCAN_04 nor @PARAM_SCAN_02 found. Pixel spacing not calculated."
+            )
+            return None
+        with open(self.filepath, "rb") as f:
+            if b"@PARAM_SCAN_04" in self.chunk_dict:
+                chunk_loc, chunk_size = self.chunk_dict.get(
+                    b"@PARAM_SCAN_04", (None, None)
+                )
+                f.seek(chunk_loc)
+                scan_params = fds_binary.param_scan_04_header.parse(f.read(chunk_size))
+            elif b"@PARAM_SCAN_02" in self.chunk_dict:
+                chunk_loc, chunk_size = self.chunk_dict.get(
+                    b"@PARAM_SCAN_02", (None, None)
+                )
+                f.seek(chunk_loc)
+                scan_params = fds_binary.param_scan_02_header.parse(f.read(chunk_size))
+            pixel_spacing = [
+                scan_params.get("x_dimension_mm")
+                / oct_header.get("width"),  # WidthPixelS, PixelSpacing[1]
+                scan_params.get("y_dimension_mm")
+                / oct_header.get("number_slices"),  # FramePixelS / SliceThickness
+                scan_params.get("z_resolution_um")
+                / 1000,  # zHeightPixelS, PixelSpacing[0]
+            ]
+        return pixel_spacing
+
     def read_all_metadata(self, verbose: bool = False):
         """
         Reads all available metadata and returns a dictionary.
@@ -142,6 +203,9 @@ class FDS(object):
         for key in self.chunk_dict.keys():
             if key in [b"IMG_SCAN_03", b"@IMG_OBS"]:
                 # these chunks have their own dedicated methods for extraction
+                continue
+            elif key == b"@PARAM_OBS_02":
+                metadata["param_obs_02"] = self.read_param_obs()
                 continue
             json_key = key.decode().split("@")[-1].lower()
             try:
@@ -169,6 +233,34 @@ class FDS(object):
             raw = f.read()
             header_name = f"{chunk_name.decode().split('@')[-1].lower()}_header"
             chunk_info_header = dict(fds_binary.__dict__[header_name].parse(raw))
+            chunks_info = dict()
+            for idx, key in enumerate(chunk_info_header.keys()):
+                if idx == 0:
+                    continue
+                if type(chunk_info_header[key]) is ListContainer:
+                    chunks_info[key] = list(chunk_info_header[key])
+                else:
+                    chunks_info[key] = chunk_info_header[key]
+        return chunks_info
+
+    def read_param_obs(self) -> dict:
+        """Reads PARAM_OBS_02 while accounting for varied chunk sizes.
+
+        Returns:
+            Chunk info data for PARAM_OBS_02
+        """
+        with open(self.filepath, "rb") as f:
+            chunk_location, chunk_size = self.chunk_dict[b"@PARAM_OBS_02"]
+            f.seek(chunk_location)  # Set the chunk’s current position.
+            raw = f.read()
+            # PARAM_OBS_02 is either of size 90 or size 6.
+            if chunk_size == 90:
+                chunk_info_header = dict(fds_binary.param_obs_02_header.parse(raw))
+            else:  # chunk_size == 6
+                chunk_info_header = dict(
+                    fds_binary.param_obs_02_short_header.parse(raw)
+                )
+
             chunks_info = dict()
             for idx, key in enumerate(chunk_info_header.keys()):
                 if idx == 0:
