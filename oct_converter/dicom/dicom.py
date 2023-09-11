@@ -13,8 +13,9 @@ from pydicom.uid import (
 
 from oct_converter.dicom.fda_meta import fda_dicom_metadata
 from oct_converter.dicom.fds_meta import fds_dicom_metadata
+from oct_converter.dicom.img_meta import img_dicom_metadata
 from oct_converter.dicom.metadata import DicomMetadata
-from oct_converter.readers import FDA, FDS
+from oct_converter.readers import FDA, FDS, IMG
 
 # Deterministic implentation UID based on package name and version
 version = metadata.version("oct_converter")
@@ -242,14 +243,18 @@ def write_opt_dicom(
 
 
 def create_dicom_from_oct(
-    input_file: str, output_dir: str = None, output_filename: str = None
+    input_file: str,
+    output_dir: str = None,
+    output_filename: str = None,
+    rows: int = 1024,
+    cols: int = 512,
+    interlaced: bool = False,
 ) -> Path:
     """Creates a DICOM file with the data parsed from
     the input file.
 
     Args:
-            input_file: File with OCT data (Currently only Topcon
-            files supported)
+            input_file: File with OCT data, .fda/.fds/.img
             output_dir: Output directory, will be created if
             not currently exists. Default None places file in
             current working directory.
@@ -257,6 +262,9 @@ def create_dicom_from_oct(
             `filename.dcm`. Default None saves the file under
             the input filename (if input_file = `test.fds`,
             output_filename = `test.dcm`)
+            rows: If .img file, allows for manually setting rows
+            cols: If .img file, allows for manually setting cols
+            interlaced: If .img file, allows for setting interlaced
 
     Returns:
             Path to DICOM file
@@ -270,13 +278,17 @@ def create_dicom_from_oct(
         fda = FDA(input_file)
         oct = fda.read_oct_volume()
         meta = fda_dicom_metadata(oct)
-    elif file_suffix in ["e2e", "img", "oct"]:
+    elif file_suffix == "img":
+        img = IMG(input_file)
+        oct = img.read_oct_volume(rows, cols, interlaced)
+        meta = img_dicom_metadata(oct)
+    elif file_suffix in ["e2e", "oct"]:
         raise NotImplementedError(
-            f"DICOM conversion for {file_suffix} is not yet supported. Currently supported filetypes are .fds, .fda."
+            f"DICOM conversion for {file_suffix} is not yet supported. Currently supported filetypes are .fds, .fda, .img."
         )
     else:
         raise TypeError(
-            f"DICOM conversion for {file_suffix} is not supported. Currently supported filetypes are .fds, .fda."
+            f"DICOM conversion for {file_suffix} is not supported. Currently supported filetypes are .fds, .fda, .img."
         )
 
     if output_dir:
