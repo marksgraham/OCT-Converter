@@ -15,7 +15,8 @@ from oct_converter.dicom.fda_meta import fda_dicom_metadata
 from oct_converter.dicom.fds_meta import fds_dicom_metadata
 from oct_converter.dicom.img_meta import img_dicom_metadata
 from oct_converter.dicom.metadata import DicomMetadata
-from oct_converter.readers import FDA, FDS, IMG
+from oct_converter.dicom.poct_meta import poct_dicom_metadata
+from oct_converter.readers import FDA, FDS, IMG, POCT
 
 # Deterministic implentation UID based on package name and version
 version = metadata.version("oct_converter")
@@ -282,13 +283,18 @@ def create_dicom_from_oct(
         img = IMG(input_file)
         oct = img.read_oct_volume(rows, cols, interlaced)
         meta = img_dicom_metadata(oct)
-    elif file_suffix in ["e2e", "oct"]:
+    elif file_suffix == "oct":
+        # May need to adjust this to double check that this is Optovue
+        poct = POCT(input_file)
+        oct = poct.read_oct_volume()[0]
+        meta = poct_dicom_metadata(oct)
+    elif file_suffix == "e2e":
         raise NotImplementedError(
-            f"DICOM conversion for {file_suffix} is not yet supported. Currently supported filetypes are .fds, .fda, .img."
+            f"DICOM conversion for {file_suffix} is not yet supported. Currently supported filetypes are .fds, .fda, .img, .OCT."
         )
     else:
         raise TypeError(
-            f"DICOM conversion for {file_suffix} is not supported. Currently supported filetypes are .fds, .fda, .img."
+            f"DICOM conversion for {file_suffix} is not supported. Currently supported filetypes are .fds, .fda, .img, .OCT."
         )
 
     if output_dir:
