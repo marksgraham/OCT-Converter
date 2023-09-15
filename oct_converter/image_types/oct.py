@@ -68,7 +68,7 @@ class OCTVolumeWithMetaData(object):
 
         # volume data
         self.volume_id = volume_id
-        self.acquistion_date = acquisition_date
+        self.acquisition_date = acquisition_date
         self.laterality = laterality
         self.num_slices = len(self.volume)
         self.contours = contours

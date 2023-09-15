@@ -127,7 +127,7 @@ def img_dicom_metadata(oct: OCTVolumeWithMetaData) -> DicomMetadata:
     """
     meta = DicomMetadata
     meta.patient_info = img_patient_meta(oct.patient_id)
-    meta.series_info = img_series_meta(oct.acquistion_date, oct.laterality)
+    meta.series_info = img_series_meta(oct.acquisition_date, oct.laterality)
     meta.manufacturer_info = img_manu_meta()
     meta.image_geometry = img_image_geom()
     meta.oct_image_params = img_image_params()
