@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from itertools import chain
 from pathlib import Path
 
@@ -33,6 +33,8 @@ class E2E(object):
         self.first_name = None
         self.surname = None
         self.acquisition_date = None
+        self.birthdate = None
+        self.pixel_spacing = None
 
         # get initial directory structure
         with open(self.filepath, "rb") as f:
@@ -129,8 +131,8 @@ class E2E(object):
                         self.sex = patient_data.sex
                         self.first_name = patient_data.first_name
                         self.surname = patient_data.surname
-                        # this gives the birthdate as a Julian date, needs converting to calendar date
-                        self.birthdate = (patient_data.birthdate / 64) - 14558805
+                        julian_birthdate = (patient_data.birthdate / 64) - 14558805
+                        self.birthdate = self.julian_to_ymd(julian_birthdate)
                         self.patient_id = patient_data.patient_id
                     except Exception:
                         pass
@@ -146,6 +148,9 @@ class E2E(object):
                     )
                     if self.acquisition_date is None:
                         self.acquisition_date = acquisition_datetime.date()
+                    if self.pixel_spacing is None:
+                        # 0.004's are placeholders
+                        self.pixel_spacing = [0.004, bscan_metadata.scaley, 0.004]
 
                 elif chunk.type == 11:  # laterality data
                     raw = f.read(20)
@@ -254,6 +259,9 @@ class E2E(object):
                     for slice_id, contour in contour_values.items():
                         (contour_data[volume_id][contour_name][slice_id]) = contour
 
+            # Read metadata to attach to OCTVolumeWithMetaData
+            metadata = self.read_all_metadata()
+
             oct_volumes = []
             for key, volume in chain(
                 volume_array_dict.items(), volume_array_dict_additional.items()
@@ -269,10 +277,13 @@ class E2E(object):
                         first_name=self.first_name,
                         surname=self.surname,
                         sex=self.sex,
+                        patient_dob=self.birthdate,
                         acquisition_date=self.acquisition_date,
                         volume_id=key,
                         laterality=laterality_dict.get(key),
                         contours=contour_data.get(key),
+                        pixel_spacing=self.pixel_spacing,
+                        metadata=metadata,
                     )
                 )
 
@@ -315,8 +326,8 @@ class E2E(object):
                         self.sex = patient_data.sex
                         self.first_name = patient_data.first_name
                         self.surname = patient_data.surname
-                        # this gives the birthdate as a Julian date, needs converting to calendar date
-                        self.birthdate = (patient_data.birthdate / 64) - 14558805
+                        julian_birthdate = (patient_data.birthdate / 64) - 14558805
+                        self.birthdate = self.julian_to_ymd(julian_birthdate)
                         self.patient_id = patient_data.patient_id
                     except Exception:
                         pass
@@ -513,3 +524,33 @@ class E2E(object):
         data[selection_0] = 0
         data = np.clip(data, 0, 1)
         return data
+
+    def julian_to_ymd(self, J):
+        """Converts Julian Day to Gregorian YMD.
+
+        see https://en.wikipedia.org/wiki/Julian_day
+        with thanks to https://github.com/seanredmond/juliandate
+        """
+        y = 4716
+        j = 1401
+        m = 2
+        n = 12
+        r = 4
+        p = 1461
+        v = 3
+        u = 5
+        s = 153
+        w = 2
+        B = 274277
+        C = -38
+
+        f = J + j + int(((int((4 * J + B) / 146097)) * 3) / 4) + C
+        e = r * f + v
+        g = int((e % p) / r)
+        h = u * g + w
+
+        D = int((h % s) / u) + 1
+        M = ((int(h / s) + m) % n) + 1
+        Y = int(e / p) - y + int((n + m - M) / n)
+
+        return date(Y, M, D)

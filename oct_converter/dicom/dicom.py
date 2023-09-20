@@ -11,12 +11,13 @@ from pydicom.uid import (
     generate_uid,
 )
 
+from oct_converter.dicom.e2e_meta import e2e_dicom_metadata
 from oct_converter.dicom.fda_meta import fda_dicom_metadata
 from oct_converter.dicom.fds_meta import fds_dicom_metadata
 from oct_converter.dicom.img_meta import img_dicom_metadata
 from oct_converter.dicom.metadata import DicomMetadata
 from oct_converter.dicom.poct_meta import poct_dicom_metadata
-from oct_converter.readers import FDA, FDS, IMG, POCT
+from oct_converter.readers import E2E, FDA, FDS, IMG, POCT
 
 # Deterministic implentation UID based on package name and version
 version = metadata.version("oct_converter")
@@ -219,6 +220,8 @@ def write_opt_dicom(
 
     per_frame = []
     pixel_data_bytes = list()
+    # Normalize
+    frames = normalize_volume(frames)
     # Convert to a 3d volume
     pixel_data = np.array(frames).astype(np.uint16)
     ds.Rows = pixel_data.shape[1]
@@ -271,6 +274,7 @@ def create_dicom_from_oct(
             Path to DICOM file
     """
     file_suffix = input_file.split(".")[-1].lower()
+    vol_dict = None
     if file_suffix == "fds":
         fds = FDS(input_file)
         oct = fds.read_oct_volume()
@@ -286,15 +290,31 @@ def create_dicom_from_oct(
     elif file_suffix == "oct":
         # May need to adjust this to double check that this is Optovue
         poct = POCT(input_file)
-        oct = poct.read_oct_volume()[0]
-        meta = poct_dicom_metadata(oct)
+        octs = poct.read_oct_volume()
+        if len(octs) == 1:
+            oct = octs[0]
+            meta = poct_dicom_metadata(oct)
+        else:
+            vol_dict = dict()
+            for count, oct in enumerate(octs):
+                meta = poct_dicom_metadata(oct)
+                vol_dict[count] = (oct, meta)
+            meta = poct_dicom_metadata(oct)
     elif file_suffix == "e2e":
-        raise NotImplementedError(
-            f"DICOM conversion for {file_suffix} is not yet supported. Currently supported filetypes are .fds, .fda, .img, .OCT."
-        )
+        e2e = E2E(input_file)
+        octs = e2e.read_oct_volume()
+        if len(octs) == 1:
+            oct = octs[0]
+            meta = e2e_dicom_metadata(oct)
+        else:
+            vol_dict = dict()
+            for count, oct in enumerate(octs):
+                meta = e2e_dicom_metadata(oct)
+                vol_dict[count] = (oct, meta)
     else:
         raise TypeError(
-            f"DICOM conversion for {file_suffix} is not supported. Currently supported filetypes are .fds, .fda, .img, .OCT."
+            f"DICOM conversion for {file_suffix} is not supported. "
+            "Currently supported filetypes are .fds, .fda, .img, .OCT."
         )
 
     if output_dir:
@@ -303,11 +323,41 @@ def create_dicom_from_oct(
     else:
         output_dir = Path.cwd()
 
-    if not output_filename:
-        output_filename = Path(input_file).stem + ".dcm"
+    if vol_dict:
+        files = []
+        for vol_num in vol_dict.keys():
+            if not output_filename:
+                filename = f"{Path(input_file).stem}_{str(vol_num)}.dcm"
+            else:
+                # Needs refining. Filename might include additional .'s
+                # or other problems.
+                filename_parts = output_filename.split(".")
+                filename = f"{filename_parts[0]}_{str(vol_num)}.{filename_parts[-1]}"
+            filepath = Path(output_dir, filename)
+            oct, meta = vol_dict[vol_num]
+            file = write_opt_dicom(meta, oct.volume, filepath)
+            files.append(file)
+        return files
+    else:
+        if not output_filename:
+            output_filename = f"{Path(input_file).stem}.dcm"
+        filepath = Path(output_dir, output_filename)
+        file = write_opt_dicom(meta, oct.volume, filepath)
+        return file
 
-    filepath = Path(output_dir, output_filename)
 
-    file = write_opt_dicom(meta, oct.volume, filepath)
+def normalize_volume(vol: list[np.ndarray]) -> list[np.ndarray]:
+    """Normalizes pixel intensities within a range of 0-100.
 
-    return file
+    Args:
+        vol: List of frames
+    Returns:
+        Normalized list of frames
+    """
+    arr = np.array(vol)
+    norm_vol = []
+    diff_arr = arr.max() - arr.min()
+    for i in arr:
+        temp = ((i - arr.min()) / diff_arr) * 100
+        norm_vol.append(temp)
+    return norm_vol
