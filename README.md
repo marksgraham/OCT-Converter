@@ -65,7 +65,8 @@ Are welcome! Here is a [development roadmap](https://github.com/marksgraham/OCT-
 ## Updates
 
 22 September 2023
-- DICOM support: can now save .fda/.fds files as DICOMs with metadata populated.
+- DICOM support: can now save .fda/.fds files as DICOMs with correct headers.
+- Much more complete extraction of .fda/.fds metadata.
 
 28 March 2023
 - Metadata extraction for .fds expanded to match that of .fda file.
