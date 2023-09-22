@@ -54,12 +54,19 @@ fundus_image.save('fds_testing_fundus.jpg')
 metadata = fds.read_all_metadata(verbose=True) # extracts all other metadata
 with open("fds_metadata.json", "w") as outfile:
     outfile.write(json.dumps(metadata, indent=4))
+
+# create and save a DICOM (.fda/.fds only for now)
+dcm = create_dicom_from_oct(filepath)
 ```
 
 ## Contributions
 Are welcome! Here is a [development roadmap](https://github.com/marksgraham/OCT-Converter/issues/86), including some easy first issues. Please open a [new issue](https://github.com/marksgraham/OCT-Converter/issues/new) to discuss any potential contributions.
 
 ## Updates
+
+22 September 2023
+- DICOM support: can now save .fda/.fds files as DICOMs with metadata populated.
+
 28 March 2023
 - Metadata extraction for .fds expanded to match that of .fda file.
 
