@@ -258,7 +258,7 @@ def create_dicom_from_oct(
     the input file.
 
     Args:
-            input_file: File with OCT data, .fda/.fds/.img
+            input_file: File with OCT data, .fda/.fds/.img/.e2e/.OCT
             output_dir: Output directory, will be created if
             not currently exists. Default None places file in
             current working directory.
@@ -299,11 +299,15 @@ def create_dicom_from_oct(
             for count, oct in enumerate(octs):
                 meta = poct_dicom_metadata(oct)
                 vol_dict[count] = (oct, meta)
-            meta = poct_dicom_metadata(oct)
     elif file_suffix == "e2e":
         e2e = E2E(input_file)
         octs = e2e.read_oct_volume()
-        if len(octs) == 1:
+        if len(octs) == 0:
+            raise ValueError(
+                "No OCT volumes found in e2e input file. Fundus images are "
+                "not currently supported for DICOM conversion."
+            )
+        elif len(octs) == 1:
             oct = octs[0]
             meta = e2e_dicom_metadata(oct)
         else:
@@ -314,7 +318,7 @@ def create_dicom_from_oct(
     else:
         raise TypeError(
             f"DICOM conversion for {file_suffix} is not supported. "
-            "Currently supported filetypes are .fds, .fda, .img, .OCT."
+            "Currently supported filetypes are .e2e, .fds, .fda, .img, .OCT."
         )
 
     if output_dir:

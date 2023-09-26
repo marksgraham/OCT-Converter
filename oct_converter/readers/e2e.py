@@ -94,7 +94,7 @@ class E2E(object):
                     raw = f.read(44)
                     chunk = e2e_binary.sub_directory_structure.parse(raw)
                     volume_string = "{}_{}_{}".format(
-                        chunk.patient_id, chunk.study_id, chunk.series_id
+                        chunk.patient_db_id, chunk.study_id, chunk.series_id
                     )
                     if volume_string not in volume_dict.keys():
                         volume_dict[volume_string] = chunk.slice_id / 2
@@ -169,7 +169,7 @@ class E2E(object):
 
                     if contour_data.width > 0:
                         volume_string = "{}_{}_{}".format(
-                            chunk.patient_id, chunk.study_id, chunk.series_id
+                            chunk.patient_db_id, chunk.study_id, chunk.series_id
                         )
                         slice_id = int(chunk.slice_id / 2) - 1
                         contour_name = f"contour{contour_data.id}"
@@ -205,7 +205,7 @@ class E2E(object):
                             break
                         raw_volume = np.fromfile(f, dtype=np.uint16, count=count)
                         volume_string = "{}_{}_{}".format(
-                            chunk.patient_id, chunk.study_id, chunk.series_id
+                            chunk.patient_db_id, chunk.study_id, chunk.series_id
                         )
                         try:
                             image = LUT[raw_volume].reshape(
@@ -355,7 +355,7 @@ class E2E(object):
                             image_data.height, image_data.width
                         )
                         image_string = "{}_{}_{}".format(
-                            chunk.patient_id, chunk.study_id, chunk.series_id
+                            chunk.patient_db_id, chunk.study_id, chunk.series_id
                         )
                         image_array_dict[image_string] = image
                         # here assumes laterality stored in chunk before the image itself
