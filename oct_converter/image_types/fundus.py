@@ -32,12 +32,14 @@ class FundusImageWithMetaData(object):
         patient_id: str | None = None,
         image_id: str | None = None,
         patient_dob: str | None = None,
+        metadata: dict | None = None,
     ) -> None:
         self.image = image
         self.laterality = laterality
         self.patient_id = patient_id
         self.image_id = image_id
         self.DOB = patient_dob
+        self.metadata = metadata
 
     def save(self, filepath: str | Path) -> None:
         """Saves fundus image.
