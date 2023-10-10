@@ -174,7 +174,7 @@ def opt_shared_functional_groups(ds: Dataset, meta: DicomMetadata) -> Dataset:
 def write_opt_dicom(
     meta: DicomMetadata, frames: t.List[np.ndarray], filepath: Path
 ) -> Path:
-    """Writes required DICOM metadata and pixel data to .dcm file.
+    """Writes required DICOM metadata and oct pixel data to .dcm file.
 
     Args:
             meta: DICOM metadata information
@@ -246,10 +246,122 @@ def write_opt_dicom(
     return filepath
 
 
+def write_fundus_dicom(
+    meta: DicomMetadata, frames: t.List[np.ndarray], filepath: Path
+) -> Path:
+    """Writes required DICOM metadata and fundus pixel data to .dcm file.
+
+    Args:
+            meta: DICOM metadata information
+            frames: list of frames of pixel data
+            filepath: Path to where output file is being saved
+    Returns:
+            Path to created DICOM file
+    """
+    ds = opt_base_dicom(filepath)
+    ds = populate_patient_info(ds, meta)
+    ds = populate_manufacturer_info(ds, meta)
+    ds = populate_opt_series(ds, meta)
+    ds.Modality = "OP"
+    ds = populate_ocular_region(ds, meta)
+    ds = opt_shared_functional_groups(ds, meta)
+
+    # TODO: Frame of reference if fundus image present
+
+    # OPT Image Module PS3.3 C.8.17.7
+    ds.ImageType = ["DERIVED", "SECONDARY"]
+    ds.SamplesPerPixel = 1
+    ds.AcquisitionDateTime = (
+        meta.series_info.acquisition_date.strftime("%Y%m%d%H%M%S.%f")
+        if meta.series_info.acquisition_date
+        else ""
+    )
+    ds.AcquisitionNumber = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    # Unsigned integer
+    ds.PixelRepresentation = 0
+    # Use 16 bit pixel
+    ds.BitsAllocated = 16
+    ds.BitsStored = ds.BitsAllocated
+    ds.HighBit = ds.BitsAllocated - 1
+    ds.SamplesPerPixel = 1
+    ds.NumberOfFrames = 1
+
+    # Multi-frame Functional Groups Module PS3.3 C.7.6.16
+    dt = datetime.now()
+    ds.ContentDate = dt.strftime("%Y%m%d")
+    timeStr = dt.strftime("%H%M%S.%f")  # long format with micro seconds
+    ds.ContentTime = timeStr
+    ds.InstanceNumber = 1
+    pixel_data = np.array(frames).astype(np.uint16)
+    ds.Rows = pixel_data.shape[0]
+    ds.Columns = pixel_data.shape[1]
+
+    ds.PixelData = pixel_data.tobytes()
+    ds.save_as(filepath)
+    return filepath
+
+
+def write_color_fundus_dicom(
+    meta: DicomMetadata, frames: t.List[np.ndarray], filepath: Path
+) -> Path:
+    """Writes required DICOM metadata and RGB fundus pixel data to .dcm file.
+
+    Args:
+            meta: DICOM metadata information
+            frames: list of frames of pixel data
+            filepath: Path to where output file is being saved
+    Returns:
+            Path to created DICOM file
+    """
+    ds = opt_base_dicom(filepath)
+    ds = populate_patient_info(ds, meta)
+    ds = populate_manufacturer_info(ds, meta)
+    ds = populate_opt_series(ds, meta)
+    ds.Modality = "OP"
+    ds = populate_ocular_region(ds, meta)
+    ds = opt_shared_functional_groups(ds, meta)
+
+    # TODO: Frame of reference if fundus image present
+
+    # OPT Image Module PS3.3 C.8.17.7
+    ds.ImageType = ["DERIVED", "SECONDARY"]
+    ds.SamplesPerPixel = 1
+    ds.AcquisitionDateTime = (
+        meta.series_info.acquisition_date.strftime("%Y%m%d%H%M%S.%f")
+        if meta.series_info.acquisition_date
+        else ""
+    )
+    ds.AcquisitionNumber = 1
+    ds.PhotometricInterpretation = "RGB"
+    # Unsigned integer
+    ds.PixelRepresentation = 0
+    # Use 16 bit pixel
+    ds.BitsAllocated = 16
+    ds.BitsStored = ds.BitsAllocated
+    ds.HighBit = ds.BitsAllocated - 1
+    ds.SamplesPerPixel = 1
+    ds.NumberOfFrames = 1
+
+    # Multi-frame Functional Groups Module PS3.3 C.7.6.16
+    dt = datetime.now()
+    ds.ContentDate = dt.strftime("%Y%m%d")
+    timeStr = dt.strftime("%H%M%S.%f")  # long format with micro seconds
+    ds.ContentTime = timeStr
+    ds.InstanceNumber = 1
+
+    pixel_data = np.array(frames).astype(np.uint16)
+    ds.Rows = pixel_data.shape[0]
+    ds.Columns = pixel_data.shape[1]
+
+    ds.PixelData = pixel_data.tobytes()
+    ds.save_as(filepath)
+    return filepath
+
+
 def create_dicom_from_oct(
     input_file: str,
     output_dir: str = None,
-    output_filename: str = None,
     rows: int = 1024,
     cols: int = 512,
     interlaced: bool = False,
@@ -262,10 +374,6 @@ def create_dicom_from_oct(
             output_dir: Output directory, will be created if
             not currently exists. Default None places file in
             current working directory.
-            output_filename: Name to save the file under, i.e.
-            `filename.dcm`. Default None saves the file under
-            the input filename (if input_file = `test.fds`,
-            output_filename = `test.dcm`)
             rows: If .img file, allows for manually setting rows
             cols: If .img file, allows for manually setting cols
             interlaced: If .img file, allows for setting interlaced
@@ -273,81 +381,35 @@ def create_dicom_from_oct(
     Returns:
             Path to DICOM file
     """
-    file_suffix = input_file.split(".")[-1].lower()
-    vol_dict = None
-    if file_suffix == "fds":
-        fds = FDS(input_file)
-        oct = fds.read_oct_volume()
-        meta = fds_dicom_metadata(oct)
-    elif file_suffix == "fda":
-        fda = FDA(input_file)
-        oct = fda.read_oct_volume()
-        meta = fda_dicom_metadata(oct)
-    elif file_suffix == "img":
-        img = IMG(input_file)
-        oct = img.read_oct_volume(rows, cols, interlaced)
-        meta = img_dicom_metadata(oct)
-    elif file_suffix == "oct":
-        # May need to adjust this to double check that this is Optovue
-        poct = POCT(input_file)
-        octs = poct.read_oct_volume()
-        if len(octs) == 1:
-            oct = octs[0]
-            meta = poct_dicom_metadata(oct)
-        else:
-            vol_dict = dict()
-            for count, oct in enumerate(octs):
-                meta = poct_dicom_metadata(oct)
-                vol_dict[count] = (oct, meta)
-    elif file_suffix == "e2e":
-        e2e = E2E(input_file)
-        octs = e2e.read_oct_volume()
-        if len(octs) == 0:
-            raise ValueError(
-                "No OCT volumes found in e2e input file. Fundus images are "
-                "not currently supported for DICOM conversion."
-            )
-        elif len(octs) == 1:
-            oct = octs[0]
-            meta = e2e_dicom_metadata(oct)
-        else:
-            vol_dict = dict()
-            for count, oct in enumerate(octs):
-                meta = e2e_dicom_metadata(oct)
-                vol_dict[count] = (oct, meta)
-    else:
-        raise TypeError(
-            f"DICOM conversion for {file_suffix} is not supported. "
-            "Currently supported filetypes are .e2e, .fds, .fda, .img, .OCT."
-        )
-
     if output_dir:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
     else:
         output_dir = Path.cwd()
 
-    if vol_dict:
-        files = []
-        for vol_num in vol_dict.keys():
-            if not output_filename:
-                filename = f"{Path(input_file).stem}_{str(vol_num)}.dcm"
-            else:
-                # Needs refining. Filename might include additional .'s
-                # or other problems.
-                filename_parts = output_filename.split(".")
-                filename = f"{filename_parts[0]}_{str(vol_num)}.{filename_parts[-1]}"
-            filepath = Path(output_dir, filename)
-            oct, meta = vol_dict[vol_num]
-            file = write_opt_dicom(meta, oct.volume, filepath)
-            files.append(file)
+    file_suffix = input_file.split(".")[-1]
+
+    if file_suffix.lower() == "fds":
+        dcm = create_dicom_from_fds(input_file, output_dir)
+        return dcm
+    elif file_suffix.lower() == "fda":
+        dcm = create_dicom_from_fda(input_file, output_dir)
+        return dcm
+    elif file_suffix.lower() == "img":
+        dcm = create_dicom_from_img(input_file, output_dir, rows, cols, interlaced)
+        return dcm
+    elif file_suffix == "OCT":
+        # OCT and oct are different filetypes, must be case-sensitive
+        files = create_dicom_from_poct(input_file, output_dir)
+        return files
+    elif file_suffix.lower() == "e2e":
+        files = create_dicom_from_e2e(input_file=input_file, output_dir=output_dir)
         return files
     else:
-        if not output_filename:
-            output_filename = f"{Path(input_file).stem}.dcm"
-        filepath = Path(output_dir, output_filename)
-        file = write_opt_dicom(meta, oct.volume, filepath)
-        return file
+        raise TypeError(
+            f"DICOM conversion for {file_suffix} is not supported. "
+            "Currently supported filetypes are .e2e, .fds, .fda, .img, .OCT."
+        )
 
 
 def normalize_volume(vol: list[np.ndarray]) -> list[np.ndarray]:
@@ -365,3 +427,179 @@ def normalize_volume(vol: list[np.ndarray]) -> list[np.ndarray]:
         temp = ((i - arr.min()) / diff_arr) * 100
         norm_vol.append(temp)
     return norm_vol
+
+
+def create_dicom_from_e2e(
+    input_file: str,
+    output_dir: str = None,
+) -> list:
+    """Creates DICOM file(s) with the data parsed from
+    the input file.
+
+    Args:
+            input_file: E2E file with OCT data
+            output_dir: Output directory
+
+    Returns:
+            Path to DICOM file
+    """
+    e2e = E2E(input_file)
+    oct_volumes = e2e.read_oct_volume()
+    fundus_images = e2e.read_fundus_image()
+    if len(oct_volumes) == 0 and len(fundus_images) == 0:
+        raise ValueError(
+            "No OCT volumes or fundus images found in e2e input file."
+        )
+    
+    files = []
+    
+    if len(fundus_images) > 0:
+        for count, fundus in enumerate(fundus_images):
+            meta = e2e_dicom_metadata(fundus)
+            filename = f"{Path(input_file).stem}_fundus_{str(count)}.dcm"
+            filepath = Path(output_dir, filename)
+            file = write_fundus_dicom(meta, fundus.image, filepath)
+            files.append(file)
+
+    if len(oct_volumes) > 0:
+        for count, oct in enumerate(oct_volumes):
+            meta = e2e_dicom_metadata(oct)
+            filename = f"{Path(input_file).stem}_oct_{str(count)}.dcm"
+            filepath = Path(output_dir, filename)
+            file = write_opt_dicom(meta, oct.volume, filepath)
+            files.append(file)
+    
+    return files
+
+
+def create_dicom_from_fda(
+    input_file: str,
+    output_dir: str,
+) -> Path:
+    """Creates DICOM file(s) with the data parsed from
+    the input file.
+
+    Args:
+            input_file: FDA file with OCT data
+            output_dir: Output directory
+
+    Returns:
+            List of path(s) to DICOM file
+    """
+    files = []
+    fda = FDA(input_file)
+    oct = fda.read_oct_volume()
+    meta = fda_dicom_metadata(oct)
+    output_filename = f"{Path(input_file).stem}.dcm"
+    filepath = Path(output_dir, output_filename)
+    file = write_opt_dicom(meta, oct.volume, filepath)
+    files.append(file)
+    
+    # Attempt to parse fundus images
+    fundus = fda.read_fundus_image()
+    if fundus:
+        output_filename = f"{Path(input_file).stem}_fundus.dcm"
+        filepath = Path(output_dir, output_filename)
+        meta.image_geometry.pixel_spacing = [1, 1]
+        file = write_color_fundus_dicom(meta, fundus.image, filepath)
+        files.append(file)
+
+    fundus_grayscale = fda.read_fundus_image_gray_scale()
+    if fundus_grayscale:
+        output_filename = f"{Path(input_file).stem}_fundus_grayscale.dcm"
+        filepath = Path(output_dir, output_filename)
+        meta.image_geometry.pixel_spacing = [1, 1]
+        file = write_fundus_dicom(meta, fundus_grayscale.image, filepath)
+        files.append(file)
+    
+    return files
+    
+
+def create_dicom_from_fds(
+    input_file: str,
+    output_dir: str,
+) -> Path:
+    """Creates DICOM file(s) with the data parsed from
+    the input file.
+
+    Args:
+            input_file: FDS file with OCT data
+            output_dir: Output directory
+
+    Returns:
+            List of path(s) to DICOM file
+    """
+    files = []
+    fds = FDS(input_file)
+    oct = fds.read_oct_volume()
+    meta = fds_dicom_metadata(oct)
+    output_filename = f"{Path(input_file).stem}.dcm"
+    filepath = Path(output_dir, output_filename)
+    file = write_opt_dicom(meta, oct.volume, filepath)
+    files.append(file)
+
+    # Attempt to parse fundus images
+    fundus = fds.read_fundus_image()
+    if fundus:
+        output_filename = f"{Path(input_file).stem}_fundus.dcm"
+        filepath = Path(output_dir, output_filename)
+        file = write_color_fundus_dicom(meta, fundus.image, filepath)
+        files.append(file)
+    
+    return files
+
+
+def create_dicom_from_img(
+    input_file: str,
+    output_dir: str,
+    rows: int = 1024,
+    cols: int = 512,
+    interlaced: bool = False,
+) -> Path:
+    """Creates a DICOM file with the data parsed from
+    the input file.
+
+    Args:
+            input_file: .img file with OCT data
+            output_dir: Output directory
+            rows: Optional, for manually setting rows. Default 1024.
+            cols: Optional, for manually setting cols. Default 512.
+            interlaced: Optional, for setting interlaced. Default False.
+
+    Returns:
+            Path to DICOM file
+    """
+    img = IMG(input_file)
+    oct = img.read_oct_volume(rows, cols, interlaced)
+    meta = img_dicom_metadata(oct)
+    output_filename = f"{Path(input_file).stem}.dcm"
+    filepath = Path(output_dir, output_filename)
+    file = write_opt_dicom(meta, oct.volume, filepath)
+    return file
+
+
+def create_dicom_from_poct(
+    input_file: str,
+    output_dir: str,
+) -> list:
+    """Creates DICOM file(s) with the data parsed from
+    the input file.
+
+    Args:
+            input_file: File with POCT data
+            output_dir: Output directory
+
+    Returns:
+            List of path(s) to DICOM file
+    """
+    poct = POCT(input_file)
+    octs = poct.read_oct_volume()
+    files = []
+    for count, oct in enumerate(octs):
+        meta = poct_dicom_metadata(oct)
+        filename = f"{Path(input_file).stem}_{str(count)}.dcm"
+        filepath = Path(output_dir, filename)
+        file = write_opt_dicom(meta, oct.volume, filepath)
+        files.append(file)
+    
+    return files
