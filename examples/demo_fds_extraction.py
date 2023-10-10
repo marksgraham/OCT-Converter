@@ -32,5 +32,3 @@ with open("fds_metadata.json", "w") as outfile:
 dcm = create_dicom_from_oct(filepath)
 # Output dir can be specified, otherwise will
 # default to current working directory.
-# Output filename can be specified, otherwise
-# will default to the input filename.
