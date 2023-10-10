@@ -149,8 +149,9 @@ class E2E(object):
                     if self.acquisition_date is None:
                         self.acquisition_date = acquisition_datetime.date()
                     if self.pixel_spacing is None:
-                        # 0.004's are placeholders
-                        self.pixel_spacing = [0.004, bscan_metadata.scaley, 0.004]
+                        # scaley found, x and z not yet found in file
+                        # but taken from E2E reader settings
+                        self.pixel_spacing = [0.011484, bscan_metadata.scaley, 0.244673]
 
                 elif chunk.type == 11:  # laterality data
                     raw = f.read(20)
@@ -360,6 +361,10 @@ class E2E(object):
                         image_array_dict[image_string] = image
                         # here assumes laterality stored in chunk before the image itself
                         laterality_dict[image_string] = laterality
+            
+            # Read metadata to attach to FundusImageWithMetaData
+            metadata = self.read_all_metadata()
+
             fundus_images = []
             for key, image in image_array_dict.items():
                 fundus_images.append(
@@ -370,6 +375,7 @@ class E2E(object):
                         laterality=laterality_dict[key]
                         if key in laterality_dict.keys()
                         else None,
+                        metadata=metadata,
                     )
                 )
 
