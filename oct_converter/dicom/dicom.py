@@ -447,12 +447,10 @@ def create_dicom_from_e2e(
     oct_volumes = e2e.read_oct_volume()
     fundus_images = e2e.read_fundus_image()
     if len(oct_volumes) == 0 and len(fundus_images) == 0:
-        raise ValueError(
-            "No OCT volumes or fundus images found in e2e input file."
-        )
-    
+        raise ValueError("No OCT volumes or fundus images found in e2e input file.")
+
     files = []
-    
+
     if len(fundus_images) > 0:
         for count, fundus in enumerate(fundus_images):
             meta = e2e_dicom_metadata(fundus)
@@ -468,7 +466,7 @@ def create_dicom_from_e2e(
             filepath = Path(output_dir, filename)
             file = write_opt_dicom(meta, oct.volume, filepath)
             files.append(file)
-    
+
     return files
 
 
@@ -494,7 +492,7 @@ def create_dicom_from_fda(
     filepath = Path(output_dir, output_filename)
     file = write_opt_dicom(meta, oct.volume, filepath)
     files.append(file)
-    
+
     # Attempt to parse fundus images
     fundus = fda.read_fundus_image()
     if fundus:
@@ -511,9 +509,9 @@ def create_dicom_from_fda(
         meta.image_geometry.pixel_spacing = [1, 1]
         file = write_fundus_dicom(meta, fundus_grayscale.image, filepath)
         files.append(file)
-    
+
     return files
-    
+
 
 def create_dicom_from_fds(
     input_file: str,
@@ -545,7 +543,7 @@ def create_dicom_from_fds(
         filepath = Path(output_dir, output_filename)
         file = write_color_fundus_dicom(meta, fundus.image, filepath)
         files.append(file)
-    
+
     return files
 
 
@@ -601,5 +599,5 @@ def create_dicom_from_poct(
         filepath = Path(output_dir, filename)
         file = write_opt_dicom(meta, oct.volume, filepath)
         files.append(file)
-    
+
     return files

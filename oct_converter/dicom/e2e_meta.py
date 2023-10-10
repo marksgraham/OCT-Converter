@@ -9,10 +9,7 @@ from oct_converter.dicom.metadata import (
     PatientMeta,
     SeriesMeta,
 )
-from oct_converter.image_types import (
-    FundusImageWithMetaData,
-    OCTVolumeWithMetaData,
-)
+from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
 
 
 def e2e_patient_meta(meta: dict) -> PatientMeta:
@@ -117,7 +114,9 @@ def e2e_image_params() -> OCTImageParams:
     return image_params
 
 
-def e2e_dicom_metadata(image: FundusImageWithMetaData | OCTVolumeWithMetaData) -> DicomMetadata:
+def e2e_dicom_metadata(
+    image: FundusImageWithMetaData | OCTVolumeWithMetaData,
+) -> DicomMetadata:
     """Creates DicomMetadata for oct or fundus image and populates each module
 
     Args:
@@ -131,11 +130,12 @@ def e2e_dicom_metadata(image: FundusImageWithMetaData | OCTVolumeWithMetaData) -
     meta.manufacturer_info = e2e_manu_meta()
     meta.oct_image_params = e2e_image_params()
     if type(image) == OCTVolumeWithMetaData:
-        meta.series_info = e2e_series_meta(image.volume_id, image.laterality, image.acquisition_date)
+        meta.series_info = e2e_series_meta(
+            image.volume_id, image.laterality, image.acquisition_date
+        )
         meta.image_geometry = e2e_image_geom(image.pixel_spacing)
     else:  # type(image) == FundusImageWithMetaData
         meta.series_info = e2e_series_meta(image.image_id, image.laterality, None)
         meta.image_geometry = e2e_image_geom([1, 1, 1])
-    
 
     return meta

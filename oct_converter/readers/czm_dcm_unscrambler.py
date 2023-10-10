@@ -2,10 +2,10 @@
 import math
 
 from pydicom import dcmread
-from pydicom.dataelem import validate_value, DataElement
+from pydicom.dataelem import DataElement, validate_value
 from pydicom.dataset import validate_file_meta
-from pydicom.encaps import generate_pixel_data_frame, encapsulate
-from pydicom.uid import JPEG2000Lossless, ExplicitVRLittleEndian
+from pydicom.encaps import encapsulate, generate_pixel_data_frame
+from pydicom.uid import ExplicitVRLittleEndian, JPEG2000Lossless
 
 
 def unscramble_czm(frame: bytes) -> bytearray:
@@ -42,14 +42,14 @@ def unscramble_czm(frame: bytes) -> bytearray:
         jp2_offset = offset
 
     d = bytearray()
-    d.extend(frame[jp2_offset:jp2_offset + 253])
+    d.extend(frame[jp2_offset : jp2_offset + 253])
     d.extend(frame[993:1016])
     d.extend(frame[276:763])
     d.extend(frame[23:276])
     d.extend(frame[1016:jp2_offset])
     d.extend(frame[:23])
     d.extend(frame[763:993])
-    d.extend(frame[jp2_offset + 253:])
+    d.extend(frame[jp2_offset + 253 :])
 
     assert len(d) == len(frame)
 
@@ -61,10 +61,10 @@ def tag_fixer(element: DataElement) -> DataElement:
     obfuscation added to various tags. If element is valid,
     returns element. If element is invalid, empties value
     and returns element.
-    
+
     Args:
         element: DICOM tag data as DataElement
-    
+
     Returns:
         DataElement with more-conformant values
     """
@@ -103,7 +103,7 @@ def process_file(input_file: str, output_filename: str) -> None:
 
     if "PixelData" not in ds:
         raise ValueError("No 'Pixel Data' found in the DICOM dataset")
-    
+
     # Specific tag fixers
     ds.PixelSpacing = ds.PixelSpacing.split("\x00")[0].split(",")
     ds.OperatorsName = ds.OperatorsName.original_string.split(b"\x00")[0].decode()
@@ -144,5 +144,5 @@ def process_file(input_file: str, output_filename: str) -> None:
     meta.TransferSyntaxUID = ExplicitVRLittleEndian
     ds.is_implicit_VR = False
     ds.is_little_endian = True
-    
+
     ds.save_as(output_filename)

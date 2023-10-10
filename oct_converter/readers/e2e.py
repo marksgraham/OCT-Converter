@@ -361,7 +361,7 @@ class E2E(object):
                         image_array_dict[image_string] = image
                         # here assumes laterality stored in chunk before the image itself
                         laterality_dict[image_string] = laterality
-            
+
             # Read metadata to attach to FundusImageWithMetaData
             metadata = self.read_all_metadata()
 
