@@ -9,46 +9,51 @@ from oct_converter.dicom.metadata import (
     PatientMeta,
     SeriesMeta,
 )
-from oct_converter.image_types import OCTVolumeWithMetaData
+from oct_converter.image_types import (
+    FundusImageWithMetaData,
+    OCTVolumeWithMetaData,
+)
 
 
-def e2e_patient_meta(oct: OCTVolumeWithMetaData) -> PatientMeta:
-    """Creates PatientMeta from e2e info stored in OCTVolumeWithMetaData
+def e2e_patient_meta(meta: dict) -> PatientMeta:
+    """Creates PatientMeta from e2e info stored in raw metadata
 
     Args:
-        oct: OCTVolumeWithMetaData obj with patient info attributes
+        meta: Nested dictionary of metadata accumulated by the E2E reader
     Returns:
         PatientMeta: Patient metadata populated by oct
     """
     patient = PatientMeta()
 
-    patient.first_name = oct.first_name
-    patient.last_name = oct.surname
-    # E2E has conflicting patient_ids, between the one in the
-    # patient chunk and the chunk and subdirectory headers.
-    # The patient chunk data is used here.
-    patient.patient_id = oct.patient_id
-    patient.patient_sex = oct.sex
-    patient.patient_dob = oct.DOB
+    patient_data = meta.get("patient_data", [{}])
+
+    patient.first_name = patient_data[0].get("first_name")
+    patient.last_name = patient_data[0].get("surname")
+    patient.patient_id = patient_data[0].get("patient_id")
+    patient.patient_sex = patient_data[0].get("sex")
+    # DOB needs work
+    # patient.patient_dob = None
 
     return patient
 
 
-def e2e_series_meta(oct: OCTVolumeWithMetaData) -> SeriesMeta:
-    """Creates SeriesMeta from e2e info stored in OCTVolumeWithMetaData
+def e2e_series_meta(id, laterality, acquisition_date) -> SeriesMeta:
+    """Creates SeriesMeta from info parsed by the E2E reader
 
     Args:
-        oct: OCTVolumeWithMetaData obj with series info attributes
+        id: Equivalent to oct.volume_id or fundus.image_id
+        laterality: R or L, from image.laterality
+        acquisition_date: Scan date for OCT, or None for fundus
     Returns:
         SeriesMeta: Series metadata populated by oct
     """
-    patient_id, study_id, series_id = oct.volume_id.split("_")
+    patient_id, study_id, series_id = id.split("_")
     series = SeriesMeta()
 
     series.study_id = study_id
     series.series_id = series_id
-    series.laterality = oct.laterality
-    series.acquisition_date = oct.acquisition_date
+    series.laterality = laterality
+    series.acquisition_date = acquisition_date
     series.opt_anatomy = OPTAnatomyStructure.Retina
 
     return series
@@ -64,8 +69,8 @@ def e2e_manu_meta() -> ManufacturerMeta:
     """
     manufacture = ManufacturerMeta()
 
-    manufacture.manufacturer = "Heidelberg"
-    manufacture.manufacturer_model = ""
+    manufacture.manufacturer = "Heidelberg Engineering"
+    manufacture.manufacturer_model = "Spectralis"
     manufacture.device_serial = ""
     manufacture.software_version = ""
 
@@ -81,9 +86,7 @@ def e2e_image_geom(pixel_spacing: list) -> ImageGeometry:
         ImageGeometry: Geometry data populated by pixel_spacing
     """
     image_geom = ImageGeometry()
-    image_geom.pixel_spacing = [pixel_spacing[0], pixel_spacing[1]]
-    # ScaleX, ScaleY
-    # ScaleY seems to be found, and also constant.
+    image_geom.pixel_spacing = [pixel_spacing[1], pixel_spacing[0]]
     image_geom.slice_thickness = pixel_spacing[2]
     image_geom.image_orientation = [1, 0, 0, 0, 1, 0]
 
@@ -106,27 +109,33 @@ def e2e_image_params() -> OCTImageParams:
     image_params.IlluminationBandwidth = 50
     image_params.DepthSpatialResolution = 7
     image_params.MaximumDepthDistortion = 0.5
-    image_params.AlongscanSpatialResolution = ""
-    image_params.MaximumAlongscanDistortion = ""
-    image_params.AcrossscanSpatialResolution = ""
-    image_params.MaximumAcrossscanDistortion = ""
+    image_params.AlongscanSpatialResolution = 13
+    image_params.MaximumAlongscanDistortion = 0.5
+    image_params.AcrossscanSpatialResolution = 13
+    image_params.MaximumAcrossscanDistortion = 0.5
 
     return image_params
 
 
-def e2e_dicom_metadata(oct: OCTVolumeWithMetaData) -> DicomMetadata:
-    """Creates DicomMetadata and populates each module
+def e2e_dicom_metadata(image: FundusImageWithMetaData | OCTVolumeWithMetaData) -> DicomMetadata:
+    """Creates DicomMetadata for oct or fundus image and populates each module
 
     Args:
-        oct: OCTVolumeWithMetaData created by the E2E reader
+        image: Oct or Fundus image type created by the E2E reader
     Returns:
-        DicomMetadata: Populated DicomMetadata created with OCT metadata
+        DicomMetadata: Populated DicomMetadata created with fundus or oct metadata
     """
+
     meta = DicomMetadata
-    meta.patient_info = e2e_patient_meta(oct)
-    meta.series_info = e2e_series_meta(oct)
+    meta.patient_info = e2e_patient_meta(image.metadata)
     meta.manufacturer_info = e2e_manu_meta()
-    meta.image_geometry = e2e_image_geom(oct.pixel_spacing)
     meta.oct_image_params = e2e_image_params()
+    if type(image) == OCTVolumeWithMetaData:
+        meta.series_info = e2e_series_meta(image.volume_id, image.laterality, image.acquisition_date)
+        meta.image_geometry = e2e_image_geom(image.pixel_spacing)
+    else:  # type(image) == FundusImageWithMetaData
+        meta.series_info = e2e_series_meta(image.image_id, image.laterality, None)
+        meta.image_geometry = e2e_image_geom([1, 1, 1])
+    
 
     return meta
