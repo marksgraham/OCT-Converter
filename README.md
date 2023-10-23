@@ -84,7 +84,7 @@ Are welcome! Here is a [development roadmap](https://github.com/marksgraham/OCT-
 - More patient info extracted from .e2e files (name, sex, birthdate, patient ID).
 
 24 Aug 2021
-- Reading the Bioptigen .OCT format is now supported/
+- Reading the Bioptigen .OCT format is now supported.
 
 11 June 2021
 - Can now specify whether Zeiss .img data needs to be de-interlaced during reading.
