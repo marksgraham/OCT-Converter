@@ -11,13 +11,14 @@ from pydicom.uid import (
     generate_uid,
 )
 
+from oct_converter.dicom.boct_meta import boct_dicom_metadata
 from oct_converter.dicom.e2e_meta import e2e_dicom_metadata
 from oct_converter.dicom.fda_meta import fda_dicom_metadata
 from oct_converter.dicom.fds_meta import fds_dicom_metadata
 from oct_converter.dicom.img_meta import img_dicom_metadata
 from oct_converter.dicom.metadata import DicomMetadata
 from oct_converter.dicom.poct_meta import poct_dicom_metadata
-from oct_converter.readers import E2E, FDA, FDS, IMG, POCT
+from oct_converter.readers import BOCT, E2E, FDA, FDS, IMG, POCT
 
 # Deterministic implentation UID based on package name and version
 version = metadata.version("oct_converter")
@@ -365,7 +366,8 @@ def create_dicom_from_oct(
     rows: int = 1024,
     cols: int = 512,
     interlaced: bool = False,
-) -> Path:
+    diskbuffered: bool = False,
+) -> list:
     """Creates a DICOM file with the data parsed from
     the input file.
 
@@ -377,9 +379,10 @@ def create_dicom_from_oct(
             rows: If .img file, allows for manually setting rows
             cols: If .img file, allows for manually setting cols
             interlaced: If .img file, allows for setting interlaced
+            diskbuffered: If Bioptigen .OCT, allows for setting diskbuffered
 
     Returns:
-            Path to DICOM file
+            list: list of Path(s) to DICOM file
     """
     if output_dir:
         output_dir = Path(output_dir)
@@ -387,29 +390,32 @@ def create_dicom_from_oct(
     else:
         output_dir = Path.cwd()
 
-    file_suffix = input_file.split(".")[-1]
+    file_suffix = input_file.split(".")[-1].lower()
 
-    if file_suffix.lower() == "fds":
-        dcm = create_dicom_from_fds(input_file, output_dir)
-        return dcm
-    elif file_suffix.lower() == "fda":
-        dcm = create_dicom_from_fda(input_file, output_dir)
-        return dcm
-    elif file_suffix.lower() == "img":
-        dcm = create_dicom_from_img(input_file, output_dir, rows, cols, interlaced)
-        return dcm
-    elif file_suffix == "OCT":
-        # OCT and oct are different filetypes, must be case-sensitive
-        files = create_dicom_from_poct(input_file, output_dir)
-        return files
-    elif file_suffix.lower() == "e2e":
-        files = create_dicom_from_e2e(input_file=input_file, output_dir=output_dir)
-        return files
+    if file_suffix == "fds":
+        files = create_dicom_from_fds(input_file, output_dir)
+    elif file_suffix == "fda":
+        files = create_dicom_from_fda(input_file, output_dir)
+    elif file_suffix == "img":
+        files = create_dicom_from_img(input_file, output_dir, rows, cols, interlaced)
+    elif file_suffix == "oct":
+        # Bioptigen and Octovue both use .OCT.
+        # BOCT._validate can check if Bioptigen, else Optivue
+        try:
+            BOCT(input_file)
+            files = create_dicom_from_boct(input_file, output_dir, diskbuffered)
+        except:
+            # if BOCT raises, treat as POCT
+            files = create_dicom_from_poct(input_file, output_dir)
+    elif file_suffix == "e2e":
+        files = create_dicom_from_e2e(input_file, output_dir)
     else:
         raise TypeError(
             f"DICOM conversion for {file_suffix} is not supported. "
             "Currently supported filetypes are .e2e, .fds, .fda, .img, .OCT."
         )
+
+    return files
 
 
 def normalize_volume(vol: list[np.ndarray]) -> list[np.ndarray]:
@@ -429,6 +435,39 @@ def normalize_volume(vol: list[np.ndarray]) -> list[np.ndarray]:
     return norm_vol
 
 
+def create_dicom_from_boct(
+    input_file: str,
+    output_dir: str = None,
+    diskbuffered: bool = False,
+) -> list:
+    """Creates DICOM file(s) with the data parsed from
+    the input file.
+
+    Args:
+            input_file: Bioptigen OCT file
+            output_dir: Output directory
+            diskbuffered: If True, reduces memory usage by storing volume on disk using HDF5.
+
+    Returns:
+            list: List of path(s) to DICOM file(s)"""
+
+    boct = BOCT(input_file)
+    oct_volumes = boct.read_oct_volume(diskbuffered)
+    if len(oct_volumes) == 0:
+        raise ValueError("No OCT volumes found in OCT input file.")
+
+    files = []
+
+    for count, oct in enumerate(oct_volumes):
+        meta = boct_dicom_metadata(oct)
+        filename = f"{Path(input_file).stem}_{str(count)}.dcm"
+        filepath = Path(output_dir, filename)
+        file = write_opt_dicom(meta, oct.volume, filepath)
+        files.append(file)
+
+    return files
+
+
 def create_dicom_from_e2e(
     input_file: str,
     output_dir: str = None,
@@ -441,7 +480,7 @@ def create_dicom_from_e2e(
             output_dir: Output directory
 
     Returns:
-            Path to DICOM file
+            list: List of path(s) to DICOM file(s)
     """
     e2e = E2E(input_file)
     oct_volumes = e2e.read_oct_volume()
@@ -473,7 +512,7 @@ def create_dicom_from_e2e(
 def create_dicom_from_fda(
     input_file: str,
     output_dir: str,
-) -> Path:
+) -> list:
     """Creates DICOM file(s) with the data parsed from
     the input file.
 
@@ -482,7 +521,7 @@ def create_dicom_from_fda(
             output_dir: Output directory
 
     Returns:
-            List of path(s) to DICOM file
+            list: List of path(s) to DICOM file(s)
     """
     files = []
     fda = FDA(input_file)
@@ -516,7 +555,7 @@ def create_dicom_from_fda(
 def create_dicom_from_fds(
     input_file: str,
     output_dir: str,
-) -> Path:
+) -> list:
     """Creates DICOM file(s) with the data parsed from
     the input file.
 
@@ -525,7 +564,7 @@ def create_dicom_from_fds(
             output_dir: Output directory
 
     Returns:
-            List of path(s) to DICOM file
+            list: List of path(s) to DICOM file(s)
     """
     files = []
     fds = FDS(input_file)
@@ -565,7 +604,7 @@ def create_dicom_from_img(
             interlaced: Optional, for setting interlaced. Default False.
 
     Returns:
-            Path to DICOM file
+            list: List of path(s) to DICOM file(s)
     """
     img = IMG(input_file)
     oct = img.read_oct_volume(rows, cols, interlaced)
@@ -573,7 +612,7 @@ def create_dicom_from_img(
     output_filename = f"{Path(input_file).stem}.dcm"
     filepath = Path(output_dir, output_filename)
     file = write_opt_dicom(meta, oct.volume, filepath)
-    return file
+    return [file]
 
 
 def create_dicom_from_poct(
@@ -588,7 +627,7 @@ def create_dicom_from_poct(
             output_dir: Output directory
 
     Returns:
-            List of path(s) to DICOM file
+            list: List of path(s) to DICOM file(s)
     """
     poct = POCT(input_file)
     octs = poct.read_oct_volume()
