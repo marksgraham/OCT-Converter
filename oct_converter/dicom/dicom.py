@@ -4,13 +4,13 @@ from importlib import metadata
 from pathlib import Path
 
 import numpy as np
+from construct import StreamError
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 from pydicom.uid import (
     ExplicitVRLittleEndian,
     OphthalmicTomographyImageStorage,
     generate_uid,
 )
-from construct import StreamError
 
 from oct_converter.dicom.boct_meta import boct_dicom_metadata
 from oct_converter.dicom.e2e_meta import e2e_dicom_metadata
