@@ -28,7 +28,6 @@ class BOCT(object):
 
     bioptigen_scan_type_map = {0: "linear", 1: "rect", 3: "rad"}
     file_structure = boct_binary.bioptigen_file_structure
-    # TODO this should contain the datetimes
     header_structure = boct_binary.bioptigen_oct_header_struct
 
     def __init__(self, filepath: Path | str) -> None:
