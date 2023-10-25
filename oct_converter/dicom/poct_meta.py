@@ -40,7 +40,7 @@ def poct_series_meta(poct: OCTVolumeWithMetaData) -> SeriesMeta:
     Returns:
         SeriesMeta: Series metadata populated with laterality and acquisition_date
     """
-    # Can probably save this in the OCT obj instead of in the metadata dict
+
     series = SeriesMeta()
 
     series.study_id = ""

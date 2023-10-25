@@ -18,6 +18,7 @@ from oct_converter.dicom.fds_meta import fds_dicom_metadata
 from oct_converter.dicom.img_meta import img_dicom_metadata
 from oct_converter.dicom.metadata import DicomMetadata
 from oct_converter.dicom.poct_meta import poct_dicom_metadata
+from oct_converter.exceptions import InvalidOCTReaderError
 from oct_converter.readers import BOCT, E2E, FDA, FDS, IMG, POCT
 
 # Deterministic implentation UID based on package name and version
@@ -267,8 +268,6 @@ def write_fundus_dicom(
     ds = populate_ocular_region(ds, meta)
     ds = opt_shared_functional_groups(ds, meta)
 
-    # TODO: Frame of reference if fundus image present
-
     # OPT Image Module PS3.3 C.8.17.7
     ds.ImageType = ["DERIVED", "SECONDARY"]
     ds.SamplesPerPixel = 1
@@ -322,8 +321,6 @@ def write_color_fundus_dicom(
     ds.Modality = "OP"
     ds = populate_ocular_region(ds, meta)
     ds = opt_shared_functional_groups(ds, meta)
-
-    # TODO: Frame of reference if fundus image present
 
     # OPT Image Module PS3.3 C.8.17.7
     ds.ImageType = ["DERIVED", "SECONDARY"]
@@ -400,11 +397,11 @@ def create_dicom_from_oct(
         files = create_dicom_from_img(input_file, output_dir, rows, cols, interlaced)
     elif file_suffix == "oct":
         # Bioptigen and Octovue both use .OCT.
-        # BOCT._validate can check if Bioptigen, else Optivue
+        # BOCT._validate on init can check if Bioptigen, else Optivue
         try:
             BOCT(input_file)
             files = create_dicom_from_boct(input_file, output_dir, diskbuffered)
-        except:
+        except InvalidOCTReaderError:
             # if BOCT raises, treat as POCT
             files = create_dicom_from_poct(input_file, output_dir)
     elif file_suffix == "e2e":

@@ -28,8 +28,9 @@ def e2e_patient_meta(meta: dict) -> PatientMeta:
     patient.last_name = patient_data[0].get("surname")
     patient.patient_id = patient_data[0].get("patient_id")
     patient.patient_sex = patient_data[0].get("sex")
-    # DOB needs work
-    # patient.patient_dob = None
+    # TODO patient.patient_dob
+    # Currently, E2E's patient_dob is incorrect, see
+    # the E2E reader for more context.
 
     return patient
 
@@ -44,7 +45,7 @@ def e2e_series_meta(id, laterality, acquisition_date) -> SeriesMeta:
     Returns:
         SeriesMeta: Series metadata populated by oct
     """
-    patient_id, study_id, series_id = id.split("_")
+    patient_db_id, study_id, series_id = id.split("_")
     series = SeriesMeta()
 
     series.study_id = study_id

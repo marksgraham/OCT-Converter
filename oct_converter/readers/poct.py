@@ -68,8 +68,7 @@ class POCT(object):
                 float(file_info["video_width"])
             )
 
-        # Also, from the filename, grab acquisition date
-        # And maybe patient ID?
+        # Attempt to find acquisition date in filename
         acq = (
             list(
                 re.search(
