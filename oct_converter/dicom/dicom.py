@@ -10,6 +10,7 @@ from pydicom.uid import (
     OphthalmicTomographyImageStorage,
     generate_uid,
 )
+from construct import StreamError
 
 from oct_converter.dicom.boct_meta import boct_dicom_metadata
 from oct_converter.dicom.e2e_meta import e2e_dicom_metadata
@@ -401,7 +402,7 @@ def create_dicom_from_oct(
         try:
             BOCT(input_file)
             files = create_dicom_from_boct(input_file, output_dir, diskbuffered)
-        except InvalidOCTReaderError:
+        except (InvalidOCTReaderError, StreamError):
             # if BOCT raises, treat as POCT
             files = create_dicom_from_poct(input_file, output_dir)
     elif file_suffix == "e2e":
