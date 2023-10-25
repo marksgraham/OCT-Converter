@@ -12,26 +12,6 @@ from oct_converter.dicom.metadata import (
 from oct_converter.image_types import OCTVolumeWithMetaData
 
 
-def poct_patient_meta() -> PatientMeta:
-    """Creates empty PatientMeta
-
-    Args:
-        None
-    Returns:
-        PatientMeta: Patient metadata populated by poct_metadata
-    """
-
-    patient = PatientMeta()
-
-    patient.first_name = ""
-    patient.last_name = ""
-    patient.patient_id = ""  # Might be in filename
-    patient.patient_sex = ""
-    patient.patient_dob = ""
-
-    return patient
-
-
 def poct_series_meta(poct: OCTVolumeWithMetaData) -> SeriesMeta:
     """Creates SeriesMeta from Optovue OCT metadata
 
@@ -120,7 +100,7 @@ def poct_dicom_metadata(poct: OCTVolumeWithMetaData) -> DicomMetadata:
         DicomMetadata: Populated DicomMetadata created with OCT metadata
     """
     meta = DicomMetadata
-    meta.patient_info = poct_patient_meta()
+    meta.patient_info = PatientMeta()
     meta.series_info = poct_series_meta(poct)
     meta.manufacturer_info = poct_manu_meta()
     meta.image_geometry = poct_image_geom(poct.pixel_spacing)

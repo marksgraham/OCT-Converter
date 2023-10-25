@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import re
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO
 
@@ -26,6 +28,7 @@ class BOCT(object):
 
     bioptigen_scan_type_map = {0: "linear", 1: "rect", 3: "rad"}
     file_structure = boct_binary.bioptigen_file_structure
+    # TODO this should contain the datetimes
     header_structure = boct_binary.bioptigen_oct_header_struct
 
     def __init__(self, filepath: Path | str) -> None:
@@ -84,6 +87,20 @@ class BOCT(object):
         else:
             self.vol = np.empty(self.volume_shape, dtype=np.uint16)
 
+        # Grab the acquisition datetime,
+        dt = oct.data[0].header.framedatetime.value
+        self.acquisition_datetime = datetime(
+            year=dt.year,
+            month=dt.month,
+            day=dt.day,
+            hour=dt.hour,
+            minute=dt.minute,
+            second=dt.second,
+        )
+
+        # Attempt to parse laterality from filename
+        self.get_laterality_from_filename()
+
         return self.load_oct_volume()
 
     def _create_disk_buffer(
@@ -109,11 +126,39 @@ class BOCT(object):
             print(e)
             print("Stopping load")
         return [
-            OCTVolumeWithMetaData(self.vol[t, :, :, :])
+            OCTVolumeWithMetaData(
+                self.vol[t, :, :, :],
+                acquisition_date=self.acquisition_datetime,
+                laterality=self.laterality,
+            )
             for t in range(self.vol.shape[0])
         ]
 
     def read_fundus_image(self) -> None:
+        return
+
+    def get_laterality_from_filename(self) -> None:
+        """Attempts to find laterality within the filename,
+        if found, sets self.laterality
+
+        Returns:
+            None
+        """
+        filename = Path(self.filepath).name
+
+        lat_from_filename = (
+            re.search(r"O[D|S]", filename).group(0)
+            if re.search(r"O[D|S]", filename)
+            else None
+        )
+
+        if lat_from_filename == "OD":
+            self.laterality = "R"
+        elif lat_from_filename == "OS":
+            self.laterality = "L"
+        else:
+            self.laterality = ""
+
         return
 
 

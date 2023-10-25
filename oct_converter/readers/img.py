@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -67,7 +66,7 @@ class IMG(object):
         Returns:
             meta: dict of information extracted from filename
         """
-        filename = os.path.basename(self.filepath)
+        filename = Path(self.filepath).name
         meta = {}
         meta["patient_id"] = (
             re.search(r"^P\d+", filename).group(0)

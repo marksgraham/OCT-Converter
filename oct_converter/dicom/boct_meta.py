@@ -12,26 +12,6 @@ from oct_converter.dicom.metadata import (
 from oct_converter.image_types import OCTVolumeWithMetaData
 
 
-def boct_patient_meta() -> PatientMeta:
-    """Creates empty PatientMeta
-
-    Args:
-        None
-    Returns:
-        PatientMeta: Patient metadata populated by boct_metadata
-    """
-
-    patient = PatientMeta()
-
-    patient.first_name = ""
-    patient.last_name = ""
-    patient.patient_id = ""  # Might be in filename
-    patient.patient_sex = ""
-    patient.patient_dob = ""
-
-    return patient
-
-
 def boct_series_meta(boct: OCTVolumeWithMetaData) -> SeriesMeta:
     """Creates SeriesMeta from Bioptigen OCT metadata
 
@@ -44,7 +24,7 @@ def boct_series_meta(boct: OCTVolumeWithMetaData) -> SeriesMeta:
 
     series.study_id = ""
     series.series_id = 0
-    series.laterality = ""  # Might be in filename
+    series.laterality = boct.laterality
     series.acquisition_date = boct.acquisition_date
     series.opt_anatomy = OPTAnatomyStructure.Retina
 
@@ -70,7 +50,7 @@ def boct_manu_meta() -> ManufacturerMeta:
     return manufacture
 
 
-def boct_image_geom(pixel_spacing: list) -> ImageGeometry:
+def boct_image_geom() -> ImageGeometry:
     """Creates ImageGeometry from Bioptigen OCT metadata
 
     Args:
@@ -80,7 +60,7 @@ def boct_image_geom(pixel_spacing: list) -> ImageGeometry:
     """
     image_geom = ImageGeometry()
     image_geom.pixel_spacing = [0.02, 0.02]  # Placeholder value
-    image_geom.slice_thickness = 0.02  # Placeholder value
+    image_geom.slice_thickness = 0.2  # Placeholder value
     image_geom.image_orientation = [1, 0, 0, 0, 1, 0]
 
     return image_geom
@@ -119,7 +99,7 @@ def boct_dicom_metadata(boct: OCTVolumeWithMetaData) -> DicomMetadata:
         DicomMetadata: Populated DicomMetadata created with OCT metadata
     """
     meta = DicomMetadata
-    meta.patient_info = boct_patient_meta()
+    meta.patient_info = PatientMeta()
     meta.series_info = boct_series_meta(boct)
     meta.manufacturer_info = boct_manu_meta()
     meta.image_geometry = boct_image_geom()
