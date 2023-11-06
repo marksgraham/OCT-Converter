@@ -22,7 +22,7 @@ from oct_converter.dicom.poct_meta import poct_dicom_metadata
 from oct_converter.exceptions import InvalidOCTReaderError
 from oct_converter.readers import BOCT, E2E, FDA, FDS, IMG, POCT
 
-# Deterministic implentation UID based on package name and version
+# Deterministic implementation UID based on package name and version
 version = metadata.version("oct_converter")
 implementation_uid = generate_uid(entropy_srcs=["oct_converter", version])
 

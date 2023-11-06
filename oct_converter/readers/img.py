@@ -54,8 +54,8 @@ class IMG(object):
         oct_volume = OCTVolumeWithMetaData(
             [volume[:, :, i] for i in range(volume.shape[2])],
             patient_id=meta.get("patient_id"),
-            acquisition_date=meta.get("acq"),
-            laterality=lat_map[meta.get("lat", None)],
+            acquisition_date=meta.get("acquisition_date"),
+            laterality=lat_map[meta.get("laterality", None)],
             metadata=meta,
         )
         return oct_volume
@@ -87,7 +87,7 @@ class IMG(object):
             else None
         )
         if acq:
-            meta["acq"] = datetime(
+            meta["acquisition_date"] = datetime(
                 year=int(acq[2]),
                 month=int(acq[0]),
                 day=int(acq[1]),
@@ -95,7 +95,7 @@ class IMG(object):
                 minute=int(acq[4]),
                 second=int(acq[5]),
             )
-        meta["lat"] = (
+        meta["laterality"] = (
             re.search(r"O[D|S]", filename).group(0)
             if re.search(r"O[D|S]", filename)
             else None
