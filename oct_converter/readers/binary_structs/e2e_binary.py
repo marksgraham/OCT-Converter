@@ -32,7 +32,9 @@ sub_directory_structure = Struct(
     "start" / Int32un,
     "size" / Int32un,
     "unknown" / Int32un,
-    "patient_id" / Int32un,
+    # Patient DB ID is set by the software
+    # and is not necessarily equal to patient_id_structure's patient_id
+    "patient_db_id" / Int32un,
     "study_id" / Int32un,
     "series_id" / Int32un,
     "slice_id" / Int32sn,
@@ -48,7 +50,9 @@ chunk_structure = Struct(
     "pos" / Int32un,
     "size" / Int32un,
     "unknown3" / Int32un,
-    "patient_id" / Int32un,
+    # Patient DB ID is set by the software
+    # and is not necessarily equal to patient_id_structure's patient_id
+    "patient_db_id" / Int32un,
     "study_id" / Int32un,
     "series_id" / Int32un,
     "slice_id" / Int32sn,
@@ -66,7 +70,8 @@ image_structure = Struct(
 )
 patient_id_structure = Struct(
     "first_name" / PaddedString(31, "ascii"),
-    "surname" / PaddedString(66, "ascii"),
+    "surname" / PaddedString(51, "ascii"),
+    "title" / PaddedString(15, "ascii"),
     "birthdate" / Int32un,
     "sex" / PaddedString(1, "ascii"),
     "patient_id" / PaddedString(25, "ascii"),

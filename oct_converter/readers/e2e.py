@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from itertools import chain
 from pathlib import Path
 
@@ -33,6 +33,8 @@ class E2E(object):
         self.first_name = None
         self.surname = None
         self.acquisition_date = None
+        self.birthdate = None
+        self.pixel_spacing = None
 
         # get initial directory structure
         with open(self.filepath, "rb") as f:
@@ -92,7 +94,7 @@ class E2E(object):
                     raw = f.read(44)
                     chunk = e2e_binary.sub_directory_structure.parse(raw)
                     volume_string = "{}_{}_{}".format(
-                        chunk.patient_id, chunk.study_id, chunk.series_id
+                        chunk.patient_db_id, chunk.study_id, chunk.series_id
                     )
                     if volume_string not in volume_dict.keys():
                         volume_dict[volume_string] = chunk.slice_id / 2
@@ -129,8 +131,13 @@ class E2E(object):
                         self.sex = patient_data.sex
                         self.first_name = patient_data.first_name
                         self.surname = patient_data.surname
-                        # this gives the birthdate as a Julian date, needs converting to calendar date
-                        self.birthdate = (patient_data.birthdate / 64) - 14558805
+                        julian_birthdate = (patient_data.birthdate / 64) - 14558805
+                        self.birthdate = self.julian_to_ymd(julian_birthdate)
+                        # TODO: There are conflicting ideas of how to parse E2E's birthdate
+                        # https://bitbucket.org/uocte/uocte/wiki/Heidelberg%20File%20Format suggests the above,
+                        # whereas https://github.com/neurodial/LibE2E/blob/master/E2E/dataelements/patientdataelement.cpp
+                        # suggests that DOB is given as a Windows date. Neither option seems accurate to
+                        # test files with known-correct birthdates. More investigation is needed.
                         self.patient_id = patient_data.patient_id
                     except Exception:
                         pass
@@ -146,6 +153,10 @@ class E2E(object):
                     )
                     if self.acquisition_date is None:
                         self.acquisition_date = acquisition_datetime.date()
+                    if self.pixel_spacing is None:
+                        # scaley found, x and z not yet found in file
+                        # but taken from E2E reader settings
+                        self.pixel_spacing = [0.011484, bscan_metadata.scaley, 0.244673]
 
                 elif chunk.type == 11:  # laterality data
                     raw = f.read(20)
@@ -164,7 +175,7 @@ class E2E(object):
 
                     if contour_data.width > 0:
                         volume_string = "{}_{}_{}".format(
-                            chunk.patient_id, chunk.study_id, chunk.series_id
+                            chunk.patient_db_id, chunk.study_id, chunk.series_id
                         )
                         slice_id = int(chunk.slice_id / 2) - 1
                         contour_name = f"contour{contour_data.id}"
@@ -200,7 +211,7 @@ class E2E(object):
                             break
                         raw_volume = np.fromfile(f, dtype=np.uint16, count=count)
                         volume_string = "{}_{}_{}".format(
-                            chunk.patient_id, chunk.study_id, chunk.series_id
+                            chunk.patient_db_id, chunk.study_id, chunk.series_id
                         )
                         try:
                             image = LUT[raw_volume].reshape(
@@ -254,6 +265,9 @@ class E2E(object):
                     for slice_id, contour in contour_values.items():
                         (contour_data[volume_id][contour_name][slice_id]) = contour
 
+            # Read metadata to attach to OCTVolumeWithMetaData
+            metadata = self.read_all_metadata()
+
             oct_volumes = []
             for key, volume in chain(
                 volume_array_dict.items(), volume_array_dict_additional.items()
@@ -269,10 +283,13 @@ class E2E(object):
                         first_name=self.first_name,
                         surname=self.surname,
                         sex=self.sex,
+                        patient_dob=self.birthdate,
                         acquisition_date=self.acquisition_date,
                         volume_id=key,
                         laterality=laterality_dict.get(key),
                         contours=contour_data.get(key),
+                        pixel_spacing=self.pixel_spacing,
+                        metadata=metadata,
                     )
                 )
 
@@ -315,8 +332,8 @@ class E2E(object):
                         self.sex = patient_data.sex
                         self.first_name = patient_data.first_name
                         self.surname = patient_data.surname
-                        # this gives the birthdate as a Julian date, needs converting to calendar date
-                        self.birthdate = (patient_data.birthdate / 64) - 14558805
+                        julian_birthdate = (patient_data.birthdate / 64) - 14558805
+                        self.birthdate = self.julian_to_ymd(julian_birthdate)
                         self.patient_id = patient_data.patient_id
                     except Exception:
                         pass
@@ -344,11 +361,15 @@ class E2E(object):
                             image_data.height, image_data.width
                         )
                         image_string = "{}_{}_{}".format(
-                            chunk.patient_id, chunk.study_id, chunk.series_id
+                            chunk.patient_db_id, chunk.study_id, chunk.series_id
                         )
                         image_array_dict[image_string] = image
                         # here assumes laterality stored in chunk before the image itself
                         laterality_dict[image_string] = laterality
+
+            # Read metadata to attach to FundusImageWithMetaData
+            metadata = self.read_all_metadata()
+
             fundus_images = []
             for key, image in image_array_dict.items():
                 fundus_images.append(
@@ -359,6 +380,7 @@ class E2E(object):
                         laterality=laterality_dict[key]
                         if key in laterality_dict.keys()
                         else None,
+                        metadata=metadata,
                     )
                 )
 
@@ -513,3 +535,33 @@ class E2E(object):
         data[selection_0] = 0
         data = np.clip(data, 0, 1)
         return data
+
+    def julian_to_ymd(self, J):
+        """Converts Julian Day to Gregorian YMD.
+
+        see https://en.wikipedia.org/wiki/Julian_day
+        with thanks to https://github.com/seanredmond/juliandate
+        """
+        y = 4716
+        j = 1401
+        m = 2
+        n = 12
+        r = 4
+        p = 1461
+        v = 3
+        u = 5
+        s = 153
+        w = 2
+        B = 274277
+        C = -38
+
+        f = J + j + int(((int((4 * J + B) / 146097)) * 3) / 4) + C
+        e = r * f + v
+        g = int((e % p) / r)
+        h = u * g + w
+
+        D = int((h % s) / u) + 1
+        M = ((int(h / s) + m) % n) + 1
+        Y = int(e / p) - y + int((n + m - M) / n)
+
+        return date(Y, M, D)

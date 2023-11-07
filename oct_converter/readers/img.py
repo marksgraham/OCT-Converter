@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -46,7 +48,62 @@ class IMG(object):
                 interlaced = np.rot90(interlaced, axes=(0, 1))
                 volume = interlaced
 
+        meta = self.get_metadata_from_filename()
+        lat_map = {"OD": "R", "OS": "L", None: ""}
+
         oct_volume = OCTVolumeWithMetaData(
-            [volume[:, :, i] for i in range(volume.shape[2])]
+            [volume[:, :, i] for i in range(volume.shape[2])],
+            patient_id=meta.get("patient_id"),
+            acquisition_date=meta.get("acquisition_date"),
+            laterality=lat_map[meta.get("laterality", None)],
+            metadata=meta,
         )
         return oct_volume
+
+    def get_metadata_from_filename(self) -> dict:
+        """Attempts to find metadata within the filename
+
+        Returns:
+            meta: dict of information extracted from filename
+        """
+        filename = Path(self.filepath).name
+        meta = {}
+        meta["patient_id"] = (
+            re.search(r"^P\d+", filename).group(0)
+            if re.search(r"^P\d+", filename)
+            else None
+        )
+        acq = (
+            list(
+                re.search(
+                    r"(?P<m>\d{1,2})-(?P<d>\d{1,2})-(?P<y>\d{4})_(?P<h>\d{1,2})-(?P<M>\d{1,2})-(?P<s>\d{1,2})",
+                    filename,
+                ).groups()
+            )
+            if re.search(
+                r"(?P<m>\d{1,2})-(?P<d>\d{1,2})-(?P<y>\d{4})_(?P<h>\d{1,2})-(?P<M>\d{1,2})-(?P<s>\d{1,2})",
+                filename,
+            )
+            else None
+        )
+        if acq:
+            meta["acquisition_date"] = datetime(
+                year=int(acq[2]),
+                month=int(acq[0]),
+                day=int(acq[1]),
+                hour=int(acq[3]),
+                minute=int(acq[4]),
+                second=int(acq[5]),
+            )
+        meta["laterality"] = (
+            re.search(r"O[D|S]", filename).group(0)
+            if re.search(r"O[D|S]", filename)
+            else None
+        )
+        meta["sn"] = (
+            re.search(r"sn\d+", filename).group(0)
+            if re.search(r"sn\d*", filename)
+            else None
+        )
+
+        return meta
