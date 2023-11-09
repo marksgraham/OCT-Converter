@@ -55,7 +55,7 @@ metadata = fds.read_all_metadata(verbose=True) # extracts all other metadata
 with open("fds_metadata.json", "w") as outfile:
     outfile.write(json.dumps(metadata, indent=4))
 
-# create and save a DICOM (.fda/.fds only for now)
+# create and save a DICOM
 dcm = create_dicom_from_oct(filepath)
 ```
 
@@ -63,6 +63,8 @@ dcm = create_dicom_from_oct(filepath)
 Are welcome! Here is a [development roadmap](https://github.com/marksgraham/OCT-Converter/issues/86), including some easy first issues. Please open a [new issue](https://github.com/marksgraham/OCT-Converter/issues/new) to discuss any potential contributions.
 
 ## Updates
+9 November 2023
+- Can now save .e2e, .img, .oct, and .OCT files as DICOMs with correct headers.
 
 22 September 2023
 - DICOM support: can now save .fda/.fds files as DICOMs with correct headers.
