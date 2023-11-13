@@ -295,8 +295,13 @@ class E2E(object):
 
         return oct_volumes
 
-    def read_fundus_image(self) -> list[FundusImageWithMetaData]:
+    def read_fundus_image(
+        self, extract_scan_repeats: bool = False
+    ) -> list[FundusImageWithMetaData]:
         """Reads fundus data.
+
+        Args:
+            extract_scan_repeats: if True, extract all fundus images, including those that appear repeated. Defaults to False.
 
         Returns:
             A sequence of FundusImageWithMetaData.
@@ -360,9 +365,20 @@ class E2E(object):
                         image = np.array(raw_volume).reshape(
                             image_data.height, image_data.width
                         )
+
                         image_string = "{}_{}_{}".format(
                             chunk.patient_db_id, chunk.study_id, chunk.series_id
                         )
+                        if (
+                            image_string in image_array_dict.keys()
+                            and extract_scan_repeats
+                        ):
+                            is_in_keys = True
+                            while is_in_keys:
+                                image_string = image_string + "_"
+                                if image_string not in image_array_dict.keys():
+                                    is_in_keys = False
+
                         image_array_dict[image_string] = image
                         # here assumes laterality stored in chunk before the image itself
                         laterality_dict[image_string] = laterality
