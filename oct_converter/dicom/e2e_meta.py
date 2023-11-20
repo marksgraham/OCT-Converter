@@ -47,7 +47,8 @@ def e2e_series_meta(id, laterality, acquisition_date) -> SeriesMeta:
     Returns:
         SeriesMeta: Series metadata populated by oct
     """
-    patient_db_id, study_id, series_id = id.split("_")
+    split = id.split("_")
+    patient_db_id, study_id, series_id = split[0], split[1], split[2]
     series = SeriesMeta()
 
     series.study_id = study_id

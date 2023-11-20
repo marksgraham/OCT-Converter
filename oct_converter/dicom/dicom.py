@@ -367,6 +367,7 @@ def create_dicom_from_oct(
     cols: int = 512,
     interlaced: bool = False,
     diskbuffered: bool = False,
+    extract_scan_repeats: bool = False
 ) -> list:
     """Creates a DICOM file with the data parsed from
     the input file.
@@ -380,6 +381,7 @@ def create_dicom_from_oct(
             cols: If .img file, allows for manually setting cols
             interlaced: If .img file, allows for setting interlaced
             diskbuffered: If Bioptigen .OCT, allows for setting diskbuffered
+            extract_scan_repeats: If .e2e file, allows for extracting all scan repeats
 
     Returns:
             list: list of Path(s) to DICOM file
@@ -408,7 +410,7 @@ def create_dicom_from_oct(
             # if BOCT raises, treat as POCT
             files = create_dicom_from_poct(input_file, output_dir)
     elif file_suffix == "e2e":
-        files = create_dicom_from_e2e(input_file, output_dir)
+        files = create_dicom_from_e2e(input_file, output_dir, extract_scan_repeats)
     else:
         raise TypeError(
             f"DICOM conversion for {file_suffix} is not supported. "
@@ -471,6 +473,8 @@ def create_dicom_from_boct(
 def create_dicom_from_e2e(
     input_file: str,
     output_dir: str = None,
+    extract_scan_repeats: bool = False
+
 ) -> list:
     """Creates DICOM file(s) with the data parsed from
     the input file.
@@ -478,13 +482,14 @@ def create_dicom_from_e2e(
     Args:
             input_file: E2E file with OCT data
             output_dir: Output directory
+            extract_scan_repeats: If True, will extract all scan repeats
 
     Returns:
             list: List of path(s) to DICOM file(s)
     """
     e2e = E2E(input_file)
     oct_volumes = e2e.read_oct_volume()
-    fundus_images = e2e.read_fundus_image()
+    fundus_images = e2e.read_fundus_image(extract_scan_repeats=extract_scan_repeats)
     if len(oct_volumes) == 0 and len(fundus_images) == 0:
         raise ValueError("No OCT volumes or fundus images found in e2e input file.")
 
