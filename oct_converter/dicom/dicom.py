@@ -367,7 +367,7 @@ def create_dicom_from_oct(
     cols: int = 512,
     interlaced: bool = False,
     diskbuffered: bool = False,
-    extract_scan_repeats: bool = False
+    extract_scan_repeats: bool = False,
 ) -> list:
     """Creates a DICOM file with the data parsed from
     the input file.
@@ -471,10 +471,7 @@ def create_dicom_from_boct(
 
 
 def create_dicom_from_e2e(
-    input_file: str,
-    output_dir: str = None,
-    extract_scan_repeats: bool = False
-
+    input_file: str, output_dir: str = None, extract_scan_repeats: bool = False
 ) -> list:
     """Creates DICOM file(s) with the data parsed from
     the input file.
