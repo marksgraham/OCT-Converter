@@ -323,7 +323,8 @@ class E2E(object):
             # initalise dict to hold all the image volumes
             image_array_dict = {}
             laterality_dict = {}
-
+            laterality = None
+            
             # traverse all chunks and extract slices
             for start, pos in chunk_stack:
                 f.seek(start + self.byte_skip)
