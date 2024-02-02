@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import time
 import warnings
 from collections import defaultdict
@@ -10,6 +11,7 @@ import numpy as np
 
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
 from oct_converter.readers.binary_structs import e2e_binary
+
 
 class E2E(object):
     """Class for extracting data from Heidelberg's .e2e file format.
@@ -148,7 +150,10 @@ class E2E(object):
                     windowsTicks = bscan_metadata.acquisitionTime
                     windowsTicksToUnixFactor = 10000000
                     secToUnixEpechFromWindowsTicks = 11644473600
-                    unixtime  = windowsTicks/windowsTicksToUnixFactor - secToUnixEpechFromWindowsTicks
+                    unixtime = (
+                        windowsTicks / windowsTicksToUnixFactor
+                        - secToUnixEpechFromWindowsTicks
+                    )
                     utc_time = time.gmtime(unixtime)
                     utc_time_string = time.strftime("%Y-%m-%d %H:%M:%S", utc_time)
                     if self.acquisition_date is None:
@@ -324,7 +329,7 @@ class E2E(object):
             image_array_dict = {}
             laterality_dict = {}
             laterality = None
-            
+
             # traverse all chunks and extract slices
             for start, pos in chunk_stack:
                 f.seek(start + self.byte_skip)
