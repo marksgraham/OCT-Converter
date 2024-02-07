@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 import warnings
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date
 from itertools import chain
 from pathlib import Path
 
