@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import time
 import warnings
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date
 from itertools import chain
 from pathlib import Path
 
@@ -145,14 +146,18 @@ class E2E(object):
                 elif chunk.type == 10004:  # bscan metadata
                     raw = f.read(104)
                     bscan_metadata = e2e_binary.bscan_metadata.parse(raw)
-                    start_epoch = datetime(
-                        year=1600, month=12, day=31, hour=23, minute=59
+
+                    windowsTicks = bscan_metadata.acquisitionTime
+                    windowsTicksToUnixFactor = 10000000
+                    secToUnixEpechFromWindowsTicks = 11644473600
+                    unixtime = (
+                        windowsTicks / windowsTicksToUnixFactor
+                        - secToUnixEpechFromWindowsTicks
                     )
-                    acquisition_datetime = start_epoch + timedelta(
-                        seconds=bscan_metadata.acquisitionTime * 1e-7
-                    )
+                    utc_time = time.gmtime(unixtime)
+                    utc_time_string = time.strftime("%Y-%m-%d %H:%M:%S", utc_time)
                     if self.acquisition_date is None:
-                        self.acquisition_date = acquisition_datetime.date()
+                        self.acquisition_date = utc_time_string
                     if self.pixel_spacing is None:
                         # scaley found, x and z not yet found in file
                         # but taken from E2E reader settings
