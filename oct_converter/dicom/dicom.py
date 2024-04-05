@@ -200,11 +200,15 @@ def write_opt_dicom(
     # OPT Image Module PS3.3 C.8.17.7
     ds.ImageType = ["DERIVED", "SECONDARY"]
     ds.SamplesPerPixel = 1
-    ds.AcquisitionDateTime = (
-        meta.series_info.acquisition_date.strftime("%Y%m%d%H%M%S.%f")
-        if meta.series_info.acquisition_date
-        else ""
-    )
+    if meta.series_info.acquisition_date:
+        # Convert string to datetime object
+        input_datetime = datetime.strptime(
+            meta.series_info.acquisition_date, "%Y-%m-%d %H:%M:%S"
+        )
+        ds.AcquisitionDateTime = input_datetime.strftime("%Y%m%d%H%M%S.%f")
+    else:
+        ds.AcquisitionDateTime = ""
+
     ds.AcquisitionNumber = 1
     ds.PhotometricInterpretation = "MONOCHROME2"
     # Unsigned integer
