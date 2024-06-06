@@ -63,12 +63,17 @@ class E2E(object):
                 current = directory_chunk.prev
 
     def read_oct_volume(
-        self, legacy_intensity_transform: bool = False
+        self,
+        legacy_intensity_transform: bool = False,
+        scalex: float = 0.01,
+        slice_thickness: float = 0.05,
     ) -> list[OCTVolumeWithMetaData]:
         """Reads OCT data.
 
         Args:
-            legacy_intensity_transform: if True, use intensity transform used in v<=0.5.7. Defaults to False.
+             legacy_intensity_transform: if True, use intensity transform used in v<=0.5.7. Defaults to False.
+             scalex: Manually set scale of x axis
+             slice_thickness: Manually set scale of z axis
 
         Returns:
             A list of OCTVolumeWithMetaData.
@@ -160,10 +165,13 @@ class E2E(object):
                         self.acquisition_date = utc_time_string
                     if self.pixel_spacing is None:
                         # scaley found, x and z not yet found in file
-                        # but taken from E2E reader settings
-                        self.pixel_spacing = [0.011484, bscan_metadata.scaley, 0.244673]
+                        self.pixel_spacing = [
+                            scalex,
+                            bscan_metadata.scaley,
+                            slice_thickness,
+                        ]
 
-                if chunk.type == 3:  # scan preamble data
+                elif chunk.type == 3:  # scan preamble data
                     raw = f.read(chunk.size)
                     try:
                         pre_data = e2e_binary.pre_data.parse(raw)
@@ -301,12 +309,15 @@ class E2E(object):
         return oct_volumes
 
     def read_fundus_image(
-        self, extract_scan_repeats: bool = False
+        self,
+        extract_scan_repeats: bool = False,
+        scalex: float = 0.01,
     ) -> list[FundusImageWithMetaData]:
         """Reads fundus data.
 
         Args:
             extract_scan_repeats: if True, extract all fundus images, including those that appear repeated. Defaults to False.
+            scalex: Manually set scale of x axis
 
         Returns:
             A sequence of FundusImageWithMetaData.
@@ -349,7 +360,7 @@ class E2E(object):
                     except Exception:
                         pass
 
-                if chunk.type == 3:  # scan preamble data
+                elif chunk.type == 3:  # scan preamble data
                     raw = f.read(chunk.size)
                     try:
                         pre_data = e2e_binary.pre_data.parse(raw)
@@ -363,7 +374,7 @@ class E2E(object):
                     if laterality and (volume_string not in laterality_dict):
                         laterality_dict[volume_string] = laterality
 
-                if chunk.type == 1073741824:  # image data
+                elif chunk.type == 1073741824:  # image data
                     raw = f.read(20)
                     image_data = e2e_binary.image_structure.parse(raw)
                     count = image_data.height * image_data.width
@@ -435,10 +446,10 @@ class E2E(object):
         metadata["contour_data"] = []
         metadata["fundus_data"] = []
         metadata["device_data"] = []
-        metadata["examined_structure"] = []
-        metadata["scan_pattern"] = []
-        metadata["enface_modality"] = []
-        metadata["oct_modality"] = []
+        metadata["examined_structure"] = {}
+        metadata["scan_pattern"] = {}
+        metadata["enface_modality"] = {}
+        metadata["oct_modality"] = {}
         metadata["localizer"] = []
         metadata["eye_data"] = []
         metadata["uid_data"] = []
@@ -465,6 +476,10 @@ class E2E(object):
                 f.seek(start + self.byte_skip)
                 raw = f.read(60)
                 chunk = e2e_binary.chunk_structure.parse(raw)
+
+                image_string = "{}_{}_{}".format(
+                    chunk.patient_db_id, chunk.study_id, chunk.series_id
+                )
 
                 if chunk.type == 9:  # patient data
                     raw = f.read(127)
@@ -509,22 +524,28 @@ class E2E(object):
                 elif chunk.type == 9005:  # examined structure ("Retina")
                     raw = f.read(chunk.size)
                     structure_data = e2e_binary.examined_structure.parse(raw)
-                    metadata["examined_structure"].append(_convert_to_dict(structure_data))
-                
+                    if image_string not in metadata["examined_structure"]:
+                        metadata["examined_structure"][
+                            image_string
+                        ] = structure_data.text[0]
+
                 elif chunk.type == 9006:  # scan pattern
                     raw = f.read(chunk.size)
                     scan_pattern = e2e_binary.scan_pattern.parse(raw)
-                    metadata["scan_pattern"].append(_convert_to_dict(scan_pattern))
-                
+                    if image_string not in metadata["scan_pattern"]:
+                        metadata["scan_pattern"][image_string] = scan_pattern.text[0]
+
                 elif chunk.type == 9007:  # enface_modality (i.e. IR, FA, ICGA)
                     raw = f.read(chunk.size)
                     enface = e2e_binary.enface_modality.parse(raw)
-                    metadata["enface_modality"].append(_convert_to_dict(enface))
-                
+                    if image_string not in metadata["enface_modality"]:
+                        metadata["enface_modality"][image_string] = enface.text[1]
+
                 elif chunk.type == 9008:
                     raw = f.read(chunk.size)
                     oct_modality = e2e_binary.oct_modality.parse(raw)
-                    metadata["oct_modality"].append(_convert_to_dict(oct_modality))
+                    if image_string not in metadata["oct_modality"]:
+                        metadata["oct_modality"][image_string] = oct_modality.text[0]
                 
                 elif chunk.type == 10025:
                     raw = f.read(chunk.size)
