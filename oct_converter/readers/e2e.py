@@ -415,6 +415,7 @@ class E2E(object):
                         if key in laterality_dict.keys()
                         else None,
                         metadata=metadata,
+                        pixel_spacing=[scalex, scalex],
                     )
                 )
 
