@@ -37,13 +37,14 @@ def e2e_patient_meta(meta: dict) -> PatientMeta:
     return patient
 
 
-def e2e_series_meta(id, laterality, acquisition_date) -> SeriesMeta:
+def e2e_series_meta(id, laterality, acquisition_date, metadata) -> SeriesMeta:
     """Creates SeriesMeta from info parsed by the E2E reader
 
     Args:
         id: Equivalent to oct.volume_id or fundus.image_id
         laterality: R or L, from image.laterality
         acquisition_date: Scan date for OCT, or None for fundus
+        metadata: Additional metadata
     Returns:
         SeriesMeta: Series metadata populated by oct
     """
@@ -56,6 +57,16 @@ def e2e_series_meta(id, laterality, acquisition_date) -> SeriesMeta:
     series.laterality = laterality
     series.acquisition_date = acquisition_date
     series.opt_anatomy = OPTAnatomyStructure.Retina
+    if metadata.get("examined_structure", {}).get(id):
+        structure = metadata["examined_structure"][id]
+        try:
+            series.opt_anatomy = getattr(OPTAnatomyStructure, structure)
+        except AttributeError:
+            series.opt_anatomy = OPTAnatomyStructure.Unspecified
+    if metadata.get("enface_modality", {}).get(id):
+        series.protocol = metadata["enface_modality"][id]
+    if metadata.get("scan_pattern", {}).get(id):
+        series.description = metadata["scan_pattern"][id]
 
     return series
 
@@ -88,7 +99,8 @@ def e2e_image_geom(pixel_spacing: list) -> ImageGeometry:
     """
     image_geom = ImageGeometry()
     image_geom.pixel_spacing = [pixel_spacing[1], pixel_spacing[0]]
-    image_geom.slice_thickness = pixel_spacing[2]
+    if len(pixel_spacing) == 3:
+        image_geom.slice_thickness = pixel_spacing[2]
     image_geom.image_orientation = [1, 0, 0, 0, 1, 0]
 
     return image_geom
@@ -135,11 +147,19 @@ def e2e_dicom_metadata(
     meta.oct_image_params = e2e_image_params()
     if type(image) == OCTVolumeWithMetaData:
         meta.series_info = e2e_series_meta(
-            image.volume_id, image.laterality, image.acquisition_date
+            image.volume_id,
+            image.laterality,
+            image.acquisition_date,
+            image.metadata,
         )
         meta.image_geometry = e2e_image_geom(image.pixel_spacing)
     else:  # type(image) == FundusImageWithMetaData
-        meta.series_info = e2e_series_meta(image.image_id, image.laterality, None)
-        meta.image_geometry = e2e_image_geom([1, 1, 1])
+        meta.series_info = e2e_series_meta(
+            image.image_id,
+            image.laterality,
+            None,
+            image.metadata,
+        )
+        meta.image_geometry = e2e_image_geom(image.pixel_spacing)
 
     return meta
