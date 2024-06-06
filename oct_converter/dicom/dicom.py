@@ -122,6 +122,8 @@ def populate_opt_series(ds: Dataset, meta: DicomMetadata) -> Dataset:
     ds.StudyInstanceUID = generate_uid()
     ds.SeriesInstanceUID = generate_uid()
     ds.Laterality = meta.series_info.laterality
+    ds.ProtocolName = meta.series_info.protocol
+    ds.SeriesDescription = meta.series_info.description
     # Ophthalmic Tomography Series PS3.3 C.8.17.6
     ds.Modality = "OPT"
     ds.SeriesNumber = int(meta.series_info.series_id)
@@ -273,10 +275,19 @@ def write_fundus_dicom(
     ds = populate_opt_series(ds, meta)
     ds.Modality = "OP"
     ds = populate_ocular_region(ds, meta)
-    ds = opt_shared_functional_groups(ds, meta)
+
+    ds.PixelSpacing = meta.image_geometry.pixel_spacing
+    ds.ImageOrientationPatient = meta.image_geometry.image_orientation
 
     # OPT Image Module PS3.3 C.8.17.7
     ds.ImageType = ["DERIVED", "SECONDARY"]
+    enface_to_type = {
+        "IR": "RED",
+        "FA": "BLUE",
+        "ICGA": "GREEN",
+    }
+    if ds.ProtocolName in enface_to_type:
+        ds.ImageType.append(enface_to_type.get(ds.ProtocolName))
     ds.SamplesPerPixel = 1
     ds.AcquisitionDateTime = (
         meta.series_info.acquisition_date.strftime("%Y%m%d%H%M%S.%f")
@@ -327,10 +338,19 @@ def write_color_fundus_dicom(
     ds = populate_opt_series(ds, meta)
     ds.Modality = "OP"
     ds = populate_ocular_region(ds, meta)
-    ds = opt_shared_functional_groups(ds, meta)
+
+    ds.PixelSpacing = meta.image_geometry.pixel_spacing
+    ds.ImageOrientationPatient = meta.image_geometry.image_orientation
 
     # OPT Image Module PS3.3 C.8.17.7
     ds.ImageType = ["DERIVED", "SECONDARY"]
+    enface_to_type = {
+        "IR": "RED",
+        "FA": "BLUE",
+        "ICGA": "GREEN",
+    }
+    if ds.ProtocolName in enface_to_type:
+        ds.ImageType.append(enface_to_type.get(ds.ProtocolName))
     ds.SamplesPerPixel = 1
     ds.AcquisitionDateTime = (
         meta.series_info.acquisition_date.strftime("%Y%m%d%H%M%S.%f")
@@ -372,6 +392,8 @@ def create_dicom_from_oct(
     interlaced: bool = False,
     diskbuffered: bool = False,
     extract_scan_repeats: bool = False,
+    scalex: float = 0.01,
+    slice_thickness: float = 0.05
 ) -> list:
     """Creates a DICOM file with the data parsed from
     the input file.
@@ -386,6 +408,8 @@ def create_dicom_from_oct(
             interlaced: If .img file, allows for setting interlaced
             diskbuffered: If Bioptigen .OCT, allows for setting diskbuffered
             extract_scan_repeats: If .e2e file, allows for extracting all scan repeats
+            scalex: If .e2e file, allows for manually setting x scale (in mm)
+            slice_thickness: If .e2e file, allows for manually setting z scale (in mm)
 
     Returns:
             list: list of Path(s) to DICOM file
@@ -414,7 +438,13 @@ def create_dicom_from_oct(
             # if BOCT raises, treat as POCT
             files = create_dicom_from_poct(input_file, output_dir)
     elif file_suffix == "e2e":
-        files = create_dicom_from_e2e(input_file, output_dir, extract_scan_repeats)
+        files = create_dicom_from_e2e(
+            input_file,
+            output_dir,
+            extract_scan_repeats,
+            scalex,
+            slice_thickness,
+        )
     else:
         raise TypeError(
             f"DICOM conversion for {file_suffix} is not supported. "
@@ -475,7 +505,11 @@ def create_dicom_from_boct(
 
 
 def create_dicom_from_e2e(
-    input_file: str, output_dir: str = None, extract_scan_repeats: bool = False
+    input_file: str,
+    output_dir: str = None,
+    extract_scan_repeats: bool = False,
+    scalex: float = 0.01,
+    slice_thickness: float = 0.05,
 ) -> list:
     """Creates DICOM file(s) with the data parsed from
     the input file.
@@ -484,13 +518,17 @@ def create_dicom_from_e2e(
             input_file: E2E file with OCT data
             output_dir: Output directory
             extract_scan_repeats: If True, will extract all scan repeats
+            scalex: Manually set scale of x axis
+            slice_thickness: Manually set scale of z axis
 
     Returns:
             list: List of path(s) to DICOM file(s)
     """
     e2e = E2E(input_file)
-    oct_volumes = e2e.read_oct_volume()
-    fundus_images = e2e.read_fundus_image(extract_scan_repeats=extract_scan_repeats)
+    oct_volumes = e2e.read_oct_volume(scalex=scalex, slice_thickness=slice_thickness)
+    fundus_images = e2e.read_fundus_image(
+        extract_scan_repeats=extract_scan_repeats, scalex=scalex
+    )
     if len(oct_volumes) == 0 and len(fundus_images) == 0:
         raise ValueError("No OCT volumes or fundus images found in e2e input file.")
 
