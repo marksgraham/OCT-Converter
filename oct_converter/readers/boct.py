@@ -8,7 +8,7 @@ from typing import BinaryIO
 
 import h5py
 import numpy as np
-from construct import Struct
+from construct import Struct, StringError
 from numpy.typing import NDArray
 
 from oct_converter.exceptions import InvalidOCTReaderError
@@ -39,7 +39,7 @@ class BOCT(object):
     def _validate(self, path: Path) -> bool:
         try:
             self.header_structure.parse_file(path)
-        except UnicodeDecodeError:
+        except StringError:
             raise InvalidOCTReaderError(
                 "OCT header does not match Bioptigen .OCT format. Did you mean to use Optovue .oct (POCT)?"
             )
