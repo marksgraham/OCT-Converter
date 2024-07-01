@@ -203,11 +203,7 @@ def write_opt_dicom(
     ds.ImageType = ["DERIVED", "SECONDARY"]
     ds.SamplesPerPixel = 1
     if meta.series_info.acquisition_date:
-        # Convert string to datetime object
-        input_datetime = datetime.strptime(
-            meta.series_info.acquisition_date, "%Y-%m-%d %H:%M:%S"
-        )
-        ds.AcquisitionDateTime = input_datetime.strftime("%Y%m%d%H%M%S.%f")
+        ds.AcquisitionDateTime =  meta.series_info.acquisition_date.strftime("%Y%m%d%H%M%S.%f")
     else:
         ds.AcquisitionDateTime = ""
 
