@@ -1,12 +1,12 @@
 from construct import (
     Array,
     Float32l,
+    Float64l,
     Int8un,
     Int16un,
     Int32sn,
     Int32un,
     Int64un,
-    Float64l,
     PaddedString,
     Struct,
     this,
@@ -139,7 +139,7 @@ eye_data = Struct(
 device_name = Struct(
     "n_strings" / Int32un,
     "string_size" / Int32un,
-    "text" / Array(this.n_strings, PaddedString(this.string_size, "u16"))
+    "text" / Array(this.n_strings, PaddedString(this.string_size, "u16")),
 )
 
 # 9005 Examined Structure
@@ -148,7 +148,7 @@ device_name = Struct(
 examined_structure = Struct(
     "n_strings" / Int32un,
     "string_size" / Int32un,
-    "text" / Array(this.n_strings, PaddedString(this.string_size, "u16"))
+    "text" / Array(this.n_strings, PaddedString(this.string_size, "u16")),
 )
 
 # 9006 Scan Pattern
@@ -158,7 +158,7 @@ examined_structure = Struct(
 scan_pattern = Struct(
     "n_strings" / Int32un,
     "string_size" / Int32un,
-    "text" / Array(this.n_strings, PaddedString(this.string_size, "u16"))
+    "text" / Array(this.n_strings, PaddedString(this.string_size, "u16")),
 )
 
 # 9007 Enface Modality
@@ -168,7 +168,7 @@ scan_pattern = Struct(
 enface_modality = Struct(
     "n_strings" / Int32un,
     "string_size" / Int32un,
-    "text" / Array(this.n_strings, PaddedString(this.string_size, "u16"))
+    "text" / Array(this.n_strings, PaddedString(this.string_size, "u16")),
 )
 
 # 9008 OCT Modality
@@ -176,7 +176,7 @@ enface_modality = Struct(
 oct_modality = Struct(
     "n_strings" / Int32un,
     "string_size" / Int32un,
-    "text" / Array(this.n_strings, PaddedString(this.string_size, "u16"))
+    "text" / Array(this.n_strings, PaddedString(this.string_size, "u16")),
 )
 
 # 10025 Localizer
@@ -201,7 +201,7 @@ pre_data = Struct(
 time_data = Struct(
     "unknown" / Array(46, Int32un),
     "timezone1" / PaddedString(66, "u16"),
-    "unknown2" / Array (9, Int16un),
+    "unknown2" / Array(9, Int16un),
     "timezone2" / PaddedString(66, "u16"),
     # There's more in this chunk (possibly datetimes, given tz)
     # and the chunk size varies.
@@ -209,11 +209,7 @@ time_data = Struct(
 
 # 52, 54, 1000, 1001 seem to be UIDs with padded strings
 # 1000 may be StudyInstanceUID
-uid_data = Struct(
-    "uid" / PaddedString(64,"ascii")
-)
+uid_data = Struct("uid" / PaddedString(64, "ascii"))
 
 # 1007 padded string with a brand name
-unknown_data = Struct(
-    "unknown" / PaddedString(64,"ascii")
-)
+unknown_data = Struct("unknown" / PaddedString(64, "ascii"))

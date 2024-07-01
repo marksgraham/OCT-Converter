@@ -262,7 +262,7 @@ class E2E(object):
                                 else:
                                     volume_array_dict_additional[volume_string] = [
                                         image
-                                    ]               
+                                    ]
 
             contour_data = {}
             for volume_id, contours in contour_dict.items():
@@ -516,7 +516,7 @@ class E2E(object):
                     raw = f.read(20)
                     image_data = e2e_binary.image_structure.parse(raw)
                     metadata["image_data"].append(_convert_to_dict(image_data))
-                
+
                 elif chunk.type == 9001:  # device data ("Heidelberg Retina Angiograph")
                     raw = f.read(chunk.size)
                     device_data = e2e_binary.device_name.parse(raw)
@@ -547,38 +547,44 @@ class E2E(object):
                     oct_modality = e2e_binary.oct_modality.parse(raw)
                     if image_string not in metadata["oct_modality"]:
                         metadata["oct_modality"][image_string] = oct_modality.text[0]
-                
+
                 elif chunk.type == 10025:
                     raw = f.read(chunk.size)
                     localizer = e2e_binary.localizer.parse(raw)
                     metadata["localizer"].append(_convert_to_dict(localizer))
-                
+
                 elif chunk.type == 7:  # eye data
                     raw = f.read(chunk.size)
                     eye_data = e2e_binary.eye_data.parse(raw)
                     metadata["eye_data"].append(_convert_to_dict(eye_data))
-                
+
                 elif chunk.type == 39:  # time zone, possibly timestamps
                     raw = f.read(chunk.size)
                     time_data = e2e_binary.time_data.parse(raw)
                     metadata["time_data"].append(_convert_to_dict(time_data))
-                
+
                 elif chunk.type in [52, 54, 1000, 1001]:  # various UIDs
                     raw = f.read(chunk.size)
                     uid_data = e2e_binary.uid_data.parse(raw)
-                    metadata["uid_data"].append({chunk.type: _convert_to_dict(uid_data)})
-                
+                    metadata["uid_data"].append(
+                        {chunk.type: _convert_to_dict(uid_data)}
+                    )
+
                 # Chunks 1005, 1006, and 1007 seem to contain strings of device data,
                 # including some servicers and distributors and other entities,
                 # but not always in the same order.
-                elif chunk.type in [1005, 1006]: 
+                elif chunk.type in [1005, 1006]:
                     raw = f.read(chunk.size)
-                    metadata["additional_device_data"].append({chunk.type: raw.decode()})
+                    metadata["additional_device_data"].append(
+                        {chunk.type: raw.decode()}
+                    )
 
                 elif chunk.type == 1007:
                     raw = f.read(chunk.size)
                     unknown_data = e2e_binary.unknown_data.parse(raw)
-                    metadata["additional_device_data"].append({chunk.type: _convert_to_dict(unknown_data)})
+                    metadata["additional_device_data"].append(
+                        {chunk.type: _convert_to_dict(unknown_data)}
+                    )
 
         return metadata
 

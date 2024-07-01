@@ -35,7 +35,7 @@ class FundusImageWithMetaData(object):
         image_id: str | None = None,
         patient_dob: str | None = None,
         metadata: dict | None = None,
-        pixel_spacing: list[float] | None = None
+        pixel_spacing: list[float] | None = None,
     ) -> None:
         self.image = image
         self.laterality = laterality

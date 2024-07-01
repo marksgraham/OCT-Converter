@@ -203,7 +203,9 @@ def write_opt_dicom(
     ds.ImageType = ["DERIVED", "SECONDARY"]
     ds.SamplesPerPixel = 1
     if meta.series_info.acquisition_date:
-        ds.AcquisitionDateTime =  meta.series_info.acquisition_date.strftime("%Y%m%d%H%M%S.%f")
+        ds.AcquisitionDateTime = meta.series_info.acquisition_date.strftime(
+            "%Y%m%d%H%M%S.%f"
+        )
     else:
         ds.AcquisitionDateTime = ""
 
@@ -389,7 +391,7 @@ def create_dicom_from_oct(
     diskbuffered: bool = False,
     extract_scan_repeats: bool = False,
     scalex: float = 0.01,
-    slice_thickness: float = 0.05
+    slice_thickness: float = 0.05,
 ) -> list:
     """Creates a DICOM file with the data parsed from
     the input file.
