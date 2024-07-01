@@ -96,6 +96,9 @@ class SeriesMeta:
     acquisition_date: t.Optional[datetime.datetime] = None
     # Anatomy
     opt_anatomy: OPTAnatomyStructure = OPTAnatomyStructure.Unspecified
+    # Scan
+    protocol: str = ""
+    description: str = ""
 
 
 @dataclasses.dataclass

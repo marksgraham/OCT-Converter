@@ -23,6 +23,8 @@ class FundusImageWithMetaData(object):
         patient_id: patient ID.
         image_id: image ID.
         DOB: patient date of birth.
+        metadata: all metadata parsed from the original file.
+        pixel_spacing: [x, y] pixel spacing in mm
     """
 
     def __init__(
@@ -33,6 +35,7 @@ class FundusImageWithMetaData(object):
         image_id: str | None = None,
         patient_dob: str | None = None,
         metadata: dict | None = None,
+        pixel_spacing: list[float] | None = None,
     ) -> None:
         self.image = image
         self.laterality = laterality
@@ -40,6 +43,7 @@ class FundusImageWithMetaData(object):
         self.image_id = image_id
         self.DOB = patient_dob
         self.metadata = metadata
+        self.pixel_spacing = pixel_spacing
 
     def save(self, filepath: str | Path) -> None:
         """Saves fundus image.

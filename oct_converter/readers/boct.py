@@ -8,7 +8,7 @@ from typing import BinaryIO
 
 import h5py
 import numpy as np
-from construct import Struct, StringError
+from construct import StringError, Struct
 from numpy.typing import NDArray
 
 from oct_converter.exceptions import InvalidOCTReaderError
