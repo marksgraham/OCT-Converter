@@ -160,7 +160,7 @@ class E2E(object):
                         - secToUnixEpechFromWindowsTicks
                     )
                     utc_time = time.gmtime(unixtime)
-                    dt_time = datetime.fromtiemstamp(time.mktime(utc_time))
+                    dt_time = datetime.fromtimestamp(time.mktime(utc_time))
                     if self.acquisition_date is None:
                         self.acquisition_date = dt_time
                     if self.pixel_spacing is None:
