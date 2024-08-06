@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 import warnings
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 from itertools import chain
 from pathlib import Path
 
@@ -160,9 +160,9 @@ class E2E(object):
                         - secToUnixEpechFromWindowsTicks
                     )
                     utc_time = time.gmtime(unixtime)
-                    utc_time_string = time.strftime("%Y-%m-%d %H:%M:%S", utc_time)
+                    dt_time = datetime.fromtimestamp(time.mktime(utc_time))
                     if self.acquisition_date is None:
-                        self.acquisition_date = utc_time_string
+                        self.acquisition_date = dt_time
                     if self.pixel_spacing is None:
                         # scaley found, x and z not yet found in file
                         self.pixel_spacing = [
