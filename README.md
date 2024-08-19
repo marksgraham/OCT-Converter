@@ -35,6 +35,7 @@ A number of example usage scripts are included in `examples/`.
 Here is an example of reading a .fds file:
 
 ```python
+from oct_converter.dicom import create_dicom_from_oct
 from oct_converter.readers import FDS
 
 # An example .fds file can be downloaded from the Biobank website:
