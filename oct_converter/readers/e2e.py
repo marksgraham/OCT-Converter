@@ -6,6 +6,7 @@ from collections import defaultdict
 from datetime import date, datetime
 from itertools import chain
 from pathlib import Path
+from construct.core import StreamError
 
 import numpy as np
 
@@ -564,11 +565,14 @@ class E2E(object):
                     metadata["time_data"].append(_convert_to_dict(time_data))
 
                 elif chunk.type in [52, 54, 1000, 1001]:  # various UIDs
-                    raw = f.read(chunk.size)
-                    uid_data = e2e_binary.uid_data.parse(raw)
-                    metadata["uid_data"].append(
-                        {chunk.type: _convert_to_dict(uid_data)}
-                    )
+                    try:
+                        raw = f.read(chunk.size)
+                        uid_data = e2e_binary.uid_data.parse(raw)
+                        metadata["uid_data"].append(
+                            {chunk.type: _convert_to_dict(uid_data)}
+                        )
+                    except StreamError:
+                        pass
 
                 # Chunks 1005, 1006, and 1007 seem to contain strings of device data,
                 # including some servicers and distributors and other entities,
