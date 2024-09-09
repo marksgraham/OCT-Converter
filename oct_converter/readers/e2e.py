@@ -6,9 +6,9 @@ from collections import defaultdict
 from datetime import date, datetime
 from itertools import chain
 from pathlib import Path
-from construct.core import StreamError
 
 import numpy as np
+from construct.core import StreamError
 
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
 from oct_converter.readers.binary_structs import e2e_binary
@@ -145,7 +145,9 @@ class E2E(object):
                             self.birthdate = str(patient_data.birthdate)
                         else:
                             try:
-                                julian_birthdate = (patient_data.birthdate / 64) - 14558805
+                                julian_birthdate = (
+                                    patient_data.birthdate / 64
+                                ) - 14558805
                                 self.birthdate = self.julian_to_ymd(julian_birthdate)
                                 # TODO: There are conflicting ideas of how to parse E2E's birthdate
                                 # https://bitbucket.org/uocte/uocte/wiki/Heidelberg%20File%20Format suggests the above,
