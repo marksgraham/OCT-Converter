@@ -138,14 +138,24 @@ class E2E(object):
                         self.sex = patient_data.sex
                         self.first_name = patient_data.first_name
                         self.surname = patient_data.surname
-                        julian_birthdate = (patient_data.birthdate / 64) - 14558805
-                        self.birthdate = self.julian_to_ymd(julian_birthdate)
-                        # TODO: There are conflicting ideas of how to parse E2E's birthdate
-                        # https://bitbucket.org/uocte/uocte/wiki/Heidelberg%20File%20Format suggests the above,
-                        # whereas https://github.com/neurodial/LibE2E/blob/master/E2E/dataelements/patientdataelement.cpp
-                        # suggests that DOB is given as a Windows date. Neither option seems accurate to
-                        # test files with known-correct birthdates. More investigation is needed.
                         self.patient_id = patient_data.patient_id
+                        if len(str(patient_data.birthdate)) == 8:
+                            # Encountered a file where birthdate had been stored as YYYYMMDD,
+                            # this is an attempt to catch that.
+                            self.birthdate = str(patient_data.birthdate)
+                        else:
+                            try:
+                                julian_birthdate = (patient_data.birthdate / 64) - 14558805
+                                self.birthdate = self.julian_to_ymd(julian_birthdate)
+                                # TODO: There are conflicting ideas of how to parse E2E's birthdate
+                                # https://bitbucket.org/uocte/uocte/wiki/Heidelberg%20File%20Format suggests the above,
+                                # whereas https://github.com/neurodial/LibE2E/blob/master/E2E/dataelements/patientdataelement.cpp
+                                # suggests that DOB is given as a Windows date. Neither option seems accurate to
+                                # test files with known-correct birthdates. More investigation is needed.
+                            except ValueError:
+                                # If the julian_to_ymd function cannot parse it into a date obj,
+                                # it throws a ValueError
+                                self.birthdate = None
                     except Exception:
                         pass
 
