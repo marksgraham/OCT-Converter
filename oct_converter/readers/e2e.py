@@ -206,7 +206,7 @@ class E2E(object):
                         volume_string = "{}_{}_{}".format(
                             chunk.patient_db_id, chunk.study_id, chunk.series_id
                         )
-                        slice_id = int(chunk.slice_id / 2) - 1
+                        slice_id = int(chunk.slice_id / 2) # - 1
                         contour_name = f"contour{contour_data.id}"
                         try:
                             raw_volume = np.frombuffer(
@@ -264,7 +264,7 @@ class E2E(object):
 
                             if volume_string in volume_array_dict.keys():
                                 volume_array_dict[volume_string][
-                                    int(chunk.slice_id / 2) - 1
+                                    int(chunk.slice_id / 2) # - 1
                                 ] = image
                             else:
                                 # try to capture these additional images
