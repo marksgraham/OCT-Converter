@@ -24,15 +24,17 @@ def e2e_patient_meta(meta: dict) -> PatientMeta:
     """
     patient = PatientMeta()
 
-    patient_data = meta.get("patient_data", [{}])
-
-    patient.first_name = patient_data[0].get("first_name")
-    patient.last_name = patient_data[0].get("surname")
-    patient.patient_id = patient_data[0].get("patient_id")
-    patient.patient_sex = patient_data[0].get("sex")
-    # TODO patient.patient_dob
-    # Currently, E2E's patient_dob is incorrect, see
-    # the E2E reader for more context.
+    patient_data = meta.get("patient_data")
+    if patient_data:
+        # Heidelberg's updated anonymization process wipes
+        # this section of metadata
+        patient.first_name = patient_data[0].get("first_name")
+        patient.last_name = patient_data[0].get("surname")
+        patient.patient_id = patient_data[0].get("patient_id")
+        patient.patient_sex = patient_data[0].get("sex")
+        # TODO patient.patient_dob
+        # Currently, E2E's patient_dob is incorrect, see
+        # the E2E reader for more context.
 
     return patient
 
