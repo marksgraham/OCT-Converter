@@ -143,25 +143,31 @@ def e2e_dicom_metadata(
         DicomMetadata: Populated DicomMetadata created with fundus or oct metadata
     """
 
-    meta = DicomMetadata
-    meta.patient_info = e2e_patient_meta(image.metadata)
-    meta.manufacturer_info = e2e_manu_meta()
-    meta.oct_image_params = e2e_image_params()
-    if type(image) == OCTVolumeWithMetaData:
-        meta.series_info = e2e_series_meta(
+    patient_info = e2e_patient_meta(image.metadata)
+    manufacturer_info = e2e_manu_meta()
+    oct_image_params = e2e_image_params()
+
+    if isinstance(image, OCTVolumeWithMetaData):
+        series_info = e2e_series_meta(
             image.volume_id,
             image.laterality,
             image.acquisition_date,
             image.metadata,
         )
-        meta.image_geometry = e2e_image_geom(image.pixel_spacing)
-    else:  # type(image) == FundusImageWithMetaData
-        meta.series_info = e2e_series_meta(
+        image_geometry = e2e_image_geom(image.pixel_spacing)
+    else:
+        series_info = e2e_series_meta(
             image.image_id,
             image.laterality,
             None,
             image.metadata,
         )
-        meta.image_geometry = e2e_image_geom(image.pixel_spacing)
+        image_geometry = e2e_image_geom(image.pixel_spacing)
 
-    return meta
+    return DicomMetadata(
+        patient_info=patient_info,
+        series_info=series_info,
+        manufacturer_info=manufacturer_info,
+        image_geometry=image_geometry,
+        oct_image_params=oct_image_params,
+    )
