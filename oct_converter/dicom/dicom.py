@@ -6,7 +6,7 @@ from importlib import metadata
 from pathlib import Path
 
 import numpy as np
-from construct import StreamError
+from construct import StreamError, StringError
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 from pydicom.uid import (
     ExplicitVRLittleEndian,
@@ -201,9 +201,14 @@ def write_opt_dicom(
     ds.ImageType = ["DERIVED", "SECONDARY"]
     ds.SamplesPerPixel = 1
     if meta.series_info.acquisition_date:
-        ds.AcquisitionDateTime = meta.series_info.acquisition_date.strftime(
-            "%Y%m%d%H%M%S.%f"
-        )
+        # Convert string to datetime object if it's a string
+        if isinstance(meta.series_info.acquisition_date, str):
+            input_datetime = datetime.strptime(
+                meta.series_info.acquisition_date, "%Y-%m-%d %H:%M:%S"
+            )
+        else:
+            input_datetime = meta.series_info.acquisition_date
+        ds.AcquisitionDateTime = input_datetime.strftime("%Y%m%d%H%M%S.%f")
     else:
         ds.AcquisitionDateTime = ""
 
@@ -436,7 +441,7 @@ def create_dicom_from_oct(
         try:
             BOCT(input_file)
             files = create_dicom_from_boct(input_file, output_dir, diskbuffered)
-        except (InvalidOCTReaderError, StreamError):
+        except (InvalidOCTReaderError, StreamError, UnicodeDecodeError, StringError):
             # if BOCT raises, treat as POCT
             files = create_dicom_from_poct(input_file, output_dir)
     elif file_suffix == "e2e":
