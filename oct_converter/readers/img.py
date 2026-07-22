@@ -42,9 +42,10 @@ class IMG(object):
             volume = volume.reshape((rows, cols, num_slices), order="F")
             if interlaced:
                 shape = volume.shape
+                mid_height = shape[0] // 2
                 interlaced = np.zeros((int(shape[0] / 2), shape[1], shape[2] * 2))
-                interlaced[..., 0::2] = volume[:cols, ...]
-                interlaced[..., 1::2] = volume[cols:, ...]
+                interlaced[..., 0::2] = volume[:mid_height, ...]
+                interlaced[..., 1::2] = volume[mid_height:, ...]
                 interlaced = np.rot90(interlaced, axes=(0, 1))
                 volume = interlaced
 

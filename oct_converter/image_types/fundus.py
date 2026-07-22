@@ -23,6 +23,7 @@ class FundusImageWithMetaData(object):
         patient_id: patient ID.
         image_id: image ID.
         DOB: patient date of birth.
+        acquisition_date: date and time of image acquisition.
         metadata: all metadata parsed from the original file.
         pixel_spacing: [x, y] pixel spacing in mm
     """
@@ -34,6 +35,7 @@ class FundusImageWithMetaData(object):
         patient_id: str | None = None,
         image_id: str | None = None,
         patient_dob: str | None = None,
+        acquisition_date: str | None = None,
         metadata: dict | None = None,
         pixel_spacing: list[float] | None = None,
     ) -> None:
@@ -42,6 +44,7 @@ class FundusImageWithMetaData(object):
         self.patient_id = patient_id
         self.image_id = image_id
         self.DOB = patient_dob
+        self.acquisition_date = acquisition_date
         self.metadata = metadata
         self.pixel_spacing = pixel_spacing
 

@@ -44,6 +44,7 @@ class E2E(object):
         self.acquisition_date = None
         self.birthdate = None
         self.pixel_spacing = None
+        self.patient_id = None
 
         # get initial directory structure
         with open(self.filepath, "rb") as f:
@@ -148,7 +149,13 @@ class E2E(object):
             for start, pos in chunk_stack:
                 f.seek(start + self.byte_skip)
                 raw = f.read(60)
-                chunk = e2e_binary.chunk_structure.parse(raw)
+                try:
+                    # Heidelberg's updated anonymization seems to cause problems with
+                    # some chunks. Observed problems include an empty raw and problems
+                    # with undecodable bytes. For now, these chunks are skipped...
+                    chunk = e2e_binary.chunk_structure.parse(raw)
+                except Exception:
+                    continue
 
                 if chunk.type == 9:  # patient data
                     raw = f.read(127)
@@ -502,7 +509,13 @@ class E2E(object):
             for start, pos in chunk_stack:
                 f.seek(start + self.byte_skip)
                 raw = f.read(60)
-                chunk = e2e_binary.chunk_structure.parse(raw)
+                try:
+                    # Heidelberg's updated anonymization seems to cause problems with
+                    # some chunks. Observed problems include an empty raw and problems
+                    # with undecodable bytes. For now, these chunks are skipped...
+                    chunk = e2e_binary.chunk_structure.parse(raw)
+                except Exception:
+                    continue
 
                 if chunk.type == 9:  # patient data
                     raw = f.read(127)
@@ -571,6 +584,7 @@ class E2E(object):
                         laterality=laterality_dict[key]
                         if key in laterality_dict.keys()
                         else None,
+                        acquisition_date=self.acquisition_date,
                         metadata=metadata,
                         pixel_spacing=[scalex, scalex],
                     )
@@ -633,7 +647,13 @@ class E2E(object):
             for start, pos in chunk_stack:
                 f.seek(start + self.byte_skip)
                 raw = f.read(60)
-                chunk = e2e_binary.chunk_structure.parse(raw)
+                try:
+                    # Heidelberg's updated anonymization seems to cause problems with
+                    # some chunks. Observed problems include an empty raw and problems
+                    # with undecodable bytes. For now, these chunks are skipped...
+                    chunk = e2e_binary.chunk_structure.parse(raw)
+                except Exception:
+                    continue
 
                 image_string = "{}_{}_{}".format(
                     chunk.patient_db_id, chunk.study_id, chunk.series_id
@@ -724,9 +744,12 @@ class E2E(object):
                     metadata["eye_data"].append(_convert_to_dict(eye_data))
 
                 elif chunk.type == 39:  # time zone, possibly timestamps
-                    raw = f.read(chunk.size)
-                    time_data = e2e_binary.time_data.parse(raw)
-                    metadata["time_data"].append(_convert_to_dict(time_data))
+                    try:
+                        raw = f.read(chunk.size)
+                        time_data = e2e_binary.time_data.parse(raw)
+                        metadata["time_data"].append(_convert_to_dict(time_data))
+                    except StreamError:
+                        pass
 
                 elif chunk.type in [52, 54, 1000, 1001]:  # various UIDs
                     try:

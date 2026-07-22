@@ -27,7 +27,8 @@ def e2e_patient_meta(meta: dict) -> PatientMeta:
 
     patient_data = meta.get("patient_data") or [{}]
     patient_row = patient_data[0] if patient_data else {}
-
+    # Coerce missing/None fields to "" so DICOM writers do not fail on
+    # anonymized E2E files that omit patient metadata.
     patient.first_name = patient_row.get("first_name") or ""
     patient.last_name = patient_row.get("surname") or ""
     patient.patient_id = patient_row.get("patient_id") or ""
@@ -158,7 +159,11 @@ def e2e_dicom_metadata(
     Returns:
         DicomMetadata: Populated DicomMetadata created with fundus or oct metadata
     """
-    if type(image) == OCTVolumeWithMetaData:
+    patient_info = e2e_patient_meta(image.metadata)
+    manufacturer_info = e2e_manu_meta()
+    oct_image_params = e2e_image_params()
+
+    if isinstance(image, OCTVolumeWithMetaData):
         series_info = e2e_series_meta(
             image.volume_id,
             image.laterality,
@@ -167,21 +172,21 @@ def e2e_dicom_metadata(
         )
         image_geometry = e2e_image_geom(image.pixel_spacing)
         scan_geometry = e2e_scan_geometry_meta(image)
-    else:  # type(image) == FundusImageWithMetaData
+    else:
         series_info = e2e_series_meta(
             image.image_id,
             image.laterality,
-            None,
+            image.acquisition_date,
             image.metadata,
         )
         image_geometry = e2e_image_geom(image.pixel_spacing)
         scan_geometry = None
 
     return DicomMetadata(
-        patient_info=e2e_patient_meta(image.metadata),
+        patient_info=patient_info,
         series_info=series_info,
-        manufacturer_info=e2e_manu_meta(),
+        manufacturer_info=manufacturer_info,
         image_geometry=image_geometry,
-        oct_image_params=e2e_image_params(),
+        oct_image_params=oct_image_params,
         scan_geometry=scan_geometry,
     )

@@ -6,14 +6,16 @@ from importlib import metadata
 from pathlib import Path
 
 import numpy as np
-from construct import StreamError
+from construct import StreamError, StringError
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 from pydicom.uid import (
     ExplicitVRLittleEndian,
+    OphthalmicPhotography16BitImageStorage,
     OphthalmicTomographyImageStorage,
     UID,
     generate_uid,
 )
+from pydicom.valuerep import DSfloat
 
 from oct_converter.dicom.boct_meta import boct_dicom_metadata
 from oct_converter.dicom.e2e_meta import e2e_dicom_metadata
@@ -59,8 +61,6 @@ def opt_base_dicom(filepath: Path) -> Dataset:
 
     # Create the FileDataset instance with file meta, preamble and empty DS
     ds = FileDataset(str(filepath), {}, file_meta=file_meta, preamble=b"\0" * 128)
-    ds.is_little_endian = True
-    ds.is_implicit_VR = False  # Explicit VR
     return ds
 
 
@@ -129,8 +129,20 @@ def populate_opt_series(
     Returns:
             ds: Dataset, updated with study and series information
     """
+    # General study / series UIDs (optional overrides keep OPT/SEG/fundus linked)
     ds.StudyInstanceUID = study_instance_uid or generate_uid()
     ds.SeriesInstanceUID = series_instance_uid or generate_uid()
+    ds.StudyID = meta.series_info.study_id
+    ds.StudyDate = (
+        meta.series_info.acquisition_date.strftime("%Y%m%d")
+        if meta.series_info.acquisition_date
+        else ""
+    )
+    ds.StudyTime = (
+        meta.series_info.acquisition_date.strftime("%H%M%S.%f")
+        if meta.series_info.acquisition_date
+        else ""
+    )
     ds.Laterality = meta.series_info.laterality
     ds.ProtocolName = meta.series_info.protocol
     ds.SeriesDescription = meta.series_info.description
@@ -172,8 +184,10 @@ def opt_shared_functional_groups(ds: Dataset, meta: DicomMetadata) -> Dataset:
     shared_ds = [Dataset()]
     # Frame anatomy PS3.3 C.7.6.16.2.8
     shared_ds[0].FrameAnatomySequence = [Dataset()]
-    shared_ds[0].FrameAnatomySequence[0] = ds.AnatomicRegionSequence[0].copy()
     shared_ds[0].FrameAnatomySequence[0].FrameLaterality = meta.series_info.laterality
+    shared_ds[0].FrameAnatomySequence[0].AnatomicRegionSequence = [
+        ds.AnatomicRegionSequence[0].copy()
+    ]
     # Pixel Measures PS3.3 C.7.6.16.2.1
     shared_ds[0].PixelMeasuresSequence = [Dataset()]
     shared_ds[0].PixelMeasuresSequence[
@@ -237,9 +251,14 @@ def write_opt_dicom(
     ds.ImageType = ["DERIVED", "SECONDARY"]
     ds.SamplesPerPixel = 1
     if meta.series_info.acquisition_date:
-        ds.AcquisitionDateTime = meta.series_info.acquisition_date.strftime(
-            "%Y%m%d%H%M%S.%f"
-        )
+        # Convert string to datetime object if it's a string
+        if isinstance(meta.series_info.acquisition_date, str):
+            input_datetime = datetime.strptime(
+                meta.series_info.acquisition_date, "%Y-%m-%d %H:%M:%S"
+            )
+        else:
+            input_datetime = meta.series_info.acquisition_date
+        ds.AcquisitionDateTime = input_datetime.strftime("%Y%m%d%H%M%S.%f")
     else:
         ds.AcquisitionDateTime = ""
 
@@ -287,7 +306,7 @@ def write_opt_dicom(
         # Per Frame Functional Groups
         frame_fgs = Dataset()
         frame_fgs.PlanePositionSequence = [Dataset()]
-        ipp = [0, 0, i * meta.image_geometry.slice_thickness]
+        ipp = [0, 0, DSfloat(i * meta.image_geometry.slice_thickness, auto_format=True)]
         frame_fgs.PlanePositionSequence[0].ImagePositionPatient = ipp
         frame_fgs.FrameContentSequence = [Dataset()]
         frame_fgs.FrameContentSequence[0].InStackPositionNumber = i + 1
@@ -334,7 +353,9 @@ def write_opt_dicom(
         per_frame.append(frame_fgs)
     ds.PerFrameFunctionalGroupsSequence = per_frame
     ds.PixelData = pixel_data.tobytes()
-    ds.save_as(filepath)
+    ds.save_as(
+        filepath, implicit_vr=False, little_endian=True, enforce_file_format=True
+    )
     return ds
 
 
@@ -591,7 +612,9 @@ def write_heightmap_seg_dicom(
 
     pixel_stack = np.stack(float_frames, axis=0)
     ds.FloatPixelData = pixel_stack.astype("<f4").tobytes()
-    ds.save_as(filepath)
+    ds.save_as(
+        filepath, implicit_vr=False, little_endian=True, enforce_file_format=True
+    )
     return filepath
 
 
@@ -627,6 +650,7 @@ def write_fundus_dicom(
     )
     ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
     ds.Modality = "OP"
+    ds.SOPClassUID = OphthalmicPhotography16BitImageStorage
     ds = populate_ocular_region(ds, meta)
 
     ds.PixelSpacing = meta.image_geometry.pixel_spacing
@@ -669,7 +693,9 @@ def write_fundus_dicom(
     ds.Columns = pixel_data.shape[1]
 
     ds.PixelData = pixel_data.tobytes()
-    ds.save_as(filepath)
+    ds.save_as(
+        filepath, implicit_vr=False, little_endian=True, enforce_file_format=True
+    )
     return ds
 
 
@@ -690,6 +716,7 @@ def write_color_fundus_dicom(
     ds = populate_manufacturer_info(ds, meta)
     ds = populate_opt_series(ds, meta)
     ds.Modality = "OP"
+    ds.SOPClassUID = OphthalmicPhotography16BitImageStorage
     ds = populate_ocular_region(ds, meta)
 
     ds.PixelSpacing = meta.image_geometry.pixel_spacing
@@ -733,7 +760,9 @@ def write_color_fundus_dicom(
     ds.Columns = pixel_data.shape[1]
 
     ds.PixelData = pixel_data.tobytes()
-    ds.save_as(filepath)
+    ds.save_as(
+        filepath, implicit_vr=False, little_endian=True, enforce_file_format=True
+    )
     return filepath
 
 
@@ -791,7 +820,7 @@ def create_dicom_from_oct(
         try:
             BOCT(input_file)
             files = create_dicom_from_boct(input_file, output_dir, diskbuffered)
-        except (InvalidOCTReaderError, StreamError):
+        except (InvalidOCTReaderError, StreamError, UnicodeDecodeError, StringError):
             # if BOCT raises, treat as POCT
             files = create_dicom_from_poct(input_file, output_dir)
     elif file_suffix == "e2e":
