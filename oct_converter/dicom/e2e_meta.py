@@ -9,6 +9,7 @@ from oct_converter.dicom.metadata import (
     OPTAcquisitionDevice,
     OPTAnatomyStructure,
     PatientMeta,
+    ScanGeometryMeta,
     SeriesMeta,
 )
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
@@ -130,6 +131,22 @@ def e2e_image_params() -> OCTImageParams:
     return image_params
 
 
+def e2e_scan_geometry_meta(image: OCTVolumeWithMetaData) -> ScanGeometryMeta | None:
+    """Map OCTVolumeWithMetaData.scan_geometry dict to ScanGeometryMeta."""
+    geom = getattr(image, "scan_geometry", None)
+    if not geom:
+        return None
+    return ScanGeometryMeta(
+        scan_type=geom.get("type", "volume"),
+        start_angle=geom.get("start_angle"),
+        centre=list(geom["centre"]) if geom.get("centre") else None,
+        radius=geom.get("radius"),
+        line_start=list(geom["line_start"]) if geom.get("line_start") else None,
+        line_end=list(geom["line_end"]) if geom.get("line_end") else None,
+        frame_lines=geom.get("frame_lines"),
+    )
+
+
 def e2e_dicom_metadata(
     image: FundusImageWithMetaData | OCTVolumeWithMetaData,
 ) -> DicomMetadata:
@@ -140,26 +157,30 @@ def e2e_dicom_metadata(
     Returns:
         DicomMetadata: Populated DicomMetadata created with fundus or oct metadata
     """
-
-    meta = DicomMetadata
-    meta.patient_info = e2e_patient_meta(image.metadata)
-    meta.manufacturer_info = e2e_manu_meta()
-    meta.oct_image_params = e2e_image_params()
     if type(image) == OCTVolumeWithMetaData:
-        meta.series_info = e2e_series_meta(
+        series_info = e2e_series_meta(
             image.volume_id,
             image.laterality,
             image.acquisition_date,
             image.metadata,
         )
-        meta.image_geometry = e2e_image_geom(image.pixel_spacing)
+        image_geometry = e2e_image_geom(image.pixel_spacing)
+        scan_geometry = e2e_scan_geometry_meta(image)
     else:  # type(image) == FundusImageWithMetaData
-        meta.series_info = e2e_series_meta(
+        series_info = e2e_series_meta(
             image.image_id,
             image.laterality,
             None,
             image.metadata,
         )
-        meta.image_geometry = e2e_image_geom(image.pixel_spacing)
+        image_geometry = e2e_image_geom(image.pixel_spacing)
+        scan_geometry = None
 
-    return meta
+    return DicomMetadata(
+        patient_info=e2e_patient_meta(image.metadata),
+        series_info=series_info,
+        manufacturer_info=e2e_manu_meta(),
+        image_geometry=image_geometry,
+        oct_image_params=e2e_image_params(),
+        scan_geometry=scan_geometry,
+    )

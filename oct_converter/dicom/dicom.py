@@ -28,6 +28,11 @@ from oct_converter.dicom.metadata import DicomMetadata
 from oct_converter.dicom.poct_meta import poct_dicom_metadata
 from oct_converter.exceptions import InvalidOCTReaderError
 from oct_converter.readers import BOCT, E2E, FDA, FDS, IMG, POCT
+from oct_converter.readers.scan_geometry import (
+    ScanGeometry,
+    circle_reference_coordinates,
+    scan_pattern_code,
+)
 
 # Deterministic implementation UID based on package name and version
 version = metadata.version("oct_converter")
@@ -194,6 +199,7 @@ def write_opt_dicom(
     frame_of_reference_uid: str | None = None,
     series_instance_uid: str | None = None,
     sop_instance_uid: str | None = None,
+    fundus_ds: Dataset | None = None,
 ) -> FileDataset:
     """Writes required DICOM metadata and oct pixel data to .dcm file.
 
@@ -205,6 +211,8 @@ def write_opt_dicom(
             frame_of_reference_uid: Optional shared Frame of Reference UID
             series_instance_uid: Optional Series Instance UID
             sop_instance_uid: Optional SOP Instance UID
+            fundus_ds: Optional companion fundus FileDataset for Ophthalmic
+                Frame Location (circular / linear scan overlay on localizer)
     Returns:
             FileDataset of the written OPT instance (path is ``filepath``)
     """
@@ -253,6 +261,21 @@ def write_opt_dicom(
     ds.ContentTime = timeStr
     ds.InstanceNumber = 1
 
+    # Scan Pattern Type (CID 4272) — Ophthalmic Tomography Parameters
+    geom = meta.scan_geometry
+    scheme, value, meaning = scan_pattern_code(
+        ScanGeometry(
+            scan_type=geom.scan_type if geom else "volume",
+            start_angle=geom.start_angle if geom else None,
+            centre=tuple(geom.centre) if geom and geom.centre else None,
+            radius=geom.radius if geom else None,
+        )
+        if geom
+        else None,
+        len(frames),
+    )
+    ds.ScanPatternTypeCodeSequence = [_code_dataset(scheme, value, meaning)]
+
     per_frame = []
     # Normalize
     frames = normalize_volume(frames)
@@ -269,6 +292,45 @@ def write_opt_dicom(
         frame_fgs.FrameContentSequence = [Dataset()]
         frame_fgs.FrameContentSequence[0].InStackPositionNumber = i + 1
         frame_fgs.FrameContentSequence[0].StackID = "1"
+
+        # Ophthalmic Frame Location Macro (circular / linear vs fundus)
+        if fundus_ds is not None and geom is not None:
+            loc = Dataset()
+            loc.ReferencedSOPClassUID = fundus_ds.SOPClassUID
+            loc.ReferencedSOPInstanceUID = fundus_ds.SOPInstanceUID
+            loc.PurposeOfReferenceCodeSequence = [
+                _code_dataset("DCM", "121311", "Localizer")
+            ]
+            if geom.scan_type == "circular" and geom.centre and geom.radius is not None:
+                loc.OphthalmicImageOrientation = "NONLINEAR"
+                loc.ReferenceCoordinates = circle_reference_coordinates(
+                    tuple(geom.centre),
+                    float(geom.radius),
+                    float(geom.start_angle or 0.0),
+                    int(ds.Columns),
+                )
+                frame_fgs.OphthalmicFrameLocationSequence = [loc]
+            else:
+                line_start = geom.line_start
+                line_end = geom.line_end
+                if geom.frame_lines and i < len(geom.frame_lines):
+                    fl = geom.frame_lines[i]
+                    if fl and fl.get("line_start") and fl.get("line_end"):
+                        line_start = fl["line_start"]
+                        line_end = fl["line_end"]
+                if line_start and line_end:
+                    loc.OphthalmicImageOrientation = "LINEAR"
+                    # DICOM (row, col) = (y, x)
+                    sx, sy = line_start
+                    ex, ey = line_end
+                    loc.ReferenceCoordinates = [
+                        float(sy),
+                        float(sx),
+                        float(ey),
+                        float(ex),
+                    ]
+                    frame_fgs.OphthalmicFrameLocationSequence = [loc]
+
         per_frame.append(frame_fgs)
     ds.PerFrameFunctionalGroupsSequence = per_frame
     ds.PixelData = pixel_data.tobytes()
@@ -534,21 +596,36 @@ def write_heightmap_seg_dicom(
 
 
 def write_fundus_dicom(
-    meta: DicomMetadata, frames: t.List[np.ndarray], filepath: Path
-) -> Path:
+    meta: DicomMetadata,
+    frames: t.List[np.ndarray],
+    filepath: Path,
+    study_instance_uid: str | None = None,
+    series_instance_uid: str | None = None,
+    sop_instance_uid: str | None = None,
+) -> FileDataset:
     """Writes required DICOM metadata and fundus pixel data to .dcm file.
 
     Args:
             meta: DICOM metadata information
             frames: list of frames of pixel data
             filepath: Path to where output file is being saved
+            study_instance_uid: Optional shared Study Instance UID
+            series_instance_uid: Optional Series Instance UID
+            sop_instance_uid: Optional SOP Instance UID
     Returns:
-            Path to created DICOM file
+            FileDataset of the written fundus instance
     """
     ds = opt_base_dicom(filepath)
     ds = populate_patient_info(ds, meta)
     ds = populate_manufacturer_info(ds, meta)
-    ds = populate_opt_series(ds, meta)
+    ds = populate_opt_series(
+        ds,
+        meta,
+        study_instance_uid=study_instance_uid,
+        series_instance_uid=series_instance_uid,
+        sop_instance_uid=sop_instance_uid,
+    )
+    ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
     ds.Modality = "OP"
     ds = populate_ocular_region(ds, meta)
 
@@ -593,7 +670,7 @@ def write_fundus_dicom(
 
     ds.PixelData = pixel_data.tobytes()
     ds.save_as(filepath)
-    return filepath
+    return ds
 
 
 def write_color_fundus_dicom(
@@ -670,6 +747,7 @@ def create_dicom_from_oct(
     extract_scan_repeats: bool = False,
     scalex: float = 0.01,
     slice_thickness: float = 0.05,
+    apply_registration: bool = False,
 ) -> list:
     """Creates a DICOM file with the data parsed from
     the input file.
@@ -686,6 +764,9 @@ def create_dicom_from_oct(
             extract_scan_repeats: If .e2e file, allows for extracting all scan repeats
             scalex: If .e2e file, allows for manually setting x scale (in mm)
             slice_thickness: If .e2e file, allows for manually setting z scale (in mm)
+            apply_registration: If .e2e file, apply Heidelberg B-scan
+                registration to OCT pixels and layer contours before writing
+                DICOM. Defaults to False.
 
     Returns:
             list: list of Path(s) to DICOM file
@@ -720,6 +801,7 @@ def create_dicom_from_oct(
             extract_scan_repeats,
             scalex,
             slice_thickness,
+            apply_registration=apply_registration,
         )
     else:
         raise TypeError(
@@ -786,6 +868,7 @@ def create_dicom_from_e2e(
     extract_scan_repeats: bool = False,
     scalex: float = 0.01,
     slice_thickness: float = 0.05,
+    apply_registration: bool = False,
 ) -> list:
     """Creates DICOM file(s) with the data parsed from
     the input file.
@@ -796,12 +879,18 @@ def create_dicom_from_e2e(
             extract_scan_repeats: If True, will extract all scan repeats
             scalex: Manually set scale of x axis
             slice_thickness: Manually set scale of z axis
+            apply_registration: Apply Heidelberg B-scan registration to
+                OCT pixels and contours before writing. Defaults to False.
 
     Returns:
             list: List of path(s) to DICOM file(s)
     """
     e2e = E2E(input_file)
-    oct_volumes = e2e.read_oct_volume(scalex=scalex, slice_thickness=slice_thickness)
+    oct_volumes = e2e.read_oct_volume(
+        scalex=scalex,
+        slice_thickness=slice_thickness,
+        apply_registration=apply_registration,
+    )
     fundus_images = e2e.read_fundus_image(
         extract_scan_repeats=extract_scan_repeats, scalex=scalex
     )
@@ -809,28 +898,47 @@ def create_dicom_from_e2e(
         raise ValueError("No OCT volumes or fundus images found in e2e input file.")
 
     files = []
+    # Map series key -> fundus FileDataset for Ophthalmic Frame Location
+    fundus_by_id: dict[str, Dataset] = {}
+    # Shared Study UID per E2E file
+    study_uid = generate_uid()
 
     if len(fundus_images) > 0:
         for count, fundus in enumerate(fundus_images):
             meta = e2e_dicom_metadata(fundus)
             filename = f"{Path(input_file).stem}_fundus_{str(count)}.dcm"
             filepath = Path(output_dir, filename)
-            file = write_fundus_dicom(meta, fundus.image, filepath)
-            files.append(file)
+            fundus_ds = write_fundus_dicom(
+                meta, fundus.image, filepath, study_instance_uid=study_uid
+            )
+            files.append(filepath)
+            if fundus.image_id:
+                # Strip trailing underscores used for scan-repeat disambiguation
+                key = fundus.image_id.rstrip("_")
+                fundus_by_id.setdefault(key, fundus_ds)
+                fundus_by_id[fundus.image_id] = fundus_ds
 
     if len(oct_volumes) > 0:
         for count, oct in enumerate(oct_volumes):
             meta = e2e_dicom_metadata(oct)
-            study_uid = generate_uid()
             for_uid = generate_uid()
             filename = f"{Path(input_file).stem}_oct_{str(count)}.dcm"
             filepath = Path(output_dir, filename)
+            fundus_ds = None
+            if oct.volume_id:
+                fundus_ds = fundus_by_id.get(oct.volume_id) or fundus_by_id.get(
+                    oct.volume_id.rstrip("_")
+                )
+            # Fallback: single fundus for single OCT
+            if fundus_ds is None and len(fundus_by_id) == 1:
+                fundus_ds = next(iter(fundus_by_id.values()))
             opt_ds = write_opt_dicom(
                 meta,
                 oct.volume,
                 filepath,
                 study_instance_uid=study_uid,
                 frame_of_reference_uid=for_uid,
+                fundus_ds=fundus_ds,
             )
             files.append(filepath)
 

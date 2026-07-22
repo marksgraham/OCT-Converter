@@ -12,6 +12,12 @@ from construct.core import StreamError
 
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
 from oct_converter.readers.binary_structs import e2e_binary
+from oct_converter.readers.scan_geometry import build_volume_scan_geometry
+from oct_converter.readers.registration import (
+    apply_registration_to_contour_slice,
+    apply_registration_to_volume_slice,
+    registration_from_values,
+)
 
 
 class E2E(object):
@@ -68,6 +74,7 @@ class E2E(object):
         legacy_intensity_transform: bool = False,
         scalex: float = 0.01,
         slice_thickness: float = 0.05,
+        apply_registration: bool = False,
     ) -> list[OCTVolumeWithMetaData]:
         """Reads OCT data.
 
@@ -75,6 +82,10 @@ class E2E(object):
              legacy_intensity_transform: if True, use intensity transform used in v<=0.5.7. Defaults to False.
              scalex: Manually set scale of x axis
              slice_thickness: Manually set scale of z axis
+             apply_registration: If True, apply Heidelberg per-B-scan affine
+                 registration (chunk 0x271C) to B-scan pixels and layer
+                 contours so they match Heyex display space.
+                 Defaults to False for backwards compatibility.
 
         Returns:
             A list of OCTVolumeWithMetaData.
@@ -118,6 +129,11 @@ class E2E(object):
             )  # for storage of slices not caught by extraction
             laterality_dict = {}
             laterality = None
+            # volume_string -> {slice_index: bscan_metadata}
+            bscan_meta_dict: dict = defaultdict(dict)
+            # volume_string -> {slice_index: BScanRegistration}
+            registration_dict: dict = defaultdict(dict)
+            fundus_info = None
             for volume, num_slices in volume_dict.items():
                 if num_slices > 0:
                     # num_slices + 1 here due to evidence that a slice was being missed off the end in extraction
@@ -161,6 +177,13 @@ class E2E(object):
                     except Exception:
                         pass
 
+                elif chunk.type == 5:  # fundus / IR image info
+                    try:
+                        raw = f.read(min(int(chunk.size), 36))
+                        fundus_info = e2e_binary.fundus_info_structure.parse(raw)
+                    except Exception:
+                        fundus_info = None
+
                 elif chunk.type == 10004:  # bscan metadata
                     raw = f.read(104)
                     bscan_metadata = e2e_binary.bscan_metadata.parse(raw)
@@ -183,6 +206,34 @@ class E2E(object):
                             bscan_metadata.scaley,
                             slice_thickness,
                         ]
+                    volume_string = "{}_{}_{}".format(
+                        chunk.patient_db_id, chunk.study_id, chunk.series_id
+                    )
+                    slice_index = int(chunk.slice_id / 2)
+                    bscan_meta_dict[volume_string][slice_index] = bscan_metadata
+
+                elif chunk.type == 0x271C:  # B-scan registration / shape-adjust
+                    raw = f.read(int(chunk.size) if chunk.size else 100)
+                    try:
+                        reg_raw = e2e_binary.bscan_registration_structure.parse(raw)
+                        values_1 = [float(v) for v in reg_raw.values_1]
+                        reg = registration_from_values(
+                            scale_x=values_1[0],
+                            dx=values_1[2],
+                            dy=values_1[8],
+                            shear_y_angle=values_1[6],
+                            values_1=values_1,
+                        )
+                        volume_string = "{}_{}_{}".format(
+                            chunk.patient_db_id, chunk.study_id, chunk.series_id
+                        )
+                        slice_index = int(chunk.slice_id / 2)
+                        registration_dict[volume_string][slice_index] = reg
+                    except Exception:
+                        warnings.warn(
+                            f"Could not parse B-scan registration at slice_id={chunk.slice_id}",
+                            UserWarning,
+                        )
 
                 elif chunk.type == 3:  # scan preamble data
                     raw = f.read(chunk.size)
@@ -291,6 +342,34 @@ class E2E(object):
                     for slice_id, contour in contour_values.items():
                         (contour_data[volume_id][contour_name][slice_id]) = contour
 
+            # Optional Heidelberg registration: warp B-scans + contours into
+            # Heyex display space.
+            if apply_registration:
+                for vol_key, slices in volume_array_dict.items():
+                    regs = registration_dict.get(vol_key) or {}
+                    if not regs:
+                        continue
+                    for slice_idx, reg in regs.items():
+                        if slice_idx >= len(slices) or isinstance(
+                            slices[slice_idx], int
+                        ):
+                            continue
+                        img = slices[slice_idx]
+                        height, width = img.shape[:2]
+                        slices[slice_idx] = apply_registration_to_volume_slice(
+                            img, reg
+                        )
+                        if vol_key not in contour_data:
+                            continue
+                        for cname, clist in contour_data[vol_key].items():
+                            if (
+                                slice_idx < len(clist)
+                                and clist[slice_idx] is not None
+                            ):
+                                clist[slice_idx] = apply_registration_to_contour_slice(
+                                    clist[slice_idx], reg, width, height
+                                )
+
             # Read metadata to attach to OCTVolumeWithMetaData
             metadata = self.read_all_metadata()
 
@@ -302,6 +381,18 @@ class E2E(object):
                 volume = [slc for slc in volume if not isinstance(slc, int)]
                 if volume is None or len(volume) == 0:
                     continue
+                scan_geometry = None
+                bscan_by_slice = bscan_meta_dict.get(key) or {}
+                pixel_spacing = self.pixel_spacing
+                if bscan_by_slice:
+                    scan_geometry, pixel_spacing = build_volume_scan_geometry(
+                        bscan_by_slice=bscan_by_slice,
+                        num_slices=len(volume),
+                        num_columns=int(volume[0].shape[1]),
+                        default_pixel_spacing=self.pixel_spacing,
+                        slice_thickness=slice_thickness,
+                        fundus_info=fundus_info,
+                    )
                 oct_volumes.append(
                     OCTVolumeWithMetaData(
                         volume=volume,
@@ -314,7 +405,8 @@ class E2E(object):
                         volume_id=key,
                         laterality=laterality_dict.get(key),
                         contours=contour_data.get(key),
-                        pixel_spacing=self.pixel_spacing,
+                        pixel_spacing=pixel_spacing,
+                        scan_geometry=scan_geometry,
                         metadata=metadata,
                     )
                 )
