@@ -141,6 +141,8 @@ class E2E(object):
                     volume_array_dict[volume] = [0] * int(num_slices + 1)
 
             contour_dict = defaultdict(lambda: defaultdict(dict))
+            # Legacy 0x2713 contours; used only when 0x2723 is absent for a key.
+            contour_dict_legacy = defaultdict(lambda: defaultdict(dict))
 
             # traverse all chunks and extract slices
             for start, pos in chunk_stack:
@@ -250,7 +252,47 @@ class E2E(object):
                     if laterality and (volume_string not in laterality_dict):
                         laterality_dict[volume_string] = laterality
 
-                elif chunk.type == 10019:  # contour data
+                elif chunk.type == 0x2723:  # ContourSegment (preferred)
+                    raw = f.read(36)  # 16-byte header + 20-byte padding
+                    try:
+                        contour_hdr = e2e_binary.contour_structure_v2.parse(raw)
+                    except Exception:
+                        warnings.warn(
+                            f"Could not parse ContourSegment header at "
+                            f"slice_id={chunk.slice_id}",
+                            UserWarning,
+                        )
+                        continue
+                    if contour_hdr.width > 0:
+                        volume_string = "{}_{}_{}".format(
+                            chunk.patient_db_id, chunk.study_id, chunk.series_id
+                        )
+                        slice_id = int(chunk.slice_id / 2)
+                        contour_name = f"contour{contour_hdr.id}"
+                        try:
+                            raw_volume = np.frombuffer(
+                                f.read(contour_hdr.width * 4), dtype=np.float32
+                            )
+                            contour = np.array(raw_volume, dtype=np.float32, copy=True)
+                            # Match Heyex / private_eye: only max-float is invalid.
+                            max_float = np.finfo(np.float32).max
+                            contour[contour == max_float] = np.nan
+                        except Exception:
+                            warnings.warn(
+                                (
+                                    f"Could not read ContourSegment "
+                                    f"image id {volume_string} "
+                                    f"contour name {contour_name} "
+                                    f"slice id {slice_id}."
+                                ),
+                                UserWarning,
+                            )
+                        else:
+                            (
+                                contour_dict[volume_string][contour_name][slice_id]
+                            ) = contour
+
+                elif chunk.type == 10019:  # legacy contour data (0x2713)
                     raw = f.read(16)
                     contour_data = e2e_binary.contour_structure.parse(raw)
 
@@ -279,7 +321,9 @@ class E2E(object):
                             )
                         else:
                             (
-                                contour_dict[volume_string][contour_name][slice_id]
+                                contour_dict_legacy[volume_string][contour_name][
+                                    slice_id
+                                ]
                             ) = contour
 
                 elif chunk.type == 1073741824:  # image data
@@ -328,6 +372,13 @@ class E2E(object):
                                     volume_array_dict_additional[volume_string] = [
                                         image
                                     ]
+
+            # Prefer 0x2723 ContourSegment; fall back to legacy 0x2713 when absent.
+            for volume_id, contours in contour_dict_legacy.items():
+                for contour_name, by_slice in contours.items():
+                    for slice_id, contour in by_slice.items():
+                        if slice_id not in contour_dict[volume_id][contour_name]:
+                            contour_dict[volume_id][contour_name][slice_id] = contour
 
             contour_data = {}
             for volume_id, contours in contour_dict.items():
@@ -613,7 +664,15 @@ class E2E(object):
                         _convert_to_dict(laterality_data)
                     )
 
-                elif chunk.type == 10019:  # contour data
+                elif chunk.type == 0x2723:  # ContourSegment (preferred)
+                    raw = f.read(36)
+                    try:
+                        contour_data = e2e_binary.contour_structure_v2.parse(raw)
+                        metadata["contour_data"].append(_convert_to_dict(contour_data))
+                    except Exception:
+                        pass
+
+                elif chunk.type == 10019:  # legacy contour data (0x2713)
                     raw = f.read(16)
                     contour_data = e2e_binary.contour_structure.parse(raw)
                     metadata["contour_data"].append(_convert_to_dict(contour_data))

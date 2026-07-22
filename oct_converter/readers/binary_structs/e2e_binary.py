@@ -1,5 +1,6 @@
 from construct import (
     Array,
+    Bytes,
     Float32l,
     Float64l,
     Int8un,
@@ -96,11 +97,22 @@ lat_structure = Struct(
     "laterality" / PaddedString(1, "ascii"),
     "unknown2" / Int8un,
 )
+# Chunk type 10019 (0x2713): legacy layer contours (may include leading zeros).
 contour_structure = Struct(
     "unknown0" / Int32un,
     "id" / Int32un,
     "unknown1" / Int32un,
     "width" / Int32un,
+)
+
+# Chunk type 0x2723: current ContourSegment layout (matches Heyex / private_eye).
+# Header is the same four int32s, then 20 bytes padding, then ``width`` float32s.
+contour_structure_v2 = Struct(
+    "mystery_1" / Int32un,
+    "id" / Int32un,
+    "mystery_2" / Int32un,
+    "width" / Int32un,
+    "padding" / Bytes(20),
 )
 
 # Chunk type 0x271C (10012): B-scan registration / shape-adjust.
