@@ -25,12 +25,13 @@ def e2e_patient_meta(meta: dict) -> PatientMeta:
     """
     patient = PatientMeta()
 
-    patient_data = meta.get("patient_data", [{}])
+    patient_data = meta.get("patient_data") or [{}]
+    patient_row = patient_data[0] if patient_data else {}
 
-    patient.first_name = patient_data[0].get("first_name")
-    patient.last_name = patient_data[0].get("surname")
-    patient.patient_id = patient_data[0].get("patient_id")
-    patient.patient_sex = patient_data[0].get("sex")
+    patient.first_name = patient_row.get("first_name") or ""
+    patient.last_name = patient_row.get("surname") or ""
+    patient.patient_id = patient_row.get("patient_id") or ""
+    patient.patient_sex = patient_row.get("sex") or ""
     # TODO patient.patient_dob
     # Currently, E2E's patient_dob is incorrect, see
     # the E2E reader for more context.

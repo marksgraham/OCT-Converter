@@ -40,6 +40,7 @@ class E2E(object):
         self.sex = None
         self.first_name = None
         self.surname = None
+        self.patient_id = None
         self.acquisition_date = None
         self.birthdate = None
         self.pixel_spacing = None

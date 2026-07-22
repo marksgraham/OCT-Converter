@@ -74,9 +74,9 @@ def populate_patient_info(ds: Dataset, meta: DicomMetadata) -> Dataset:
             ds: Dataset, updated with patient information
     """
     # Patient Module PS3.3 C.7.1.1
-    ds.PatientName = f"{meta.patient_info.last_name}^{meta.patient_info.first_name}"
-    ds.PatientID = meta.patient_info.patient_id
-    ds.PatientSex = meta.patient_info.patient_sex
+    ds.PatientName = f"{meta.patient_info.last_name or ''}^{meta.patient_info.first_name or ''}"
+    ds.PatientID = meta.patient_info.patient_id or ""
+    ds.PatientSex = meta.patient_info.patient_sex or ""
     ds.PatientBirthDate = (
         meta.patient_info.patient_dob.strftime("%Y%m%d")
         if meta.patient_info.patient_dob
