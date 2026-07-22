@@ -11,6 +11,7 @@ from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 from pydicom.uid import (
     ExplicitVRLittleEndian,
     OphthalmicTomographyImageStorage,
+    UID,
     generate_uid,
 )
 
@@ -18,6 +19,10 @@ from oct_converter.dicom.boct_meta import boct_dicom_metadata
 from oct_converter.dicom.e2e_meta import e2e_dicom_metadata
 from oct_converter.dicom.fda_meta import fda_dicom_metadata
 from oct_converter.dicom.fds_meta import fds_dicom_metadata
+from oct_converter.dicom.heightmap import (
+    HEIGHTMAP_PADDING_VALUE,
+    contours_to_heightmaps,
+)
 from oct_converter.dicom.img_meta import img_dicom_metadata
 from oct_converter.dicom.metadata import DicomMetadata
 from oct_converter.dicom.poct_meta import poct_dicom_metadata
@@ -27,6 +32,9 @@ from oct_converter.readers import BOCT, E2E, FDA, FDS, IMG, POCT
 # Deterministic implementation UID based on package name and version
 version = metadata.version("oct_converter")
 implementation_uid = generate_uid(entropy_srcs=["oct_converter", version])
+
+# PS3.4 Height Map Segmentation Storage (not yet in all pydicom releases)
+HeightMapSegmentationStorage = UID("1.2.840.10008.5.1.4.1.1.66.8")
 
 
 def opt_base_dicom(filepath: Path) -> Dataset:
@@ -97,40 +105,40 @@ def populate_manufacturer_info(ds: Dataset, meta: DicomMetadata) -> Dataset:
     return ds
 
 
-def populate_opt_series(ds: Dataset, meta: DicomMetadata) -> Dataset:
+def populate_opt_series(
+    ds: Dataset,
+    meta: DicomMetadata,
+    study_instance_uid: str | None = None,
+    series_instance_uid: str | None = None,
+    sop_instance_uid: str | None = None,
+) -> Dataset:
     """Populates study and series modules, PS3.3 C.7.2.1, PS3.3 C.7.3.1,
     PS3.3 C.8.17.6, and PS3.3 C.12.1
 
     Args:
             ds: current dataset
             meta: DICOM metadata information
+            study_instance_uid: Optional shared Study Instance UID
+            series_instance_uid: Optional Series Instance UID
+            sop_instance_uid: Optional SOP Instance UID
     Returns:
             ds: Dataset, updated with study and series information
     """
-    # General study module PS3.3 C.7.2.1
-    # Deterministic StudyInstanceUID based on study ID
-    # ds.StudyInstanceUID = generate_uid(entropy_srcs=[
-    # 	# str(uuid.uuid4()),
-    # 	str(meta.series_info.study_id)
-    # ])
-
-    # # General series module PS3.3 C.7.3.1
-    # ds.SeriesInstanceUID = generate_uid(entropy_srcs=[
-    # 	# str(uuid.uuid4()),
-    # 	str(meta.series_info.series_id)
-    # ])
-    ds.StudyInstanceUID = generate_uid()
-    ds.SeriesInstanceUID = generate_uid()
+    ds.StudyInstanceUID = study_instance_uid or generate_uid()
+    ds.SeriesInstanceUID = series_instance_uid or generate_uid()
     ds.Laterality = meta.series_info.laterality
     ds.ProtocolName = meta.series_info.protocol
     ds.SeriesDescription = meta.series_info.description
     # Ophthalmic Tomography Series PS3.3 C.8.17.6
     ds.Modality = "OPT"
-    ds.SeriesNumber = int(meta.series_info.series_id)
+    try:
+        ds.SeriesNumber = int(meta.series_info.series_id)
+    except (TypeError, ValueError):
+        ds.SeriesNumber = 1
 
     # SOP Common module PS3.3 C.12.1
     ds.SOPClassUID = OphthalmicTomographyImageStorage
-    ds.SOPInstanceUID = generate_uid()
+    ds.SOPInstanceUID = sop_instance_uid or generate_uid()
     return ds
 
 
@@ -179,25 +187,43 @@ def opt_shared_functional_groups(ds: Dataset, meta: DicomMetadata) -> Dataset:
 
 
 def write_opt_dicom(
-    meta: DicomMetadata, frames: t.List[np.ndarray], filepath: Path
-) -> Path:
+    meta: DicomMetadata,
+    frames: t.List[np.ndarray],
+    filepath: Path,
+    study_instance_uid: str | None = None,
+    frame_of_reference_uid: str | None = None,
+    series_instance_uid: str | None = None,
+    sop_instance_uid: str | None = None,
+) -> FileDataset:
     """Writes required DICOM metadata and oct pixel data to .dcm file.
 
     Args:
             meta: DICOM metadata information
             frames: list of frames of pixel data
             filepath: Path to where output file is being saved
+            study_instance_uid: Optional shared Study Instance UID
+            frame_of_reference_uid: Optional shared Frame of Reference UID
+            series_instance_uid: Optional Series Instance UID
+            sop_instance_uid: Optional SOP Instance UID
     Returns:
-            Path to created DICOM file
+            FileDataset of the written OPT instance (path is ``filepath``)
     """
     ds = opt_base_dicom(filepath)
     ds = populate_patient_info(ds, meta)
     ds = populate_manufacturer_info(ds, meta)
-    ds = populate_opt_series(ds, meta)
+    ds = populate_opt_series(
+        ds,
+        meta,
+        study_instance_uid=study_instance_uid,
+        series_instance_uid=series_instance_uid,
+        sop_instance_uid=sop_instance_uid,
+    )
+    ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
     ds = populate_ocular_region(ds, meta)
     ds = opt_shared_functional_groups(ds, meta)
 
-    # TODO: Frame of reference if fundus image present
+    # Frame of Reference Module PS3.3 C.7.4.1
+    ds.FrameOfReferenceUID = frame_of_reference_uid or generate_uid()
 
     # OPT Image Module PS3.3 C.8.17.7
     ds.ImageType = ["DERIVED", "SECONDARY"]
@@ -228,7 +254,6 @@ def write_opt_dicom(
     ds.InstanceNumber = 1
 
     per_frame = []
-    pixel_data_bytes = list()
     # Normalize
     frames = normalize_volume(frames)
     # Convert to a 3d volume
@@ -244,13 +269,266 @@ def write_opt_dicom(
         frame_fgs.FrameContentSequence = [Dataset()]
         frame_fgs.FrameContentSequence[0].InStackPositionNumber = i + 1
         frame_fgs.FrameContentSequence[0].StackID = "1"
-
-        # Pixel data
-        frame_dat = pixel_data[i, :, :]
-        pixel_data_bytes.append(frame_dat.tobytes())
         per_frame.append(frame_fgs)
     ds.PerFrameFunctionalGroupsSequence = per_frame
     ds.PixelData = pixel_data.tobytes()
+    ds.save_as(filepath)
+    return ds
+
+
+def _code_dataset(scheme: str, value: str, meaning: str) -> Dataset:
+    """Build a DICOM coded-entry sequence item."""
+    item = Dataset()
+    item.CodeValue = value
+    item.CodingSchemeDesignator = scheme
+    item.CodeMeaning = meaning
+    return item
+
+
+def write_heightmap_seg_dicom(
+    meta: DicomMetadata,
+    contours: dict,
+    opt_ds: Dataset,
+    filepath: Path,
+    axial_spacing_mm: float | None = None,
+) -> Path | None:
+    """Write a Height Map Segmentation DICOM from E2E layer contours.
+
+    Args:
+            meta: DICOM metadata (patient/equipment/geometry)
+            contours: ``OCTVolumeWithMetaData.contours`` dict
+            opt_ds: Companion OPT FileDataset (must include FOR and SOP UIDs)
+            filepath: Output path for the SEG file
+            axial_spacing_mm: Axial (B-scan row) spacing in mm for RWVM.
+                Defaults to OPT pixel spacing row component when available.
+    Returns:
+            Path to written SEG file, or None if no contours to encode.
+    """
+    num_bscans = int(opt_ds.NumberOfFrames)
+    width = int(opt_ds.Columns)
+    opt_rows = int(opt_ds.Rows)
+    layers = contours_to_heightmaps(contours, num_bscans, width)
+    if not layers:
+        return None
+
+    # Prefer axial spacing from E2E pixel_spacing (scaley); fall back to OPT row spacing.
+    if axial_spacing_mm is None:
+        if meta.image_geometry.pixel_spacing:
+            axial_spacing_mm = float(meta.image_geometry.pixel_spacing[0])
+        else:
+            axial_spacing_mm = 1.0
+
+    # Heightmap Pixel Measures: row = B-scan spacing, col = OPT column spacing
+    opt_col_spacing = float(meta.image_geometry.pixel_spacing[1]) if meta.image_geometry.pixel_spacing else 1.0
+    slice_thickness = float(meta.image_geometry.slice_thickness)
+    image_orientation = list(meta.image_geometry.image_orientation) or [
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+    ]
+
+    file_meta = FileMetaDataset()
+    file_meta.MediaStorageSOPClassUID = HeightMapSegmentationStorage
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.ImplementationClassUID = implementation_uid
+    file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+
+    ds = FileDataset(str(filepath), {}, file_meta=file_meta, preamble=b"\0" * 128)
+    ds.is_little_endian = True
+    ds.is_implicit_VR = False
+
+    ds = populate_patient_info(ds, meta)
+    # Equipment without OPT-only AcquisitionDeviceType (still useful)
+    ds.Manufacturer = meta.manufacturer_info.manufacturer
+    ds.ManufacturerModelName = meta.manufacturer_info.manufacturer_model
+    ds.DeviceSerialNumber = meta.manufacturer_info.device_serial
+    ds.SoftwareVersions = meta.manufacturer_info.software_version
+
+    # Study / Series / SOP
+    ds.StudyInstanceUID = opt_ds.StudyInstanceUID
+    ds.SeriesInstanceUID = generate_uid()
+    ds.FrameOfReferenceUID = opt_ds.FrameOfReferenceUID
+    ds.Modality = "SEG"
+    try:
+        ds.SeriesNumber = int(meta.series_info.series_id) + 1000
+    except (TypeError, ValueError):
+        ds.SeriesNumber = 1000
+    ds.Laterality = meta.series_info.laterality
+    ds.SeriesDescription = (
+        f"{meta.series_info.description} Height Map Segmentation"
+        if meta.series_info.description
+        else "Height Map Segmentation"
+    )
+    ds.SOPClassUID = HeightMapSegmentationStorage
+    ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+
+    # General Image / Height Map Segmentation Image Module
+    ds.ImageType = ["DERIVED", "PRIMARY"]
+    ds.ContentLabel = "HEIGHTMAP"
+    ds.ContentDescription = "Retinal layer height map segmentation"
+    ds.ContentCreatorName = "oct_converter"
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.SegmentationType = "HEIGHTMAP"
+    ds.NumberOfFrames = len(layers)
+    ds.Rows = num_bscans
+    ds.Columns = width
+    ds.InstanceNumber = 1
+
+    # Floating Point Image Pixel Module PS3.3 C.7.6.24
+    ds.BitsAllocated = 32
+    ds.FloatPixelPaddingValue = HEIGHTMAP_PADDING_VALUE
+    # Keep padding range a single value outside [0, OPT.Rows]
+    ds.FloatPixelPaddingRangeLimit = HEIGHTMAP_PADDING_VALUE
+
+    dt = datetime.now()
+    ds.ContentDate = dt.strftime("%Y%m%d")
+    ds.ContentTime = dt.strftime("%H%M%S.%f")
+    if meta.series_info.acquisition_date:
+        ds.AcquisitionDateTime = meta.series_info.acquisition_date.strftime(
+            "%Y%m%d%H%M%S.%f"
+        )
+
+    # Segment Sequence
+    segment_seq = []
+    algorithm_name = (
+        meta.manufacturer_info.manufacturer_model
+        or meta.manufacturer_info.manufacturer
+        or "oct_converter"
+    )
+    for idx, layer in enumerate(layers, start=1):
+        seg = Dataset()
+        seg.SegmentNumber = idx
+        seg.SegmentLabel = layer.code.label
+        seg.SegmentAlgorithmType = "AUTOMATIC"
+        seg.SegmentAlgorithmName = str(algorithm_name)
+        algo_id = Dataset()
+        algo_id.AlgorithmName = str(algorithm_name)
+        algo_id.AlgorithmVersion = version
+        algo_id.AlgorithmFamilyCodeSequence = [
+            _code_dataset("DCM", "123103", "Edge Detection")
+        ]
+        seg.SegmentationAlgorithmIdentificationSequence = [algo_id]
+        seg.SegmentedPropertyCategoryCodeSequence = [
+            _code_dataset(
+                layer.code.category_scheme,
+                layer.code.category_value,
+                layer.code.category_meaning,
+            )
+        ]
+        seg.SegmentedPropertyTypeCodeSequence = [
+            _code_dataset(
+                layer.code.type_scheme,
+                layer.code.type_value,
+                layer.code.type_meaning,
+            )
+        ]
+        segment_seq.append(seg)
+    ds.SegmentSequence = segment_seq
+
+    # Dimension organization (minimal)
+    dim_uid = generate_uid()
+    dim_org = Dataset()
+    dim_org.DimensionOrganizationUID = dim_uid
+    ds.DimensionOrganizationSequence = [dim_org]
+    dim_index = Dataset()
+    dim_index.DimensionOrganizationUID = dim_uid
+    dim_index.DimensionIndexPointer = (0x0062, 0x000B)  # Referenced Segment Number
+    dim_index.FunctionalGroupPointer = (0x0062, 0x000A)  # Segment Identification Seq
+    ds.DimensionIndexSequence = [dim_index]
+
+    # Shared functional groups: Pixel Measures, Derivation Image, RWVM, Plane Orientation
+    shared = Dataset()
+
+    pm = Dataset()
+    pm.PixelSpacing = [slice_thickness, opt_col_spacing]
+    shared.PixelMeasuresSequence = [pm]
+
+    if num_bscans > 1:
+        po = Dataset()
+        # Heightmap plane is orthogonal to OPT B-scans: rows along slice, cols along OPT cols
+        # OPT orientation is [row_dir, col_dir]; heightmap row ~ OPT slice (Z), col ~ OPT col
+        shared.PlaneOrientationSequence = [
+            Dataset()
+        ]
+        # Approximate: row direction along patient Z of OPT stack, col along OPT column
+        shared.PlaneOrientationSequence[0].ImageOrientationPatient = [
+            0,
+            0,
+            1,
+            image_orientation[3],
+            image_orientation[4],
+            image_orientation[5],
+        ]
+
+    # Derivation Image Functional Group
+    purpose = _code_dataset(
+        "DCM", "121322", "Source Image for Image Processing Operation"
+    )
+    derivation_code = _code_dataset("DCM", "113076", "Segmentation")
+    source = Dataset()
+    source.ReferencedSOPClassUID = opt_ds.SOPClassUID
+    source.ReferencedSOPInstanceUID = opt_ds.SOPInstanceUID
+    source.PurposeOfReferenceCodeSequence = [purpose]
+    deriv_item = Dataset()
+    deriv_item.DerivationCodeSequence = [derivation_code]
+    deriv_item.SourceImageSequence = [source]
+    shared.DerivationImageSequence = [deriv_item]
+
+    # Real World Value Mapping: pixel height -> mm
+    rwvm = Dataset()
+    rwvm.DoubleFloatRealWorldValueFirstValueMapped = 0.0
+    rwvm.DoubleFloatRealWorldValueLastValueMapped = float(max(opt_rows, 1))
+    rwvm.RealWorldValueIntercept = 0.0
+    rwvm.RealWorldValueSlope = float(axial_spacing_mm)
+    rwvm.LUTExplanation = "Axial distance from top of B-scan"
+    measurement = Dataset()
+    measurement.CodeValue = "mm"
+    measurement.CodingSchemeDesignator = "UCUM"
+    measurement.CodeMeaning = "mm"
+    rwvm.MeasurementUnitsCodeSequence = [measurement]
+    shared.RealWorldValueMappingSequence = [rwvm]
+
+    ds.SharedFunctionalGroupsSequence = [shared]
+
+    # Per-frame functional groups + float pixel data
+    per_frame = []
+    float_frames = []
+    for idx, layer in enumerate(layers, start=1):
+        fg = Dataset()
+        # Segment Identification
+        seg_id = Dataset()
+        seg_id.ReferencedSegmentNumber = idx
+        fg.SegmentIdentificationSequence = [seg_id]
+        # Frame Content
+        fc = Dataset()
+        fc.DimensionIndexValues = [idx]
+        fc.InStackPositionNumber = idx
+        fc.StackID = "1"
+        fg.FrameContentSequence = [fc]
+        if num_bscans > 1:
+            pp = Dataset()
+            pp.ImagePositionPatient = [0, 0, 0]
+            fg.PlanePositionSequence = [pp]
+        per_frame.append(fg)
+        float_frames.append(layer.data.astype(np.float32))
+
+    ds.PerFrameFunctionalGroupsSequence = per_frame
+
+    # Common Instance Reference: referenced OPT series
+    ref_inst = Dataset()
+    ref_inst.ReferencedSOPClassUID = opt_ds.SOPClassUID
+    ref_inst.ReferencedSOPInstanceUID = opt_ds.SOPInstanceUID
+    ref_series = Dataset()
+    ref_series.SeriesInstanceUID = opt_ds.SeriesInstanceUID
+    ref_series.ReferencedInstanceSequence = [ref_inst]
+    ds.ReferencedSeriesSequence = [ref_series]
+
+    pixel_stack = np.stack(float_frames, axis=0)
+    ds.FloatPixelData = pixel_stack.astype("<f4").tobytes()
     ds.save_as(filepath)
     return filepath
 
@@ -497,7 +775,7 @@ def create_dicom_from_boct(
         filename = f"{Path(input_file).stem}_{str(count)}.dcm"
         filepath = Path(output_dir, filename)
         file = write_opt_dicom(meta, oct.volume, filepath)
-        files.append(file)
+        files.append(filepath)
 
     return files
 
@@ -543,10 +821,35 @@ def create_dicom_from_e2e(
     if len(oct_volumes) > 0:
         for count, oct in enumerate(oct_volumes):
             meta = e2e_dicom_metadata(oct)
+            study_uid = generate_uid()
+            for_uid = generate_uid()
             filename = f"{Path(input_file).stem}_oct_{str(count)}.dcm"
             filepath = Path(output_dir, filename)
-            file = write_opt_dicom(meta, oct.volume, filepath)
-            files.append(file)
+            opt_ds = write_opt_dicom(
+                meta,
+                oct.volume,
+                filepath,
+                study_instance_uid=study_uid,
+                frame_of_reference_uid=for_uid,
+            )
+            files.append(filepath)
+
+            if oct.contours:
+                # Axial spacing is scaley (E2E pixel_spacing[1]).
+                axial_mm = None
+                if oct.pixel_spacing and len(oct.pixel_spacing) >= 2:
+                    axial_mm = float(oct.pixel_spacing[1])
+                seg_filename = f"{Path(input_file).stem}_seg_{str(count)}.dcm"
+                seg_filepath = Path(output_dir, seg_filename)
+                seg_path = write_heightmap_seg_dicom(
+                    meta,
+                    oct.contours,
+                    opt_ds,
+                    seg_filepath,
+                    axial_spacing_mm=axial_mm,
+                )
+                if seg_path is not None:
+                    files.append(seg_path)
 
     return files
 
@@ -572,7 +875,7 @@ def create_dicom_from_fda(
     output_filename = f"{Path(input_file).stem}.dcm"
     filepath = Path(output_dir, output_filename)
     file = write_opt_dicom(meta, oct.volume, filepath)
-    files.append(file)
+    files.append(filepath)
 
     # Attempt to parse fundus images
     fundus = fda.read_fundus_image()
@@ -615,7 +918,7 @@ def create_dicom_from_fds(
     output_filename = f"{Path(input_file).stem}.dcm"
     filepath = Path(output_dir, output_filename)
     file = write_opt_dicom(meta, oct.volume, filepath)
-    files.append(file)
+    files.append(filepath)
 
     # Attempt to parse fundus images
     fundus = fds.read_fundus_image()
@@ -654,7 +957,7 @@ def create_dicom_from_img(
     output_filename = f"{Path(input_file).stem}.dcm"
     filepath = Path(output_dir, output_filename)
     file = write_opt_dicom(meta, oct.volume, filepath)
-    return [file]
+    return [filepath]
 
 
 def create_dicom_from_poct(
@@ -679,6 +982,6 @@ def create_dicom_from_poct(
         filename = f"{Path(input_file).stem}_{str(count)}.dcm"
         filepath = Path(output_dir, filename)
         file = write_opt_dicom(meta, oct.volume, filepath)
-        files.append(file)
+        files.append(filepath)
 
     return files
