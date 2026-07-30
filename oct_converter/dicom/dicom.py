@@ -649,9 +649,10 @@ def write_fundus_dicom(
         series_instance_uid=series_instance_uid,
         sop_instance_uid=sop_instance_uid,
     )
-    ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
     ds.Modality = "OP"
     ds.SOPClassUID = OphthalmicPhotography16BitImageStorage
+    ds.file_meta.MediaStorageSOPClassUID = OphthalmicPhotography16BitImageStorage
+    ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
     ds = populate_ocular_region(ds, meta)
 
     ds.PixelSpacing = meta.image_geometry.pixel_spacing
@@ -740,6 +741,8 @@ def write_color_fundus_dicom(
     ds = populate_opt_series(ds, meta)
     ds.Modality = "OP"
     ds.SOPClassUID = OphthalmicPhotography16BitImageStorage
+    ds.file_meta.MediaStorageSOPClassUID = OphthalmicPhotography16BitImageStorage
+    ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
     ds = populate_ocular_region(ds, meta)
 
     ds.PixelSpacing = meta.image_geometry.pixel_spacing
