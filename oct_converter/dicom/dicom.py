@@ -375,7 +375,10 @@ def write_heightmap_seg_dicom(
     filepath: Path,
     axial_spacing_mm: float | None = None,
 ) -> Path | None:
-    """Write a Height Map Segmentation DICOM from E2E layer contours.
+    """Write a Height Map Segmentation DICOM from OCT layer contours.
+
+    Accepts E2E (``contour{id}`` lists) or FDA (named 2-D arrays) contour
+    dicts; see ``contours_to_heightmaps``.
 
     Args:
             meta: DICOM metadata (patient/equipment/geometry)
@@ -394,7 +397,7 @@ def write_heightmap_seg_dicom(
     if not layers:
         return None
 
-    # Prefer axial spacing from E2E pixel_spacing (scaley); fall back to OPT row spacing.
+    # Prefer caller-supplied axial spacing; fall back to OPT row spacing.
     if axial_spacing_mm is None:
         if meta.image_geometry.pixel_spacing:
             axial_spacing_mm = float(meta.image_geometry.pixel_spacing[0])
@@ -420,8 +423,6 @@ def write_heightmap_seg_dicom(
     file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
 
     ds = FileDataset(str(filepath), {}, file_meta=file_meta, preamble=b"\0" * 128)
-    ds.is_little_endian = True
-    ds.is_implicit_VR = False
 
     ds = populate_patient_info(ds, meta)
     # Equipment without OPT-only AcquisitionDeviceType (still useful)
@@ -688,7 +689,7 @@ def write_fundus_dicom(
     timeStr = dt.strftime("%H%M%S.%f")  # long format with micro seconds
     ds.ContentTime = timeStr
     ds.InstanceNumber = 1
-    pixel_data = np.array(frames).astype(np.uint16)
+    pixel_data = _as_grayscale_uint16(frames)
     ds.Rows = pixel_data.shape[0]
     ds.Columns = pixel_data.shape[1]
 
@@ -697,6 +698,28 @@ def write_fundus_dicom(
         filepath, implicit_vr=False, little_endian=True, enforce_file_format=True
     )
     return ds
+
+
+def _as_grayscale_uint16(frames: t.Any) -> np.ndarray:
+    """Coerce fundus pixel input to a 2-D uint16 grayscale image.
+
+    RGB / RGBA arrays (HWC or CHW) are reduced to luminance so MONOCHROME2
+    PixelData length matches Rows x Columns. Plain 2-D arrays are cast only.
+    """
+    arr = np.asarray(frames)
+    if arr.ndim == 2:
+        gray = arr
+    elif arr.ndim == 3 and arr.shape[-1] in (3, 4):
+        rgb = arr[..., :3].astype(np.float32)
+        gray = 0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]
+    elif arr.ndim == 3 and arr.shape[0] in (3, 4):
+        rgb = arr[:3].astype(np.float32)
+        gray = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
+    else:
+        raise ValueError(
+            f"Expected 2-D grayscale or 3-channel fundus image, got shape {arr.shape}"
+        )
+    return np.ascontiguousarray(gray, dtype=np.uint16)
 
 
 def write_color_fundus_dicom(
@@ -998,6 +1021,10 @@ def create_dicom_from_fda(
     """Creates DICOM file(s) with the data parsed from
     the input file.
 
+    When layer contours are present on the OCT volume, also writes a Height
+    Map Segmentation companion (``{stem}_seg.dcm``) sharing Study and Frame
+    of Reference UIDs with the OPT volume.
+
     Args:
             input_file: FDA file with OCT data
             output_dir: Output directory
@@ -1009,10 +1036,34 @@ def create_dicom_from_fda(
     fda = FDA(input_file)
     oct = fda.read_oct_volume()
     meta = fda_dicom_metadata(oct)
+    study_uid = generate_uid()
+    for_uid = generate_uid()
     output_filename = f"{Path(input_file).stem}.dcm"
     filepath = Path(output_dir, output_filename)
-    file = write_opt_dicom(meta, oct.volume, filepath)
+    opt_ds = write_opt_dicom(
+        meta,
+        oct.volume,
+        filepath,
+        study_instance_uid=study_uid,
+        frame_of_reference_uid=for_uid,
+    )
     files.append(filepath)
+
+    # Write SEG before fundus mutates image_geometry.pixel_spacing.
+    if oct.contours:
+        axial_mm = None
+        if oct.pixel_spacing and len(oct.pixel_spacing) >= 3:
+            axial_mm = float(oct.pixel_spacing[2])
+        seg_filepath = Path(output_dir, f"{Path(input_file).stem}_seg.dcm")
+        seg_path = write_heightmap_seg_dicom(
+            meta,
+            oct.contours,
+            opt_ds,
+            seg_filepath,
+            axial_spacing_mm=axial_mm,
+        )
+        if seg_path is not None:
+            files.append(seg_path)
 
     # Attempt to parse fundus images
     fundus = fda.read_fundus_image()
@@ -1028,8 +1079,13 @@ def create_dicom_from_fda(
         output_filename = f"{Path(input_file).stem}_fundus_grayscale.dcm"
         filepath = Path(output_dir, output_filename)
         meta.image_geometry.pixel_spacing = [1, 1]
-        file = write_fundus_dicom(meta, fundus_grayscale.image, filepath)
-        files.append(file)
+        write_fundus_dicom(
+            meta,
+            fundus_grayscale.image,
+            filepath,
+            study_instance_uid=study_uid,
+        )
+        files.append(filepath)
 
     return files
 

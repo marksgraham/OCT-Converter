@@ -1,12 +1,13 @@
-"""Demonstrate E2E layer segmentation export as Height Map Segmentation DICOM.
+"""Demonstrate FDA layer segmentation export as Height Map Segmentation DICOM.
 
-When an E2E volume includes Heidelberg layer contours, create_dicom_from_oct()
+When an FDA volume includes Topcon layer contours, create_dicom_from_oct()
 also writes a Height Map Segmentation Storage file (SOP Class UID
 1.2.840.10008.5.1.4.1.1.66.8) alongside the OPT volume and fundus images:
 
-    {stem}_oct_{n}.dcm   - Ophthalmic Tomography (OPT) volume
-    {stem}_fundus_{n}.dcm - fundus / enface image (if present)
-    {stem}_seg_{n}.dcm   - Height Map Segmentation (layer surfaces)
+    {stem}.dcm                 - Ophthalmic Tomography (OPT) volume
+    {stem}_fundus.dcm          - color fundus (if present)
+    {stem}_fundus_grayscale.dcm - grayscale fundus (if present)
+    {stem}_seg.dcm             - Height Map Segmentation (layer surfaces)
 
 How height values are stored (DICOM PS3.3 A.91 / C.8.20.5)
 ----------------------------------------------------------
@@ -25,7 +26,25 @@ How height values are stored (DICOM PS3.3 A.91 / C.8.20.5)
 * Companion OPT: same StudyInstanceUID and FrameOfReferenceUID; OPT SOP is
   referenced via Derivation Image / Referenced Series.
 
-See also: examples/demo_fda_heightmap_seg.py for the FDA path.
+Minimal read example::
+
+    import numpy as np
+    import pydicom
+
+    seg = pydicom.dcmread("sample_seg.dcm")
+    heights = np.frombuffer(seg.FloatPixelData, dtype="<f4").reshape(
+        int(seg.NumberOfFrames), int(seg.Rows), int(seg.Columns)
+    )
+    pad = float(seg.FloatPixelPaddingValue)  # -1.0
+    labels = [s.SegmentLabel for s in seg.SegmentSequence]
+    slope = float(
+        seg.SharedFunctionalGroupsSequence[0]
+        .RealWorldValueMappingSequence[0]
+        .RealWorldValueSlope
+    )
+    heights_mm = np.where(heights == pad, np.nan, heights * slope)
+
+See also: examples/demo_e2e_heightmap_seg.py for the E2E path.
 """
 
 from pathlib import Path
@@ -36,9 +55,9 @@ import pydicom
 from oct_converter.dicom import create_dicom_from_oct
 from oct_converter.dicom.heightmap import (
     HEIGHTMAP_PADDING_VALUE,
-    HEIDELBERG_LAYER_NAMES,
+    TOPCON_LAYER_LABELS,
 )
-from oct_converter.readers import E2E
+from oct_converter.readers import FDA
 
 
 def read_heightmap_seg(path: str | Path) -> tuple[np.ndarray, np.ndarray, list[str]]:
@@ -64,24 +83,24 @@ def read_heightmap_seg(path: str | Path) -> tuple[np.ndarray, np.ndarray, list[s
     return heights_px, heights_mm, labels
 
 
-filepath = "../path/to/sample.E2E"
-output_dir = Path("../path/to/e2e_dicom_out")
+filepath = "../path/to/sample.fda"
+output_dir = Path("../path/to/fda_dicom_out")
 
-# Inspect contours already attached to each OCT volume (chunk type 10019).
-e2e = E2E(filepath)
-for volume in e2e.read_oct_volume():
-    if not volume.contours:
-        print(f"{volume.volume_id}: no layer contours")
-        continue
-    print(f"{volume.volume_id} laterality={volume.laterality}")
-    for key, slices in volume.contours.items():
-        layer_id = int(key.replace("contour", ""))
-        name = HEIDELBERG_LAYER_NAMES.get(layer_id, key)
-        n_valid = sum(
-            1 for s in slices if s is not None and np.isfinite(s).any()
+# Inspect contours already attached to the OCT volume (@CONTOUR_INFO).
+fda = FDA(filepath)
+volume = fda.read_oct_volume()
+if not volume.contours:
+    print("no layer contours")
+else:
+    print(f"laterality={volume.laterality}")
+    for key, arr in volume.contours.items():
+        data = np.asarray(arr)
+        label = TOPCON_LAYER_LABELS.get(key, key)
+        n_valid = int(np.isfinite(data).sum()) if data.size else 0
+        print(
+            f"  {key} (-> {label}): shape={data.shape}, "
+            f"{n_valid}/{data.size} finite samples"
         )
-        print(f"  {key} ({name}): {n_valid}/{len(slices)} B-scans with data")
-    # Overlay contours on a montage of B-scans
     volume.peek(show_contours=True)
 
 # Convert: writes OPT (+ fundus) and, when contours exist, Height Map SEG.
@@ -91,7 +110,7 @@ for path in written:
 
 # Read and inspect Height Map Segmentation DICOMs.
 for path in written:
-    if "_seg_" not in Path(path).name:
+    if not Path(path).stem.endswith("_seg"):
         continue
     seg = pydicom.dcmread(str(path))
     heights_px, heights_mm, labels = read_heightmap_seg(path)
@@ -121,7 +140,8 @@ for path in written:
     # Example: ILM surface on B-scan 0 (if present).
     if "ILM" in labels:
         ilm = heights_px[labels.index("ILM")]
-        print(f"  ILM B-scan 0 (px): min={np.nanmin(np.where(ilm == HEIGHTMAP_PADDING_VALUE, np.nan, ilm)):.2f}")
+        masked = np.where(ilm == HEIGHTMAP_PADDING_VALUE, np.nan, ilm)
+        print(f"  ILM B-scan 0 (px): min={np.nanmin(masked[0]):.2f}")
 
     source = (
         seg.SharedFunctionalGroupsSequence[0]

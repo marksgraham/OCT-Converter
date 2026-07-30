@@ -1,7 +1,8 @@
-"""Height Map Segmentation helpers for E2E layer contours.
+"""Height Map Segmentation helpers for OCT layer contours.
 
-Converts Heidelberg contour arrays into Height Map Segmentation frames
-and maps layer IDs to CID 4273 Retinal Segmentation Surface codes.
+Converts vendor contour arrays (Heidelberg E2E, Topcon FDA) into Height Map
+Segmentation frames and maps surfaces to CID 4273 Retinal Segmentation
+Surface codes.
 """
 
 from __future__ import annotations
@@ -38,23 +39,45 @@ HEIDELBERG_LAYER_NAMES: dict[int, str] = {
     18: "IPL-",
 }
 
-# CID 4273 Retinal Segmentation Surface (coding scheme, value, meaning).
-_CID4273: dict[int, tuple[str, str, str]] = {
-    0: ("SCT", "280677004", "ILM - Internal limiting membrane"),
-    1: ("DCM", "128300", "Outer surface of Bruch's Membrane"),
-    2: ("DCM", "128289", "Outer surface of RNFL"),
-    3: ("DCM", "128290", "Outer surface of GCL"),
-    4: ("DCM", "128291", "Outer surface of IPL"),
-    5: ("DCM", "128292", "Outer surface of INL"),
-    6: ("DCM", "128293", "Outer surface of OPL"),
-    8: ("SCT", "76710003", "ELM - External limiting membrane"),
-    16: ("DCM", "128298", "Surface of the center of the RPE"),
+# CID 4273 Retinal Segmentation Surface keyed by SegmentLabel.
+# Values: (coding scheme, code value, code meaning).
+SURFACE_CID4273: dict[str, tuple[str, str, str]] = {
+    "ILM": ("SCT", "280677004", "ILM - Internal limiting membrane"),
+    "BM": ("DCM", "128300", "Outer surface of Bruch's Membrane"),
+    "RNFL": ("DCM", "128289", "Outer surface of RNFL"),
+    "GCL": ("DCM", "128290", "Outer surface of GCL"),
+    "IPL": ("DCM", "128291", "Outer surface of IPL"),
+    "INL": ("DCM", "128292", "Outer surface of INL"),
+    "OPL": ("DCM", "128293", "Outer surface of OPL"),
+    "ELM": ("SCT", "76710003", "ELM - External limiting membrane"),
+    "RPE": ("DCM", "128298", "Surface of the center of the RPE"),
+}
+
+# Topcon FDA contour key -> (SegmentLabel used for CID lookup / display).
+# Composite boundary names map to the outer surface of the proximal layer.
+TOPCON_LAYER_LABELS: dict[str, str] = {
+    "ILM": "ILM",
+    "RNFL_GCL": "RNFL",
+    "GCL_IPL": "GCL",
+    "IPL_INL": "IPL",
+    "INL_OPL": "INL",
+    "ELM": "ELM",
+    "BM": "BM",
+    "IZ_RPE": "RPE",
+    # No exact CID 4273 match — SegmentLabel kept as source key; private fallback.
+    "MZ_EZ": "MZ_EZ",
+    "CSI": "CSI",
+}
+
+# Stable synthetic ids for Topcon layers (offset avoids Heidelberg id collisions).
+_TOPCON_LAYER_IDS: dict[str, int] = {
+    name: 1000 + i for i, name in enumerate(TOPCON_LAYER_LABELS)
 }
 
 # BCID 7150 Segmentation Property Categories
 ANATOMICAL_STRUCTURE_CATEGORY = ("SRT", "T-D0050", "Anatomical Structure")
 
-# Fallback for unmapped Heidelberg layer IDs
+# Fallback for unmapped surface labels
 _GENERIC_PROPERTY_TYPE = ("OCT-converter", "L-0001", "Unspecified retinal surface")
 
 
@@ -89,12 +112,11 @@ def parse_contour_id(contour_key: str) -> int | None:
     return None
 
 
-def layer_code_for_id(layer_id: int) -> LayerCode:
-    """Map a Heidelberg contour id to CID 4273 (or a generic fallback)."""
-    label = HEIDELBERG_LAYER_NAMES.get(layer_id, f"contour{layer_id}")
+def layer_code_for_label(label: str, layer_id: int) -> LayerCode:
+    """Map a surface label to CID 4273 (or a generic fallback)."""
     cat_scheme, cat_value, cat_meaning = ANATOMICAL_STRUCTURE_CATEGORY
-    if layer_id in _CID4273:
-        type_scheme, type_value, type_meaning = _CID4273[layer_id]
+    if label in SURFACE_CID4273:
+        type_scheme, type_value, type_meaning = SURFACE_CID4273[label]
     else:
         type_scheme, type_value, type_meaning = _GENERIC_PROPERTY_TYPE
         type_meaning = f"Unspecified retinal surface ({label})"
@@ -110,17 +132,29 @@ def layer_code_for_id(layer_id: int) -> LayerCode:
     )
 
 
+def layer_code_for_id(layer_id: int) -> LayerCode:
+    """Map a Heidelberg contour id to CID 4273 (or a generic fallback)."""
+    label = HEIDELBERG_LAYER_NAMES.get(layer_id, f"contour{layer_id}")
+    return layer_code_for_label(label, layer_id)
+
+
 def contours_to_heightmaps(
     contours: dict,
     num_bscans: int,
     width: int,
     padding_value: float = HEIGHTMAP_PADDING_VALUE,
 ) -> list[HeightmapLayer]:
-    """Convert E2E ``OCTVolumeWithMetaData.contours`` into heightmap layers.
+    """Convert ``OCTVolumeWithMetaData.contours`` into heightmap layers.
+
+    Accepts both vendor schemas:
+
+    * **E2E / Heidelberg:** ``contour{id}`` -> list of length ``num_bscans``,
+      each entry a 1-D float array of length ``width`` or ``None``.
+    * **FDA / Topcon:** named key (``ILM``, ``BM``, …) -> 2-D array of shape
+      ``(n_bscans, width)`` with axial heights from the top of each B-scan.
 
     Args:
-        contours: Mapping of ``contour{id}`` -> list of length ``num_bscans``,
-            each entry a 1-D float array of length ``width`` or ``None``.
+        contours: Contour mapping from an OCT volume.
         num_bscans: Number of OPT B-scan frames (heightmap rows).
         width: Number of A-scan columns (must match OPT Columns).
         padding_value: Value for missing / invalid samples (outside [0, OPT.Rows]).
@@ -133,34 +167,96 @@ def contours_to_heightmaps(
 
     layers: list[HeightmapLayer] = []
     for key in sorted(contours.keys(), key=_contour_sort_key):
-        layer_id = parse_contour_id(key)
-        if layer_id is None:
-            continue
-        slice_list = contours[key]
-        heightmap = np.full((num_bscans, width), padding_value, dtype=np.float32)
-        for i in range(num_bscans):
-            if i >= len(slice_list):
-                break
-            contour = slice_list[i]
-            if contour is None:
-                continue
-            arr = np.asarray(contour, dtype=np.float32)
-            n = min(width, arr.shape[0])
-            row = np.full(width, padding_value, dtype=np.float32)
-            row[:n] = arr[:n]
-            invalid = ~np.isfinite(row) | (row < 0)
-            row[invalid] = padding_value
-            heightmap[i] = row
-        layers.append(
-            HeightmapLayer(
-                layer_id=layer_id,
-                code=layer_code_for_id(layer_id),
-                data=heightmap,
+        value = contours[key]
+        heidelberg_id = parse_contour_id(key)
+
+        if heidelberg_id is not None and _is_e2e_slice_list(value):
+            heightmap = _heightmap_from_slice_list(
+                value, num_bscans, width, padding_value
             )
-        )
+            layers.append(
+                HeightmapLayer(
+                    layer_id=heidelberg_id,
+                    code=layer_code_for_id(heidelberg_id),
+                    data=heightmap,
+                )
+            )
+            continue
+
+        if _is_fda_heightmap(value):
+            label = TOPCON_LAYER_LABELS.get(key, key)
+            layer_id = _TOPCON_LAYER_IDS.get(key, 2000 + len(layers))
+            heightmap = _heightmap_from_2d(value, num_bscans, width, padding_value)
+            layers.append(
+                HeightmapLayer(
+                    layer_id=layer_id,
+                    code=layer_code_for_label(label, layer_id),
+                    data=heightmap,
+                )
+            )
+
     return layers
+
+
+def _is_e2e_slice_list(value: t.Any) -> bool:
+    if isinstance(value, np.ndarray) and value.ndim == 2:
+        return False
+    if not isinstance(value, (list, tuple)):
+        return False
+    return True
+
+
+def _is_fda_heightmap(value: t.Any) -> bool:
+    arr = np.asarray(value) if not isinstance(value, np.ndarray) else value
+    return isinstance(arr, np.ndarray) and arr.ndim == 2
+
+
+def _heightmap_from_slice_list(
+    slice_list: t.Sequence,
+    num_bscans: int,
+    width: int,
+    padding_value: float,
+) -> np.ndarray:
+    heightmap = np.full((num_bscans, width), padding_value, dtype=np.float32)
+    for i in range(num_bscans):
+        if i >= len(slice_list):
+            break
+        contour = slice_list[i]
+        if contour is None:
+            continue
+        arr = np.asarray(contour, dtype=np.float32)
+        if arr.ndim != 1:
+            continue
+        n = min(width, arr.shape[0])
+        row = np.full(width, padding_value, dtype=np.float32)
+        row[:n] = arr[:n]
+        invalid = ~np.isfinite(row) | (row < 0)
+        row[invalid] = padding_value
+        heightmap[i] = row
+    return heightmap
+
+
+def _heightmap_from_2d(
+    array: np.ndarray,
+    num_bscans: int,
+    width: int,
+    padding_value: float,
+) -> np.ndarray:
+    arr = np.asarray(array, dtype=np.float32)
+    heightmap = np.full((num_bscans, width), padding_value, dtype=np.float32)
+    n_rows = min(num_bscans, arr.shape[0])
+    n_cols = min(width, arr.shape[1])
+    block = arr[:n_rows, :n_cols].copy()
+    invalid = ~np.isfinite(block) | (block < 0)
+    block[invalid] = padding_value
+    heightmap[:n_rows, :n_cols] = block
+    return heightmap
 
 
 def _contour_sort_key(key: str) -> t.Tuple[int, str]:
     layer_id = parse_contour_id(key)
-    return (layer_id if layer_id is not None else 10**9, key)
+    if layer_id is not None:
+        return (layer_id, key)
+    if key in _TOPCON_LAYER_IDS:
+        return (_TOPCON_LAYER_IDS[key], key)
+    return (10**9, key)

@@ -20,6 +20,30 @@ from oct_converter.readers.registration import (
 )
 
 
+def _compact_sparse_volume_slices(volume, contours=None):
+    """Drop unset slice placeholders and reindex contours to match.
+
+    E2E volumes are pre-allocated as sparse lists (``0`` placeholders) keyed
+    by ``slice_id // 2``. Layer contours use the same slice indices, so both
+    must be compacted together after extraction.
+    """
+    if not volume:
+        return volume, contours
+
+    valid_indices = [i for i, slc in enumerate(volume) if not isinstance(slc, int)]
+    compact_volume = [volume[i] for i in valid_indices]
+
+    if contours is None:
+        return compact_volume, None
+
+    compact_contours = {}
+    for contour_name, slice_list in contours.items():
+        compact_contours[contour_name] = [
+            slice_list[i] if i < len(slice_list) else None for i in valid_indices
+        ]
+    return compact_volume, compact_contours
+
+
 class E2E(object):
     """Class for extracting data from Heidelberg's .e2e file format.
 
@@ -436,8 +460,8 @@ class E2E(object):
             for key, volume in chain(
                 volume_array_dict.items(), volume_array_dict_additional.items()
             ):
-                # remove any initalised volumes that never had image data attached
-                volume = [slc for slc in volume if not isinstance(slc, int)]
+                contours = contour_data.get(key)
+                volume, contours = _compact_sparse_volume_slices(volume, contours)
                 if volume is None or len(volume) == 0:
                     continue
                 scan_geometry = None
@@ -463,7 +487,7 @@ class E2E(object):
                         acquisition_date=self.acquisition_date,
                         volume_id=key,
                         laterality=laterality_dict.get(key),
-                        contours=contour_data.get(key),
+                        contours=contours,
                         pixel_spacing=pixel_spacing,
                         scan_geometry=scan_geometry,
                         metadata=metadata,
