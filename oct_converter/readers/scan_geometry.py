@@ -149,34 +149,44 @@ def geometry_from_bscan_metadata(
     scan_angle: float | None = None,
     num_slices: int = 1,
 ) -> ScanGeometry:
-    """Build ScanGeometry from E2E bscan_metadata fields (FOV degrees)."""
+    """Build ScanGeometry from E2E bscan_metadata fields (FOV degrees).
+
+    ``line_start`` / ``line_end`` / ``centre`` / ``radius`` are fundus-pixel
+    coordinates only when ``fundus_size`` and ``scan_angle`` allow FOV→pixel
+    conversion. Otherwise those fields are left ``None`` so callers do not
+    treat FOV degrees as pixel indices (e.g. DICOM ReferenceCoordinates).
+    Circular ``start_angle`` is still derived from FOV positions (scale-invariant).
+    """
     line_start_fov = (float(pos_x1), float(pos_y1))
     line_end_fov = (float(pos_x2), float(pos_y2))
     centre_fov = (float(centre_x), float(centre_y))
 
-    if (
+    can_convert = (
         fundus_size is not None
         and scan_angle is not None
         and scan_angle > 0
         and fundus_size[0] > 0
         and fundus_size[1] > 0
-    ):
+    )
+    if can_convert:
         size_x, size_y = fundus_size
         line_start = fov_to_pixels(line_start_fov, scan_angle, size_x, size_y)
         line_end = fov_to_pixels(line_end_fov, scan_angle, size_x, size_y)
         centre = fov_to_pixels(centre_fov, scan_angle, size_x, size_y)
+        radius = distance(line_start, centre)
     else:
-        # Isotropic FOV space — same angle as pixel space when size_x == size_y
-        line_start = line_start_fov
-        line_end = line_end_fov
-        centre = centre_fov
+        line_start = None
+        line_end = None
+        centre = None
+        radius = None
 
     if scan_type_raw == BSCAN_TYPE_CIRCLE:
         return ScanGeometry(
             scan_type="circular",
-            start_angle=angle_from_origin(line_start, centre),
+            # Angle from FOV vectors is valid even without pixel conversion.
+            start_angle=angle_from_origin(line_start_fov, centre_fov),
             centre=centre,
-            radius=distance(line_start, centre),
+            radius=radius,
             line_start=line_start,
             line_end=line_end,
         )
@@ -237,8 +247,12 @@ def build_volume_scan_geometry(
     )
     scan_geometry = geom.to_dict()
 
-    # Per-frame line endpoints for volume / raster OPT DICOM
-    if geom.scan_type != "circular" and len(bscan_by_slice) > 1:
+    # Per-frame line endpoints for volume / raster OPT DICOM (fundus pixels only)
+    if (
+        geom.scan_type != "circular"
+        and len(bscan_by_slice) > 1
+        and geom.line_start is not None
+    ):
         frame_lines: list[dict | None] = []
         for slice_idx in range(num_slices):
             md = bscan_by_slice.get(slice_idx)
