@@ -43,6 +43,45 @@ implementation_uid = generate_uid(entropy_srcs=["oct_converter", version])
 # PS3.4 Height Map Segmentation Storage (not yet in all pydicom releases)
 HeightMapSegmentationStorage = UID("1.2.840.10008.5.1.4.1.1.66.8")
 
+# Acquisition timestamps from readers are either datetime or this string form.
+_ACQUISITION_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+
+def _coerce_datetime(value: datetime | str | None) -> datetime | None:
+    """Normalize reader acquisition timestamps to ``datetime`` or ``None``."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        return datetime.strptime(value, _ACQUISITION_DATETIME_FORMAT)
+    raise TypeError(f"Expected datetime or str, got {type(value)!r}")
+
+
+def set_content_date_time(ds: Dataset, when: datetime | None = None) -> None:
+    """Set ContentDate / ContentTime (when this DICOM instance was created)."""
+    when = when or datetime.now()
+    ds.ContentDate = when.strftime("%Y%m%d")
+    ds.ContentTime = when.strftime("%H%M%S.%f")
+
+
+def format_dicom_date(value: datetime | str | None) -> str:
+    """Format a timestamp as DICOM DA (YYYYMMDD), or ``\"\"`` if missing."""
+    dt = _coerce_datetime(value)
+    return dt.strftime("%Y%m%d") if dt else ""
+
+
+def format_dicom_time(value: datetime | str | None) -> str:
+    """Format a timestamp as DICOM TM (HHMMSS.ffffff), or ``\"\"`` if missing."""
+    dt = _coerce_datetime(value)
+    return dt.strftime("%H%M%S.%f") if dt else ""
+
+
+def format_acquisition_datetime(value: datetime | str | None) -> str:
+    """Format a timestamp as DICOM DT, or ``\"\"`` if missing."""
+    dt = _coerce_datetime(value)
+    return dt.strftime("%Y%m%d%H%M%S.%f") if dt else ""
+
 
 def opt_base_dicom(filepath: Path) -> Dataset:
     """Creates the base dicom to be populated.
@@ -133,16 +172,8 @@ def populate_opt_series(
     ds.StudyInstanceUID = study_instance_uid or generate_uid()
     ds.SeriesInstanceUID = series_instance_uid or generate_uid()
     ds.StudyID = meta.series_info.study_id
-    ds.StudyDate = (
-        meta.series_info.acquisition_date.strftime("%Y%m%d")
-        if meta.series_info.acquisition_date
-        else ""
-    )
-    ds.StudyTime = (
-        meta.series_info.acquisition_date.strftime("%H%M%S.%f")
-        if meta.series_info.acquisition_date
-        else ""
-    )
+    ds.StudyDate = format_dicom_date(meta.series_info.acquisition_date)
+    ds.StudyTime = format_dicom_time(meta.series_info.acquisition_date)
     ds.Laterality = meta.series_info.laterality
     ds.ProtocolName = meta.series_info.protocol
     ds.SeriesDescription = meta.series_info.description
@@ -250,17 +281,9 @@ def write_opt_dicom(
     # OPT Image Module PS3.3 C.8.17.7
     ds.ImageType = ["DERIVED", "SECONDARY"]
     ds.SamplesPerPixel = 1
-    if meta.series_info.acquisition_date:
-        # Convert string to datetime object if it's a string
-        if isinstance(meta.series_info.acquisition_date, str):
-            input_datetime = datetime.strptime(
-                meta.series_info.acquisition_date, "%Y-%m-%d %H:%M:%S"
-            )
-        else:
-            input_datetime = meta.series_info.acquisition_date
-        ds.AcquisitionDateTime = input_datetime.strftime("%Y%m%d%H%M%S.%f")
-    else:
-        ds.AcquisitionDateTime = ""
+    ds.AcquisitionDateTime = format_acquisition_datetime(
+        meta.series_info.acquisition_date
+    )
 
     ds.AcquisitionNumber = 1
     ds.PhotometricInterpretation = "MONOCHROME2"
@@ -274,10 +297,7 @@ def write_opt_dicom(
     ds.NumberOfFrames = len(frames)
 
     # Multi-frame Functional Groups Module PS3.3 C.7.6.16
-    dt = datetime.now()
-    ds.ContentDate = dt.strftime("%Y%m%d")
-    timeStr = dt.strftime("%H%M%S.%f")  # long format with micro seconds
-    ds.ContentTime = timeStr
+    set_content_date_time(ds)
     ds.InstanceNumber = 1
 
     # Scan Pattern Type (CID 4272) — Ophthalmic Tomography Parameters
@@ -468,13 +488,10 @@ def write_heightmap_seg_dicom(
     # Keep padding range a single value outside [0, OPT.Rows]
     ds.FloatPixelPaddingRangeLimit = HEIGHTMAP_PADDING_VALUE
 
-    dt = datetime.now()
-    ds.ContentDate = dt.strftime("%Y%m%d")
-    ds.ContentTime = dt.strftime("%H%M%S.%f")
-    if meta.series_info.acquisition_date:
-        ds.AcquisitionDateTime = meta.series_info.acquisition_date.strftime(
-            "%Y%m%d%H%M%S.%f"
-        )
+    set_content_date_time(ds)
+    ds.AcquisitionDateTime = format_acquisition_datetime(
+        meta.series_info.acquisition_date
+    )
 
     # Segment Sequence
     segment_seq = []
@@ -668,10 +685,8 @@ def write_fundus_dicom(
     if ds.ProtocolName in enface_to_type:
         ds.ImageType.append(enface_to_type.get(ds.ProtocolName))
     ds.SamplesPerPixel = 1
-    ds.AcquisitionDateTime = (
-        meta.series_info.acquisition_date.strftime("%Y%m%d%H%M%S.%f")
-        if meta.series_info.acquisition_date
-        else ""
+    ds.AcquisitionDateTime = format_acquisition_datetime(
+        meta.series_info.acquisition_date
     )
     ds.AcquisitionNumber = 1
     ds.PhotometricInterpretation = "MONOCHROME2"
@@ -685,10 +700,7 @@ def write_fundus_dicom(
     ds.NumberOfFrames = 1
 
     # Multi-frame Functional Groups Module PS3.3 C.7.6.16
-    dt = datetime.now()
-    ds.ContentDate = dt.strftime("%Y%m%d")
-    timeStr = dt.strftime("%H%M%S.%f")  # long format with micro seconds
-    ds.ContentTime = timeStr
+    set_content_date_time(ds)
     ds.InstanceNumber = 1
     pixel_data = _as_grayscale_uint16(frames)
     ds.Rows = pixel_data.shape[0]
@@ -762,10 +774,8 @@ def write_color_fundus_dicom(
     if ds.ProtocolName in enface_to_type:
         ds.ImageType.append(enface_to_type.get(ds.ProtocolName))
     ds.SamplesPerPixel = 1
-    ds.AcquisitionDateTime = (
-        meta.series_info.acquisition_date.strftime("%Y%m%d%H%M%S.%f")
-        if meta.series_info.acquisition_date
-        else ""
+    ds.AcquisitionDateTime = format_acquisition_datetime(
+        meta.series_info.acquisition_date
     )
     ds.AcquisitionNumber = 1
     ds.PhotometricInterpretation = "RGB"
@@ -779,10 +789,7 @@ def write_color_fundus_dicom(
     ds.NumberOfFrames = 1
 
     # Multi-frame Functional Groups Module PS3.3 C.7.6.16
-    dt = datetime.now()
-    ds.ContentDate = dt.strftime("%Y%m%d")
-    timeStr = dt.strftime("%H%M%S.%f")  # long format with micro seconds
-    ds.ContentTime = timeStr
+    set_content_date_time(ds)
     ds.InstanceNumber = 1
 
     pixel_data = np.array(frames).astype(np.uint16)
