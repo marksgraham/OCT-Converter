@@ -20,28 +20,36 @@ from oct_converter.readers.registration import (
 )
 
 
-def _compact_sparse_volume_slices(volume, contours=None):
-    """Drop unset slice placeholders and reindex contours to match.
+def _compact_sparse_volume_slices(volume, contours=None, bscan_by_slice=None):
+    """Drop unset slice placeholders and reindex per-slice data to match.
 
     E2E volumes are pre-allocated as sparse lists (``0`` placeholders) keyed
-    by ``slice_id // 2``. Layer contours use the same slice indices, so both
-    must be compacted together after extraction.
+    by ``slice_id // 2``. Layer contours and B-scan metadata use the same
+    slice indices, so all must be compacted together after extraction.
     """
     if not volume:
-        return volume, contours
+        return volume, contours, bscan_by_slice
 
     valid_indices = [i for i, slc in enumerate(volume) if not isinstance(slc, int)]
     compact_volume = [volume[i] for i in valid_indices]
 
-    if contours is None:
-        return compact_volume, None
+    compact_contours = None
+    if contours is not None:
+        compact_contours = {}
+        for contour_name, slice_list in contours.items():
+            compact_contours[contour_name] = [
+                slice_list[i] if i < len(slice_list) else None for i in valid_indices
+            ]
 
-    compact_contours = {}
-    for contour_name, slice_list in contours.items():
-        compact_contours[contour_name] = [
-            slice_list[i] if i < len(slice_list) else None for i in valid_indices
-        ]
-    return compact_volume, compact_contours
+    compact_bscan = None
+    if bscan_by_slice is not None:
+        compact_bscan = {
+            new_idx: bscan_by_slice[old_idx]
+            for new_idx, old_idx in enumerate(valid_indices)
+            if old_idx in bscan_by_slice
+        }
+
+    return compact_volume, compact_contours, compact_bscan
 
 
 class E2E(object):
@@ -461,11 +469,13 @@ class E2E(object):
                 volume_array_dict.items(), volume_array_dict_additional.items()
             ):
                 contours = contour_data.get(key)
-                volume, contours = _compact_sparse_volume_slices(volume, contours)
+                bscan_by_slice = bscan_meta_dict.get(key) or {}
+                volume, contours, bscan_by_slice = _compact_sparse_volume_slices(
+                    volume, contours, bscan_by_slice
+                )
                 if volume is None or len(volume) == 0:
                     continue
                 scan_geometry = None
-                bscan_by_slice = bscan_meta_dict.get(key) or {}
                 pixel_spacing = self.pixel_spacing
                 if bscan_by_slice:
                     scan_geometry, pixel_spacing = build_volume_scan_geometry(
@@ -627,12 +637,26 @@ class E2E(object):
         """
 
         def _convert_to_dict(container):
-            """Converts a container object to a dictionary"""
-            return dict(
-                (name, getattr(container, name))
+            """Converts a container object to a JSON-serializable dictionary.
+
+            Construct ``Bytes`` fields (e.g. ContourSegment padding) become hex
+            strings so ``json.dumps(read_all_metadata())`` keeps working.
+            """
+
+            def _json_safe(value):
+                if isinstance(value, (bytes, bytearray, memoryview)):
+                    return bytes(value).hex()
+                if isinstance(value, dict):
+                    return {k: _json_safe(v) for k, v in value.items()}
+                if isinstance(value, (list, tuple)):
+                    return [_json_safe(v) for v in value]
+                return value
+
+            return {
+                name: _json_safe(getattr(container, name))
                 for name in container
                 if not name.startswith("_")
-            )
+            }
 
         metadata = dict()
         metadata["image_data"] = []
