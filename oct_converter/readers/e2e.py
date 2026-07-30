@@ -167,7 +167,8 @@ class E2E(object):
             bscan_meta_dict: dict = defaultdict(dict)
             # volume_string -> {slice_index: BScanRegistration}
             registration_dict: dict = defaultdict(dict)
-            fundus_info = None
+            # volume_string -> fundus / IR ImageInfo05 (chunk type 5)
+            fundus_info_dict: dict = {}
             for volume, num_slices in volume_dict.items():
                 if num_slices > 0:
                     # num_slices + 1 here due to evidence that a slice was being missed off the end in extraction
@@ -222,9 +223,13 @@ class E2E(object):
                 elif chunk.type == 5:  # fundus / IR image info
                     try:
                         raw = f.read(min(int(chunk.size), 36))
-                        fundus_info = e2e_binary.fundus_info_structure.parse(raw)
+                        info = e2e_binary.fundus_info_structure.parse(raw)
+                        volume_string = "{}_{}_{}".format(
+                            chunk.patient_db_id, chunk.study_id, chunk.series_id
+                        )
+                        fundus_info_dict[volume_string] = info
                     except Exception:
-                        fundus_info = None
+                        pass
 
                 elif chunk.type == 10004:  # bscan metadata
                     raw = f.read(104)
@@ -478,6 +483,11 @@ class E2E(object):
                 scan_geometry = None
                 pixel_spacing = self.pixel_spacing
                 if bscan_by_slice:
+                    fundus_info = fundus_info_dict.get(key)
+                    # If this series has no type-5 chunk, reuse the only localizer
+                    # in the file (common when OCT and IR share one IR info block).
+                    if fundus_info is None and len(fundus_info_dict) == 1:
+                        fundus_info = next(iter(fundus_info_dict.values()))
                     scan_geometry, pixel_spacing = build_volume_scan_geometry(
                         bscan_by_slice=bscan_by_slice,
                         num_slices=len(volume),
