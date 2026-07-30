@@ -724,7 +724,10 @@ def _as_grayscale_uint16(frames: t.Any) -> np.ndarray:
 
 
 def write_color_fundus_dicom(
-    meta: DicomMetadata, frames: t.List[np.ndarray], filepath: Path
+    meta: DicomMetadata,
+    frames: t.List[np.ndarray],
+    filepath: Path,
+    study_instance_uid: str | None = None,
 ) -> Path:
     """Writes required DICOM metadata and RGB fundus pixel data to .dcm file.
 
@@ -732,13 +735,14 @@ def write_color_fundus_dicom(
             meta: DICOM metadata information
             frames: list of frames of pixel data
             filepath: Path to where output file is being saved
+            study_instance_uid: Optional shared Study Instance UID
     Returns:
             Path to created DICOM file
     """
     ds = opt_base_dicom(filepath)
     ds = populate_patient_info(ds, meta)
     ds = populate_manufacturer_info(ds, meta)
-    ds = populate_opt_series(ds, meta)
+    ds = populate_opt_series(ds, meta, study_instance_uid=study_instance_uid)
     ds.Modality = "OP"
     ds.SOPClassUID = OphthalmicPhotography16BitImageStorage
     ds.file_meta.MediaStorageSOPClassUID = OphthalmicPhotography16BitImageStorage
@@ -1074,7 +1078,9 @@ def create_dicom_from_fda(
         output_filename = f"{Path(input_file).stem}_fundus.dcm"
         filepath = Path(output_dir, output_filename)
         meta.image_geometry.pixel_spacing = [1, 1]
-        file = write_color_fundus_dicom(meta, fundus.image, filepath)
+        file = write_color_fundus_dicom(
+            meta, fundus.image, filepath, study_instance_uid=study_uid
+        )
         files.append(file)
 
     fundus_grayscale = fda.read_fundus_image_gray_scale()
