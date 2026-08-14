@@ -76,7 +76,6 @@ class E2E(object):
         self.acquisition_date = None
         self.birthdate = None
         self.pixel_spacing = None
-        self.patient_id = None
 
         # get initial directory structure
         with open(self.filepath, "rb") as f:

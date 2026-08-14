@@ -44,12 +44,12 @@ class FDA(object):
 
             eof = False
             while not eof:
-                chunk_name_size = np.fromstring(f.read(1), dtype=np.uint8)[0]
+                chunk_name_size = np.frombuffer(f.read(1), dtype=np.uint8)[0]
                 if chunk_name_size == 0:
                     eof = True
                 else:
                     chunk_name = f.read(chunk_name_size)
-                    chunk_size = np.fromstring(f.read(4), dtype=np.uint32)[0]
+                    chunk_size = np.frombuffer(f.read(4), dtype=np.uint32)[0]
                     chunk_location = f.tell()
                     f.seek(chunk_size, 1)
                     if chunk_name in chunk_dict.keys():
@@ -144,7 +144,7 @@ class FDA(object):
 
                 volume = []
                 for i in range(oct_header.number_slices):
-                    size = np.fromstring(f.read(4), dtype=np.int32)[0]
+                    size = np.frombuffer(f.read(4), dtype=np.int32)[0]
                     raw_slice = f.read(size)
                     image = Image.open(io.BytesIO(raw_slice))
                     volume.append(np.asarray(image))
@@ -159,7 +159,7 @@ class FDA(object):
                 number_pixels = (
                     oct_header.width * oct_header.height * oct_header.number_slices
                 )
-                raw_volume = np.fromstring(f.read(number_pixels * 2), dtype=np.uint16)
+                raw_volume = np.frombuffer(f.read(number_pixels * 2), dtype=np.uint16)
                 volume = np.array(raw_volume)
                 volume = volume.reshape(
                     oct_header.width,
