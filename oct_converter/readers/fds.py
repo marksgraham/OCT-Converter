@@ -46,12 +46,12 @@ class FDS(object):
 
             eof = False
             while not eof:
-                chunk_name_size = np.fromstring(f.read(1), dtype=np.uint8)[0]
+                chunk_name_size = np.frombuffer(f.read(1), dtype=np.uint8)[0]
                 if chunk_name_size == 0:
                     eof = True
                 else:
                     chunk_name = f.read(chunk_name_size)
-                    chunk_size = np.fromstring(f.read(4), dtype=np.uint32)[0]
+                    chunk_size = np.frombuffer(f.read(4), dtype=np.uint32)[0]
                     chunk_location = f.tell()
                     f.seek(chunk_size, 1)
                     chunk_dict[chunk_name] = [chunk_location, chunk_size]
@@ -79,7 +79,7 @@ class FDS(object):
             number_pixels = (
                 oct_header.width * oct_header.height * oct_header.number_slices
             )
-            raw_volume = np.fromstring(f.read(number_pixels * 2), dtype=np.uint16)
+            raw_volume = np.frombuffer(f.read(number_pixels * 2), dtype=np.uint16)
             volume = np.array(raw_volume)
             volume = volume.reshape(
                 oct_header.width, oct_header.height, oct_header.number_slices, order="F"
@@ -135,7 +135,7 @@ class FDS(object):
             raw = f.read(21)
             fundus_header = fds_binary.fundus_header.parse(raw)
             # number_pixels = fundus_header.width * fundus_header.height * fundus_header.number_slices
-            raw_image = np.fromstring(f.read(fundus_header.size), dtype=np.uint8)
+            raw_image = np.frombuffer(f.read(fundus_header.size), dtype=np.uint8)
             # raw_image = [struct.unpack('B', f.read(1)) for pixel in range(fundus_header.size)]
             image = np.array(raw_image)
             image = image.reshape(

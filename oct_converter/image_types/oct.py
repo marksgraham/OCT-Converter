@@ -36,6 +36,7 @@ class OCTVolumeWithMetaData(object):
 
         contours: contours data.
         pixel_spacing: (x, y, z) pixel spacing in mm.
+        scan_geometry: circular / linear / volume scan geometry relative to fundus.
         metadata: all metadata available in the OCT scan.
     """
 
@@ -52,6 +53,7 @@ class OCTVolumeWithMetaData(object):
         laterality: str | None = None,
         contours: dict | None = None,
         pixel_spacing: list[float] | None = None,
+        scan_geometry: dict | None = None,
         metadata: dict | None = None,
         header: dict | None = None,
         oct_header: dict | None = None,
@@ -75,6 +77,7 @@ class OCTVolumeWithMetaData(object):
 
         # geom data
         self.pixel_spacing = pixel_spacing
+        self.scan_geometry = scan_geometry
 
         # metadata
         self.metadata = metadata

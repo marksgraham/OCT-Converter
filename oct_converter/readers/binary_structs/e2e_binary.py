@@ -82,6 +82,19 @@ image_structure = Struct(
     "height" / Int32un,
     "width" / Int32un,
 )
+# Chunk type 5: fundus / IR image info (Heidelberg ImageInfo05).
+# Used to convert B-scan FOV positions to fundus pixels.
+# laterality is a single UTF-16LE wchar (2 bytes).
+fundus_info_structure = Struct(
+    "mystery1" / Int16un,
+    "laterality" / Int16un,
+    "capture_datetime" / Int64un,
+    "ir_image_size_x" / Int16un,
+    "ir_image_size_y" / Int16un,
+    "zero1" / Int32un,
+    "zero2" / Int32un,
+    "scan_angle" / Int16un,
+)
 patient_id_structure = Struct(
     "first_name" / Latin1String(31),
     "surname" / Latin1String(51),
@@ -95,11 +108,30 @@ lat_structure = Struct(
     "laterality" / PaddedString(1, "ascii"),
     "unknown2" / Int8un,
 )
+# Chunk type 10019 (0x2713): legacy layer contours (may include leading zeros).
 contour_structure = Struct(
     "unknown0" / Int32un,
     "id" / Int32un,
     "unknown1" / Int32un,
     "width" / Int32un,
+)
+
+# Chunk type 0x2723: current ContourSegment layout (matches Heyex / private_eye).
+# Header is the same four int32s, then 20 bytes padding, then ``width`` float32s.
+contour_structure_v2 = Struct(
+    "mystery_1" / Int32un,
+    "id" / Int32un,
+    "mystery_2" / Int32un,
+    "width" / Int32un,
+    "padding" / Bytes(20),
+)
+
+# Chunk type 0x271C (10012): B-scan registration / shape-adjust.
+# Body = int32 + 12 floats + 12 floats.
+bscan_registration_structure = Struct(
+    "mystery_1" / Int32un,
+    "values_1" / Array(12, Float32l),
+    "values_2" / Array(12, Float32l),
 )
 
 # following the spec from

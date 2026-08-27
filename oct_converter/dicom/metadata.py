@@ -119,6 +119,21 @@ class ImageGeometry:
 
 
 @dataclasses.dataclass
+class ScanGeometryMeta:
+    """OPT scan pattern / fundus-relative geometry for DICOM encoding."""
+
+    scan_type: str = "volume"  # circular | linear | volume
+    start_angle: t.Optional[float] = None
+    centre: t.Optional[list[float]] = None
+    radius: t.Optional[float] = None
+    line_start: t.Optional[list[float]] = None
+    line_end: t.Optional[list[float]] = None
+    # Per-frame line endpoints for multi-B-scan volumes: list of
+    # {"line_start": [x,y], "line_end": [x,y]} or None
+    frame_lines: t.Optional[list] = None
+
+
+@dataclasses.dataclass
 class OCTImageParams:
     # PS3.3 C.8.17.9
     opt_acquisition_device: OPTAcquisitionDevice = OPTAcquisitionDevice.Unspecified
@@ -144,3 +159,4 @@ class DicomMetadata:
 
     image_geometry: ImageGeometry
     oct_image_params: OCTImageParams
+    scan_geometry: t.Optional[ScanGeometryMeta] = None

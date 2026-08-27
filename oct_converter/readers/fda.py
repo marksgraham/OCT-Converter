@@ -44,12 +44,12 @@ class FDA(object):
 
             eof = False
             while not eof:
-                chunk_name_size = np.fromstring(f.read(1), dtype=np.uint8)[0]
+                chunk_name_size = np.frombuffer(f.read(1), dtype=np.uint8)[0]
                 if chunk_name_size == 0:
                     eof = True
                 else:
                     chunk_name = f.read(chunk_name_size)
-                    chunk_size = np.fromstring(f.read(4), dtype=np.uint32)[0]
+                    chunk_size = np.frombuffer(f.read(4), dtype=np.uint32)[0]
                     chunk_location = f.tell()
                     f.seek(chunk_size, 1)
                     if chunk_name in chunk_dict.keys():
@@ -69,7 +69,7 @@ class FDA(object):
             print("")
         return chunk_dict, header
 
-    def read_oct_volume(self) -> OCTVolumeWithMetaData:
+    def read_oct_volume(self, verbose=False) -> OCTVolumeWithMetaData:
         """Reads OCT data.
 
         Notes:
@@ -95,7 +95,7 @@ class FDA(object):
             contours = {k: oct_header.get("height") - v for k, v in contours.items()}
 
         # read all other metadata
-        metadata = self.read_all_metadata()
+        metadata = self.read_all_metadata(verbose=verbose)
         patient_info = metadata.get("patient_info_02") or metadata.get(
             "patient_info", {}
         )
@@ -109,7 +109,6 @@ class FDA(object):
             patient_dob = datetime(*patient_info.get("birth_date"))
         except (TypeError, ValueError):
             patient_dob = None
-
         oct_volume = OCTVolumeWithMetaData(
             volume,
             patient_id=patient_info.get("patient_id"),
@@ -125,6 +124,7 @@ class FDA(object):
             header=self.header,
             oct_header=oct_header,
         )
+    
         return oct_volume
 
     def read_oct_data_chunk(self) -> t.Tuple[np.ndarray, dict]:
@@ -144,7 +144,7 @@ class FDA(object):
 
                 volume = []
                 for i in range(oct_header.number_slices):
-                    size = np.fromstring(f.read(4), dtype=np.int32)[0]
+                    size = np.frombuffer(f.read(4), dtype=np.int32)[0]
                     raw_slice = f.read(size)
                     image = Image.open(io.BytesIO(raw_slice))
                     volume.append(np.asarray(image))
@@ -159,7 +159,7 @@ class FDA(object):
                 number_pixels = (
                     oct_header.width * oct_header.height * oct_header.number_slices
                 )
-                raw_volume = np.fromstring(f.read(number_pixels * 2), dtype=np.uint16)
+                raw_volume = np.frombuffer(f.read(number_pixels * 2), dtype=np.uint16)
                 volume = np.array(raw_volume)
                 volume = volume.reshape(
                     oct_header.width,
@@ -257,8 +257,9 @@ class FDA(object):
             img_trc_02_header = fda_binary.img_trc_02_header.parse(raw)
             number_pixels = img_trc_02_header.width * img_trc_02_header.height * 1
             raw_image = f.read(img_trc_02_header.size)
-            image = Image.open(io.BytesIO(raw_image))
-            image = np.asarray(image)
+            # TRC JPEGs are often encoded as RGB with identical channels;
+            # force true 2-D grayscale for DICOM MONOCHROME2 export.
+            image = np.asarray(Image.open(io.BytesIO(raw_image)).convert("L"))
         fundus_gray_scale_image = FundusImageWithMetaData(image)
         return fundus_gray_scale_image
 
@@ -327,7 +328,7 @@ class FDA(object):
             json_key = key.decode().split("@")[-1].lower()
             try:
                 metadata[json_key] = self.read_any_info_and_make_dict(key)
-            except KeyError:
+            except (KeyError):
                 if verbose:
                     print(f"{key} there is no method for getting info from this chunk.")
         return metadata
@@ -346,7 +347,10 @@ class FDA(object):
             return None
         with open(self.filepath, "rb") as f:
             chunk_location, chunk_size = self.chunk_dict[chunk_name]
-            f.seek(chunk_location)  # Set the chunk’s current position.
+            if chunk_location.__class__ is list:
+                f.seek(chunk_location[0])
+            else:
+                f.seek(chunk_location)  # Set the chunk’s current position.
             raw = f.read()
             header_name = f"{chunk_name.decode().split('@')[-1].lower()}_header"
             chunk_info_header = dict(fda_binary.__dict__[header_name].parse(raw))

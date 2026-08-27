@@ -9,6 +9,7 @@ from oct_converter.dicom.metadata import (
     OPTAcquisitionDevice,
     OPTAnatomyStructure,
     PatientMeta,
+    ScanGeometryMeta,
     SeriesMeta,
 )
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
@@ -24,17 +25,17 @@ def e2e_patient_meta(meta: dict) -> PatientMeta:
     """
     patient = PatientMeta()
 
-    patient_data = meta.get("patient_data")
-    if patient_data:
-        # Heidelberg's updated anonymization process wipes
-        # this section of metadata
-        patient.first_name = patient_data[0].get("first_name")
-        patient.last_name = patient_data[0].get("surname")
-        patient.patient_id = patient_data[0].get("patient_id")
-        patient.patient_sex = patient_data[0].get("sex")
-        # TODO patient.patient_dob
-        # Currently, E2E's patient_dob is incorrect, see
-        # the E2E reader for more context.
+    patient_data = meta.get("patient_data") or [{}]
+    patient_row = patient_data[0] if patient_data else {}
+    # Coerce missing/None fields to "" so DICOM writers do not fail on
+    # anonymized E2E files that omit patient metadata.
+    patient.first_name = patient_row.get("first_name") or ""
+    patient.last_name = patient_row.get("surname") or ""
+    patient.patient_id = patient_row.get("patient_id") or ""
+    patient.patient_sex = patient_row.get("sex") or ""
+    # TODO patient.patient_dob
+    # Currently, E2E's patient_dob is incorrect, see
+    # the E2E reader for more context.
 
     return patient
 
@@ -132,6 +133,22 @@ def e2e_image_params() -> OCTImageParams:
     return image_params
 
 
+def e2e_scan_geometry_meta(image: OCTVolumeWithMetaData) -> ScanGeometryMeta | None:
+    """Map OCTVolumeWithMetaData.scan_geometry dict to ScanGeometryMeta."""
+    geom = getattr(image, "scan_geometry", None)
+    if not geom:
+        return None
+    return ScanGeometryMeta(
+        scan_type=geom.get("type", "volume"),
+        start_angle=geom.get("start_angle"),
+        centre=list(geom["centre"]) if geom.get("centre") else None,
+        radius=geom.get("radius"),
+        line_start=list(geom["line_start"]) if geom.get("line_start") else None,
+        line_end=list(geom["line_end"]) if geom.get("line_end") else None,
+        frame_lines=geom.get("frame_lines"),
+    )
+
+
 def e2e_dicom_metadata(
     image: FundusImageWithMetaData | OCTVolumeWithMetaData,
 ) -> DicomMetadata:
@@ -142,7 +159,6 @@ def e2e_dicom_metadata(
     Returns:
         DicomMetadata: Populated DicomMetadata created with fundus or oct metadata
     """
-
     patient_info = e2e_patient_meta(image.metadata)
     manufacturer_info = e2e_manu_meta()
     oct_image_params = e2e_image_params()
@@ -155,6 +171,7 @@ def e2e_dicom_metadata(
             image.metadata,
         )
         image_geometry = e2e_image_geom(image.pixel_spacing)
+        scan_geometry = e2e_scan_geometry_meta(image)
     else:
         series_info = e2e_series_meta(
             image.image_id,
@@ -163,6 +180,7 @@ def e2e_dicom_metadata(
             image.metadata,
         )
         image_geometry = e2e_image_geom(image.pixel_spacing)
+        scan_geometry = None
 
     return DicomMetadata(
         patient_info=patient_info,
@@ -170,4 +188,5 @@ def e2e_dicom_metadata(
         manufacturer_info=manufacturer_info,
         image_geometry=image_geometry,
         oct_image_params=oct_image_params,
+        scan_geometry=scan_geometry,
     )

@@ -23,7 +23,12 @@ metadata = file.read_all_metadata()
 with open("metadata.json", "w") as outfile:
     outfile.write(json.dumps(metadata, indent=4))
 
-# create a DICOM from E2E
+# create DICOM(s) from E2E
+# Writes, per volume / fundus image found in the file:
+#   {stem}_oct_{n}.dcm    - OPT volume
+#   {stem}_fundus_{n}.dcm - fundus / enface (if present)
+#   {stem}_seg_{n}.dcm    - Height Map Segmentation when layer contours exist
+# See demo_e2e_heightmap_seg.py for SEG details and inspection.
 dcm = create_dicom_from_oct(filepath)
 # Output dir can be specified, otherwise will
 # default to current working directory.
