@@ -4,4 +4,5 @@ from .e2e import E2E
 from .fda import FDA
 from .fds import FDS
 from .img import IMG
+from .ivcm import IVCM
 from .poct import POCT

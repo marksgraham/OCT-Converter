@@ -5,6 +5,7 @@ from construct import (
     Float32l,
     Float64l,
     Int8un,
+    Int16sn,
     Int16un,
     Int32sn,
     Int32un,
@@ -225,3 +226,20 @@ uid_data = Struct("uid" / PaddedString(64, "ascii"))
 
 # 1007 padded string with a brand name
 unknown_data = Struct("unknown" / PaddedString(64, "ascii"))
+
+# 0x40000000 (ind=0): 16-byte mini-header for JPEG-compressed IVCM frames; flags == 0x02010101
+ivcm_image_structure = Struct(
+    "total_size" / Int32un,
+    "flags" / Int32un,
+    "jpeg_size" / Int32un,
+    "jpeg_size_copy" / Int32un,
+)
+
+# 10002: per-frame IVCM metadata; z_pos_um is the focal depth in micrometres
+ivcm_frame_metadata = Struct(
+    "unknown1" / Int16un,
+    "unknown2" / Int16un,
+    "num_frames" / Int16un,
+    "z_pos_um" / Int16sn,
+    "unknown3" / Bytes(60),
+)
