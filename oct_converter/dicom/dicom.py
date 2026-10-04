@@ -238,15 +238,20 @@ def opt_shared_functional_groups(ds: Dataset, meta: DicomMetadata) -> Dataset:
 
 
 def _encode_pixel_array(arr: np.ndarray) -> tuple[np.ndarray, int]:
-    """Store pixels as 8-bit when the source fits, otherwise 16-bit.
+    """Store pixels as the smallest valid DICOM integer type.
 
-    Integers with max <= 255 stay uint8; wider integers stay uint16.
-    Float in [0, 1] (E2E display mapping) is scaled to 0-255. Other floats
-    with max <= 255 are rounded to uint8; wider floats (e.g. Optovue) are
-    min-max scaled into uint16, matching the old normalize-then-cast path.
+    Checks for datatype and value limits in order to set the appropriate encoding.
+    Empty arrays are rejected.
     """
     arr = np.asarray(arr)
+    if arr.size == 0:
+        raise ValueError("Cannot encode an empty array as DICOM pixel data.")
+
     if np.issubdtype(arr.dtype, np.integer):
+        if np.issubdtype(arr.dtype, np.signedinteger):
+            if arr.min() >= -128 and arr.max() <= 127:
+                return np.ascontiguousarray(arr.astype(np.int8)), 8
+            return np.ascontiguousarray(arr.astype(np.int16)), 16
         if arr.max() <= 255:
             return np.ascontiguousarray(arr, dtype=np.uint8), 8
         return np.ascontiguousarray(arr, dtype=np.uint16), 16
@@ -298,17 +303,18 @@ def _apply_pixel_encoding_tags(
     bits: int,
     samples_per_pixel: int = 1,
     photometric: str = "MONOCHROME2",
+    pixel_representation: int = 0,
 ) -> None:
     """Set bit-depth, photometric, and full-range VOI window tags."""
     ds.SamplesPerPixel = samples_per_pixel
     ds.PhotometricInterpretation = photometric
-    ds.PixelRepresentation = 0
+    ds.PixelRepresentation = pixel_representation
     ds.BitsAllocated = bits
     ds.BitsStored = bits
     ds.HighBit = bits - 1
     if photometric == "RGB":
         ds.PlanarConfiguration = 0
-    ds.WindowCenter = 1 << (bits - 1)
+    ds.WindowCenter = 0 if pixel_representation == 1 else 1 << (bits - 1)
     ds.WindowWidth = 1 << bits
 
 
@@ -375,7 +381,12 @@ def write_opt_dicom(
         raise ValueError(
             f"Expected OCT frames as a 3-D volume, got shape {pixel_data.shape}"
         )
-    _apply_pixel_encoding_tags(ds, bits)
+    pixel_representation = 1 if np.issubdtype(pixel_data.dtype, np.signedinteger) else 0
+    _apply_pixel_encoding_tags(
+        ds,
+        bits,
+        pixel_representation=pixel_representation,
+    )
     ds.NumberOfFrames = int(pixel_data.shape[0])
     ds.Rows = int(pixel_data.shape[1])
     ds.Columns = int(pixel_data.shape[2])
@@ -772,7 +783,12 @@ def write_fundus_dicom(
         meta.series_info.acquisition_date
     )
     ds.AcquisitionNumber = 1
-    _apply_pixel_encoding_tags(ds, bits)
+    pixel_representation = 1 if np.issubdtype(pixel_data.dtype, np.signedinteger) else 0
+    _apply_pixel_encoding_tags(
+        ds,
+        bits,
+        pixel_representation=pixel_representation,
+    )
     ds.NumberOfFrames = 1
 
     # Multi-frame Functional Groups Module PS3.3 C.7.6.16
@@ -839,7 +855,14 @@ def write_color_fundus_dicom(
         meta.series_info.acquisition_date
     )
     ds.AcquisitionNumber = 1
-    _apply_pixel_encoding_tags(ds, bits, samples_per_pixel=3, photometric="RGB")
+    pixel_representation = 1 if np.issubdtype(pixel_data.dtype, np.signedinteger) else 0
+    _apply_pixel_encoding_tags(
+        ds,
+        bits,
+        samples_per_pixel=3,
+        photometric="RGB",
+        pixel_representation=pixel_representation,
+    )
     ds.NumberOfFrames = 1
 
     # Multi-frame Functional Groups Module PS3.3 C.7.6.16
