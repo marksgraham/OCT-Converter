@@ -9,11 +9,11 @@ import numpy as np
 from construct import StreamError, StringError
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 from pydicom.uid import (
-    ExplicitVRLittleEndian,
-    OphthalmicPhotography16BitImageStorage,
-    OphthalmicPhotography8BitImageStorage,
-    OphthalmicTomographyImageStorage,
     UID,
+    ExplicitVRLittleEndian,
+    OphthalmicPhotography8BitImageStorage,
+    OphthalmicPhotography16BitImageStorage,
+    OphthalmicTomographyImageStorage,
     generate_uid,
 )
 from pydicom.valuerep import DSfloat

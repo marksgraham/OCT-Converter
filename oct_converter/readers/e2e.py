@@ -12,12 +12,12 @@ from construct.core import StreamError
 
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
 from oct_converter.readers.binary_structs import e2e_binary
-from oct_converter.readers.scan_geometry import build_volume_scan_geometry
 from oct_converter.readers.registration import (
     apply_registration_to_contour_slice,
     apply_registration_to_volume_slice,
     registration_from_values,
 )
+from oct_converter.readers.scan_geometry import build_volume_scan_geometry
 
 
 def _compact_sparse_volume_slices(volume, contours=None, bscan_by_slice=None):

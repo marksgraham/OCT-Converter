@@ -35,8 +35,8 @@ import pydicom
 
 from oct_converter.dicom import create_dicom_from_oct
 from oct_converter.dicom.heightmap import (
-    HEIGHTMAP_PADDING_VALUE,
     HEIDELBERG_LAYER_NAMES,
+    HEIGHTMAP_PADDING_VALUE,
 )
 from oct_converter.readers import E2E
 

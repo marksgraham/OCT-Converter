@@ -124,7 +124,7 @@ class FDA(object):
             header=self.header,
             oct_header=oct_header,
         )
-    
+
         return oct_volume
 
     def read_oct_data_chunk(self) -> t.Tuple[np.ndarray, dict]:
