@@ -37,9 +37,7 @@ class ScanGeometry:
         }
 
 
-def angle_from_origin(
-    point: tuple[float, float], origin: tuple[float, float]
-) -> float:
+def angle_from_origin(point: tuple[float, float], origin: tuple[float, float]) -> float:
     """Angle of vector origin→point from +x axis, in [0, 2π)."""
     angle = math.atan2(point[1] - origin[1], point[0] - origin[0])
     if angle < 0:
@@ -91,11 +89,7 @@ def heidelberg_resolutions_mm(
     res_width = width_mm / num_columns if num_columns else width_mm
     res_height = float(scaley)
     res_depth = 0.0
-    if (
-        num_slices > 1
-        and first_start_fov is not None
-        and last_start_fov is not None
-    ):
+    if num_slices > 1 and first_start_fov is not None and last_start_fov is not None:
         angle_z = distance(first_start_fov, last_start_fov)
         res_depth = (angle_z / (num_slices - 1)) * INTERIOR_DEGREES_TO_MM
     return res_width, res_height, res_depth
@@ -371,7 +365,9 @@ SCAN_PATTERN_LINE = ("DCM", "128281", "Line B-scan pattern")
 SCAN_PATTERN_CIRCLE = ("DCM", "128284", "Circle B-scan pattern")
 
 
-def scan_pattern_code(geometry: ScanGeometry | None, num_frames: int) -> tuple[str, str, str]:
+def scan_pattern_code(
+    geometry: ScanGeometry | None, num_frames: int
+) -> tuple[str, str, str]:
     """Return (scheme, value, meaning) for ScanPatternTypeCodeSequence."""
     if geometry is not None and geometry.is_circular:
         return SCAN_PATTERN_CIRCLE

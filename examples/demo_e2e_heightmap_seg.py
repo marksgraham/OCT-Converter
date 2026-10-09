@@ -77,9 +77,7 @@ for volume in e2e.read_oct_volume():
     for key, slices in volume.contours.items():
         layer_id = int(key.replace("contour", ""))
         name = HEIDELBERG_LAYER_NAMES.get(layer_id, key)
-        n_valid = sum(
-            1 for s in slices if s is not None and np.isfinite(s).any()
-        )
+        n_valid = sum(1 for s in slices if s is not None and np.isfinite(s).any())
         print(f"  {key} ({name}): {n_valid}/{len(slices)} B-scans with data")
     # Overlay contours on a montage of B-scans
     volume.peek(show_contours=True)
@@ -121,7 +119,9 @@ for path in written:
     # Example: ILM surface on B-scan 0 (if present).
     if "ILM" in labels:
         ilm = heights_px[labels.index("ILM")]
-        print(f"  ILM B-scan 0 (px): min={np.nanmin(np.where(ilm == HEIGHTMAP_PADDING_VALUE, np.nan, ilm)):.2f}")
+        print(
+            f"  ILM B-scan 0 (px): min={np.nanmin(np.where(ilm == HEIGHTMAP_PADDING_VALUE, np.nan, ilm)):.2f}"
+        )
 
     source = (
         seg.SharedFunctionalGroupsSequence[0]

@@ -328,7 +328,7 @@ class FDA(object):
             json_key = key.decode().split("@")[-1].lower()
             try:
                 metadata[json_key] = self.read_any_info_and_make_dict(key)
-            except (KeyError):
+            except KeyError:
                 if verbose:
                     print(f"{key} there is no method for getting info from this chunk.")
         return metadata

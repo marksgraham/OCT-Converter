@@ -331,9 +331,9 @@ class E2E(object):
                                 UserWarning,
                             )
                         else:
-                            (
-                                contour_dict[volume_string][contour_name][slice_id]
-                            ) = contour
+                            contour_dict[volume_string][contour_name][
+                                slice_id
+                            ] = contour
 
                 elif chunk.type == 10019:  # legacy contour data (0x2713)
                     raw = f.read(16)
@@ -435,7 +435,7 @@ class E2E(object):
 
                 for contour_name, contour_values in contours.items():
                     for slice_id, contour in contour_values.items():
-                        (contour_data[volume_id][contour_name][slice_id]) = contour
+                        contour_data[volume_id][contour_name][slice_id] = contour
 
             # Optional Heidelberg registration: warp B-scans + contours into
             # Heyex display space.
@@ -451,16 +451,11 @@ class E2E(object):
                             continue
                         img = slices[slice_idx]
                         height, width = img.shape[:2]
-                        slices[slice_idx] = apply_registration_to_volume_slice(
-                            img, reg
-                        )
+                        slices[slice_idx] = apply_registration_to_volume_slice(img, reg)
                         if vol_key not in contour_data:
                             continue
                         for cname, clist in contour_data[vol_key].items():
-                            if (
-                                slice_idx < len(clist)
-                                and clist[slice_idx] is not None
-                            ):
+                            if slice_idx < len(clist) and clist[slice_idx] is not None:
                                 clist[slice_idx] = apply_registration_to_contour_slice(
                                     clist[slice_idx], reg, width, height
                                 )
@@ -624,9 +619,11 @@ class E2E(object):
                         image=image,
                         patient_id=self.patient_id,
                         image_id=key,
-                        laterality=laterality_dict[key]
-                        if key in laterality_dict.keys()
-                        else None,
+                        laterality=(
+                            laterality_dict[key]
+                            if key in laterality_dict.keys()
+                            else None
+                        ),
                         acquisition_date=self.acquisition_date,
                         metadata=metadata,
                         pixel_spacing=[scalex, scalex],
