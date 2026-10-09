@@ -114,7 +114,9 @@ def populate_patient_info(ds: Dataset, meta: DicomMetadata) -> Dataset:
             ds: Dataset, updated with patient information
     """
     # Patient Module PS3.3 C.7.1.1
-    ds.PatientName = f"{meta.patient_info.last_name or ''}^{meta.patient_info.first_name or ''}"
+    ds.PatientName = (
+        f"{meta.patient_info.last_name or ''}^{meta.patient_info.first_name or ''}"
+    )
     ds.PatientID = meta.patient_info.patient_id or ""
     ds.PatientSex = meta.patient_info.patient_sex or ""
     ds.PatientBirthDate = (
@@ -398,14 +400,16 @@ def write_opt_dicom(
     # Scan Pattern Type (CID 4272) — Ophthalmic Tomography Parameters
     geom = meta.scan_geometry
     scheme, value, meaning = scan_pattern_code(
-        ScanGeometry(
-            scan_type=geom.scan_type if geom else "volume",
-            start_angle=geom.start_angle if geom else None,
-            centre=tuple(geom.centre) if geom and geom.centre else None,
-            radius=geom.radius if geom else None,
-        )
-        if geom
-        else None,
+        (
+            ScanGeometry(
+                scan_type=geom.scan_type if geom else "volume",
+                start_angle=geom.start_angle if geom else None,
+                centre=tuple(geom.centre) if geom and geom.centre else None,
+                radius=geom.radius if geom else None,
+            )
+            if geom
+            else None
+        ),
         int(pixel_data.shape[0]),
     )
     ds.ScanPatternTypeCodeSequence = [_code_dataset(scheme, value, meaning)]
@@ -514,7 +518,11 @@ def write_heightmap_seg_dicom(
             axial_spacing_mm = 1.0
 
     # Heightmap Pixel Measures: row = B-scan spacing, col = OPT column spacing
-    opt_col_spacing = float(meta.image_geometry.pixel_spacing[1]) if meta.image_geometry.pixel_spacing else 1.0
+    opt_col_spacing = (
+        float(meta.image_geometry.pixel_spacing[1])
+        if meta.image_geometry.pixel_spacing
+        else 1.0
+    )
     slice_thickness = float(meta.image_geometry.slice_thickness)
     image_orientation = list(meta.image_geometry.image_orientation) or [
         1,
@@ -641,9 +649,7 @@ def write_heightmap_seg_dicom(
         po = Dataset()
         # Heightmap plane is orthogonal to OPT B-scans: rows along slice, cols along OPT cols
         # OPT orientation is [row_dir, col_dir]; heightmap row ~ OPT slice (Z), col ~ OPT col
-        shared.PlaneOrientationSequence = [
-            Dataset()
-        ]
+        shared.PlaneOrientationSequence = [Dataset()]
         # Approximate: row direction along patient Z of OPT stack, col along OPT column
         shared.PlaneOrientationSequence[0].ImageOrientationPatient = [
             0,
