@@ -9,10 +9,11 @@ import numpy as np
 from construct import StreamError, StringError
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 from pydicom.uid import (
+    UID,
     ExplicitVRLittleEndian,
+    OphthalmicPhotography8BitImageStorage,
     OphthalmicPhotography16BitImageStorage,
     OphthalmicTomographyImageStorage,
-    UID,
     generate_uid,
 )
 from pydicom.valuerep import DSfloat
@@ -113,7 +114,9 @@ def populate_patient_info(ds: Dataset, meta: DicomMetadata) -> Dataset:
             ds: Dataset, updated with patient information
     """
     # Patient Module PS3.3 C.7.1.1
-    ds.PatientName = f"{meta.patient_info.last_name or ''}^{meta.patient_info.first_name or ''}"
+    ds.PatientName = (
+        f"{meta.patient_info.last_name or ''}^{meta.patient_info.first_name or ''}"
+    )
     ds.PatientID = meta.patient_info.patient_id or ""
     ds.PatientSex = meta.patient_info.patient_sex or ""
     ds.PatientBirthDate = (
@@ -236,6 +239,94 @@ def opt_shared_functional_groups(ds: Dataset, meta: DicomMetadata) -> Dataset:
     return ds
 
 
+def _encode_pixel_array(arr: np.ndarray) -> tuple[np.ndarray, int]:
+    """Store pixels as the smallest valid DICOM integer type.
+
+    Checks for datatype and value limits in order to set the appropriate encoding.
+    Empty arrays are rejected.
+    """
+    arr = np.asarray(arr)
+    if arr.size == 0:
+        raise ValueError("Cannot encode an empty array as DICOM pixel data.")
+
+    if np.issubdtype(arr.dtype, np.integer):
+        if np.issubdtype(arr.dtype, np.signedinteger):
+            if arr.min() >= -128 and arr.max() <= 127:
+                return np.ascontiguousarray(arr.astype(np.int8)), 8
+            return np.ascontiguousarray(arr.astype(np.int16)), 16
+        if arr.max() <= 255:
+            return np.ascontiguousarray(arr, dtype=np.uint8), 8
+        return np.ascontiguousarray(arr, dtype=np.uint16), 16
+
+    mx = float(arr.max())
+    if mx <= 1.0:
+        out = np.clip(np.rint(arr * 255.0), 0, 255).astype(np.uint8)
+        return np.ascontiguousarray(out), 8
+    if mx <= 255:
+        out = np.clip(np.rint(arr), 0, 255).astype(np.uint8)
+        return np.ascontiguousarray(out), 8
+    mn = float(arr.min())
+    if mx <= mn:
+        return np.zeros(arr.shape, dtype=np.uint16), 16
+    out = ((arr - mn) / (mx - mn) * 65535.0).clip(0, 65535)
+    return np.ascontiguousarray(np.rint(out).astype(np.uint16)), 16
+
+
+def _as_grayscale_array(frames: t.Any) -> np.ndarray:
+    """Coerce fundus pixel input to a 2-D grayscale image.
+
+    RGB / RGBA arrays (HWC or CHW) are reduced to luminance so MONOCHROME2
+    PixelData length matches Rows x Columns. Plain 2-D arrays are unchanged.
+    """
+    arr = np.asarray(frames)
+    if arr.ndim == 2:
+        return arr
+    elif arr.ndim == 3 and arr.shape[-1] in (3, 4):
+        rgb = arr[..., :3].astype(np.float32)
+        return 0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]
+    elif arr.ndim == 3 and arr.shape[0] in (3, 4):
+        rgb = arr[:3].astype(np.float32)
+        return 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
+    raise ValueError(
+        f"Expected 2-D grayscale or 3-channel fundus image, got shape {arr.shape}"
+    )
+
+
+def _pixel_data_bytes(arr: np.ndarray) -> bytes:
+    """Serialize pixels and pad to even length (DICOM PixelData)."""
+    raw = np.ascontiguousarray(arr).tobytes()
+    if len(raw) % 2:
+        raw += b"\x00"
+    return raw
+
+
+def _apply_pixel_encoding_tags(
+    ds: Dataset,
+    bits: int,
+    samples_per_pixel: int = 1,
+    photometric: str = "MONOCHROME2",
+    pixel_representation: int = 0,
+) -> None:
+    """Set bit-depth, photometric, and full-range VOI window tags."""
+    ds.SamplesPerPixel = samples_per_pixel
+    ds.PhotometricInterpretation = photometric
+    ds.PixelRepresentation = pixel_representation
+    ds.BitsAllocated = bits
+    ds.BitsStored = bits
+    ds.HighBit = bits - 1
+    if photometric == "RGB":
+        ds.PlanarConfiguration = 0
+    ds.WindowCenter = 0 if pixel_representation == 1 else 1 << (bits - 1)
+    ds.WindowWidth = 1 << bits
+
+
+def _photography_sop_uid(bits: int) -> UID:
+    """Ophthalmic Photography SOP class matching stored bit depth."""
+    if bits == 8:
+        return OphthalmicPhotography8BitImageStorage
+    return OphthalmicPhotography16BitImageStorage
+
+
 def write_opt_dicom(
     meta: DicomMetadata,
     frames: t.List[np.ndarray],
@@ -280,21 +371,27 @@ def write_opt_dicom(
 
     # OPT Image Module PS3.3 C.8.17.7
     ds.ImageType = ["DERIVED", "SECONDARY"]
-    ds.SamplesPerPixel = 1
     ds.AcquisitionDateTime = format_acquisition_datetime(
         meta.series_info.acquisition_date
     )
-
     ds.AcquisitionNumber = 1
-    ds.PhotometricInterpretation = "MONOCHROME2"
-    # Unsigned integer
-    ds.PixelRepresentation = 0
-    # Use 16 bit pixel
-    ds.BitsAllocated = 16
-    ds.BitsStored = ds.BitsAllocated
-    ds.HighBit = ds.BitsAllocated - 1
-    ds.SamplesPerPixel = 1
-    ds.NumberOfFrames = len(frames)
+
+    pixel_data, bits = _encode_pixel_array(frames)
+    if pixel_data.ndim == 2:
+        pixel_data = pixel_data[np.newaxis, ...]
+    if pixel_data.ndim != 3:
+        raise ValueError(
+            f"Expected OCT frames as a 3-D volume, got shape {pixel_data.shape}"
+        )
+    pixel_representation = 1 if np.issubdtype(pixel_data.dtype, np.signedinteger) else 0
+    _apply_pixel_encoding_tags(
+        ds,
+        bits,
+        pixel_representation=pixel_representation,
+    )
+    ds.NumberOfFrames = int(pixel_data.shape[0])
+    ds.Rows = int(pixel_data.shape[1])
+    ds.Columns = int(pixel_data.shape[2])
 
     # Multi-frame Functional Groups Module PS3.3 C.7.6.16
     set_content_date_time(ds)
@@ -303,25 +400,21 @@ def write_opt_dicom(
     # Scan Pattern Type (CID 4272) — Ophthalmic Tomography Parameters
     geom = meta.scan_geometry
     scheme, value, meaning = scan_pattern_code(
-        ScanGeometry(
-            scan_type=geom.scan_type if geom else "volume",
-            start_angle=geom.start_angle if geom else None,
-            centre=tuple(geom.centre) if geom and geom.centre else None,
-            radius=geom.radius if geom else None,
-        )
-        if geom
-        else None,
-        len(frames),
+        (
+            ScanGeometry(
+                scan_type=geom.scan_type if geom else "volume",
+                start_angle=geom.start_angle if geom else None,
+                centre=tuple(geom.centre) if geom and geom.centre else None,
+                radius=geom.radius if geom else None,
+            )
+            if geom
+            else None
+        ),
+        int(pixel_data.shape[0]),
     )
     ds.ScanPatternTypeCodeSequence = [_code_dataset(scheme, value, meaning)]
 
     per_frame = []
-    # Normalize
-    frames = normalize_volume(frames)
-    # Convert to a 3d volume
-    pixel_data = np.array(frames).astype(np.uint16)
-    ds.Rows = pixel_data.shape[1]
-    ds.Columns = pixel_data.shape[2]
     for i in range(pixel_data.shape[0]):
         # Per Frame Functional Groups
         frame_fgs = Dataset()
@@ -372,7 +465,7 @@ def write_opt_dicom(
 
         per_frame.append(frame_fgs)
     ds.PerFrameFunctionalGroupsSequence = per_frame
-    ds.PixelData = pixel_data.tobytes()
+    ds.PixelData = _pixel_data_bytes(pixel_data)
     ds.save_as(
         filepath, implicit_vr=False, little_endian=True, enforce_file_format=True
     )
@@ -425,7 +518,11 @@ def write_heightmap_seg_dicom(
             axial_spacing_mm = 1.0
 
     # Heightmap Pixel Measures: row = B-scan spacing, col = OPT column spacing
-    opt_col_spacing = float(meta.image_geometry.pixel_spacing[1]) if meta.image_geometry.pixel_spacing else 1.0
+    opt_col_spacing = (
+        float(meta.image_geometry.pixel_spacing[1])
+        if meta.image_geometry.pixel_spacing
+        else 1.0
+    )
     slice_thickness = float(meta.image_geometry.slice_thickness)
     image_orientation = list(meta.image_geometry.image_orientation) or [
         1,
@@ -552,9 +649,7 @@ def write_heightmap_seg_dicom(
         po = Dataset()
         # Heightmap plane is orthogonal to OPT B-scans: rows along slice, cols along OPT cols
         # OPT orientation is [row_dir, col_dir]; heightmap row ~ OPT slice (Z), col ~ OPT col
-        shared.PlaneOrientationSequence = [
-            Dataset()
-        ]
+        shared.PlaneOrientationSequence = [Dataset()]
         # Approximate: row direction along patient Z of OPT stack, col along OPT column
         shared.PlaneOrientationSequence[0].ImageOrientationPatient = [
             0,
@@ -667,8 +762,14 @@ def write_fundus_dicom(
         sop_instance_uid=sop_instance_uid,
     )
     ds.Modality = "OP"
-    ds.SOPClassUID = OphthalmicPhotography16BitImageStorage
-    ds.file_meta.MediaStorageSOPClassUID = OphthalmicPhotography16BitImageStorage
+    pixel_data, bits = _encode_pixel_array(_as_grayscale_array(frames))
+    if pixel_data.ndim != 2:
+        raise ValueError(
+            f"Expected 2-D grayscale fundus image, got shape {pixel_data.shape}"
+        )
+    photo_sop = _photography_sop_uid(bits)
+    ds.SOPClassUID = photo_sop
+    ds.file_meta.MediaStorageSOPClassUID = photo_sop
     ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
     ds = populate_ocular_region(ds, meta)
 
@@ -684,55 +785,29 @@ def write_fundus_dicom(
     }
     if ds.ProtocolName in enface_to_type:
         ds.ImageType.append(enface_to_type.get(ds.ProtocolName))
-    ds.SamplesPerPixel = 1
     ds.AcquisitionDateTime = format_acquisition_datetime(
         meta.series_info.acquisition_date
     )
     ds.AcquisitionNumber = 1
-    ds.PhotometricInterpretation = "MONOCHROME2"
-    # Unsigned integer
-    ds.PixelRepresentation = 0
-    # Use 16 bit pixel
-    ds.BitsAllocated = 16
-    ds.BitsStored = ds.BitsAllocated
-    ds.HighBit = ds.BitsAllocated - 1
-    ds.SamplesPerPixel = 1
+    pixel_representation = 1 if np.issubdtype(pixel_data.dtype, np.signedinteger) else 0
+    _apply_pixel_encoding_tags(
+        ds,
+        bits,
+        pixel_representation=pixel_representation,
+    )
     ds.NumberOfFrames = 1
 
     # Multi-frame Functional Groups Module PS3.3 C.7.6.16
     set_content_date_time(ds)
     ds.InstanceNumber = 1
-    pixel_data = _as_grayscale_uint16(frames)
-    ds.Rows = pixel_data.shape[0]
-    ds.Columns = pixel_data.shape[1]
+    ds.Rows = int(pixel_data.shape[0])
+    ds.Columns = int(pixel_data.shape[1])
 
-    ds.PixelData = pixel_data.tobytes()
+    ds.PixelData = _pixel_data_bytes(pixel_data)
     ds.save_as(
         filepath, implicit_vr=False, little_endian=True, enforce_file_format=True
     )
     return ds
-
-
-def _as_grayscale_uint16(frames: t.Any) -> np.ndarray:
-    """Coerce fundus pixel input to a 2-D uint16 grayscale image.
-
-    RGB / RGBA arrays (HWC or CHW) are reduced to luminance so MONOCHROME2
-    PixelData length matches Rows x Columns. Plain 2-D arrays are cast only.
-    """
-    arr = np.asarray(frames)
-    if arr.ndim == 2:
-        gray = arr
-    elif arr.ndim == 3 and arr.shape[-1] in (3, 4):
-        rgb = arr[..., :3].astype(np.float32)
-        gray = 0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]
-    elif arr.ndim == 3 and arr.shape[0] in (3, 4):
-        rgb = arr[:3].astype(np.float32)
-        gray = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
-    else:
-        raise ValueError(
-            f"Expected 2-D grayscale or 3-channel fundus image, got shape {arr.shape}"
-        )
-    return np.ascontiguousarray(gray, dtype=np.uint16)
 
 
 def write_color_fundus_dicom(
@@ -756,8 +831,17 @@ def write_color_fundus_dicom(
     ds = populate_manufacturer_info(ds, meta)
     ds = populate_opt_series(ds, meta, study_instance_uid=study_instance_uid)
     ds.Modality = "OP"
-    ds.SOPClassUID = OphthalmicPhotography16BitImageStorage
-    ds.file_meta.MediaStorageSOPClassUID = OphthalmicPhotography16BitImageStorage
+    rgb = np.asarray(frames)
+    if rgb.ndim == 3 and rgb.shape[-1] == 4:
+        rgb = rgb[..., :3]
+    pixel_data, bits = _encode_pixel_array(rgb)
+    if pixel_data.ndim != 3 or pixel_data.shape[-1] != 3:
+        raise ValueError(
+            f"Expected HxWx3 RGB fundus image, got shape {pixel_data.shape}"
+        )
+    photo_sop = _photography_sop_uid(bits)
+    ds.SOPClassUID = photo_sop
+    ds.file_meta.MediaStorageSOPClassUID = photo_sop
     ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
     ds = populate_ocular_region(ds, meta)
 
@@ -773,30 +857,27 @@ def write_color_fundus_dicom(
     }
     if ds.ProtocolName in enface_to_type:
         ds.ImageType.append(enface_to_type.get(ds.ProtocolName))
-    ds.SamplesPerPixel = 1
     ds.AcquisitionDateTime = format_acquisition_datetime(
         meta.series_info.acquisition_date
     )
     ds.AcquisitionNumber = 1
-    ds.PhotometricInterpretation = "RGB"
-    # Unsigned integer
-    ds.PixelRepresentation = 0
-    # Use 16 bit pixel
-    ds.BitsAllocated = 16
-    ds.BitsStored = ds.BitsAllocated
-    ds.HighBit = ds.BitsAllocated - 1
-    ds.SamplesPerPixel = 1
+    pixel_representation = 1 if np.issubdtype(pixel_data.dtype, np.signedinteger) else 0
+    _apply_pixel_encoding_tags(
+        ds,
+        bits,
+        samples_per_pixel=3,
+        photometric="RGB",
+        pixel_representation=pixel_representation,
+    )
     ds.NumberOfFrames = 1
 
     # Multi-frame Functional Groups Module PS3.3 C.7.6.16
     set_content_date_time(ds)
     ds.InstanceNumber = 1
+    ds.Rows = int(pixel_data.shape[0])
+    ds.Columns = int(pixel_data.shape[1])
 
-    pixel_data = np.array(frames).astype(np.uint16)
-    ds.Rows = pixel_data.shape[0]
-    ds.Columns = pixel_data.shape[1]
-
-    ds.PixelData = pixel_data.tobytes()
+    ds.PixelData = _pixel_data_bytes(pixel_data)
     ds.save_as(
         filepath, implicit_vr=False, little_endian=True, enforce_file_format=True
     )
@@ -876,23 +957,6 @@ def create_dicom_from_oct(
         )
 
     return files
-
-
-def normalize_volume(vol: list[np.ndarray]) -> list[np.ndarray]:
-    """Normalizes pixel intensities within a range of 0-100.
-
-    Args:
-        vol: List of frames
-    Returns:
-        Normalized list of frames
-    """
-    arr = np.array(vol)
-    norm_vol = []
-    diff_arr = arr.max() - arr.min()
-    for i in arr:
-        temp = ((i - arr.min()) / diff_arr) * 100
-        norm_vol.append(temp)
-    return norm_vol
 
 
 def create_dicom_from_boct(
