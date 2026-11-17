@@ -316,8 +316,9 @@ def _apply_pixel_encoding_tags(
     ds.HighBit = bits - 1
     if photometric == "RGB":
         ds.PlanarConfiguration = 0
-    ds.WindowCenter = 0 if pixel_representation == 1 else 1 << (bits - 1)
-    ds.WindowWidth = 1 << bits
+    elif photometric == "MONOCHROME2" or photometric == "MONOCHROME1":
+        ds.WindowCenter = 0 if pixel_representation == 1 else 1 << (bits - 1)
+        ds.WindowWidth = 1 << bits
 
 
 def _photography_sop_uid(bits: int) -> UID:
