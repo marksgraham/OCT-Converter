@@ -4,6 +4,7 @@ import typing as t
 from datetime import datetime
 from importlib import metadata
 from pathlib import Path
+import warnings
 
 import numpy as np
 from construct import StreamError, StringError
@@ -243,33 +244,56 @@ def _encode_pixel_array(arr: np.ndarray) -> tuple[np.ndarray, int]:
     """Store pixels as the smallest valid DICOM integer type.
 
     Checks for datatype and value limits in order to set the appropriate encoding.
+    Assume unsigned integer for DICOM pixel data, as required by DICOM PS3.3 (C.8.17.2 / C.8.17.7).
+    Enforces UInt8 or UInt16 based on min/max values in case of integer input. 
+    If the input is a float array, it is scaled to the range of 0-65535 and stored as UInt16.
     Empty arrays are rejected.
+    Arrays containing negative values are rejected as OP and OPT DICOM require unsigned integer values.
     """
     arr = np.asarray(arr)
     if arr.size == 0:
         raise ValueError("Cannot encode an empty array as DICOM pixel data.")
 
-    if np.issubdtype(arr.dtype, np.integer):
-        if np.issubdtype(arr.dtype, np.signedinteger):
-            if arr.min() >= -128 and arr.max() <= 127:
-                return np.ascontiguousarray(arr.astype(np.int8)), 8
-            return np.ascontiguousarray(arr.astype(np.int16)), 16
-        if arr.max() <= 255:
-            return np.ascontiguousarray(arr, dtype=np.uint8), 8
-        return np.ascontiguousarray(arr, dtype=np.uint16), 16
+    nonfinite = ~np.isfinite(arr)
+    if nonfinite.any():
+        warnings.warn(
+            f"Replacing {np.count_nonzero(nonfinite)} non-finite pixel values with zero.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        arr = np.where(nonfinite, 0, arr)
+    
+    mx = arr.max()
+    mn = arr.min()
 
-    mx = float(arr.max())
-    if mx <= 1.0:
-        out = np.clip(np.rint(arr * 255.0), 0, 255).astype(np.uint8)
-        return np.ascontiguousarray(out), 8
-    if mx <= 255:
-        out = np.clip(np.rint(arr), 0, 255).astype(np.uint8)
-        return np.ascontiguousarray(out), 8
-    mn = float(arr.min())
-    if mx <= mn:
-        return np.zeros(arr.shape, dtype=np.uint16), 16
-    out = ((arr - mn) / (mx - mn) * 65535.0).clip(0, 65535)
-    return np.ascontiguousarray(np.rint(out).astype(np.uint16)), 16
+    if mn < 0:
+        raise ValueError(
+            f"Negative pixel values are not supported for DICOM encoding: min={mn}, max={mx}"
+        )
+
+    if np.issubdtype(arr.dtype, np.integer):
+        if mx <= 255:
+            return np.ascontiguousarray(arr, dtype=np.uint8), 8
+        elif mx <= 65535:
+            return np.ascontiguousarray(arr, dtype=np.uint16), 16
+        else:
+            raise ValueError(
+                f"Pixel values exceed 16-bit range: min={mn}, max={mx}. "
+            )
+
+    elif np.issubdtype(arr.dtype, np.floating):
+        if mx == mn:
+            raise ValueError(
+                f"Cannot encode a constant float array as DICOM pixel data: value={mx}"
+            )
+        warnings.warn("Float pixel array detected. Scaling to 16-bit unsigned integer range.")
+        out = ((arr - mn) / (mx - mn) * 65535.0).clip(0, 65535)
+        return np.ascontiguousarray(np.rint(out).astype(np.uint16)), 16
+
+    else:
+        raise ValueError(
+            f"Unsupported pixel array dtype {arr.dtype}. Expected integer or float."
+        )
 
 
 def _as_grayscale_array(frames: t.Any) -> np.ndarray:
