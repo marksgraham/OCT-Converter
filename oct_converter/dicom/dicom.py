@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import typing as t
+import warnings
 from datetime import datetime
 from importlib import metadata
 from pathlib import Path
-import warnings
 
 import numpy as np
 from construct import StreamError, StringError
@@ -245,7 +245,7 @@ def _encode_pixel_array(arr: np.ndarray) -> tuple[np.ndarray, int]:
 
     Checks for datatype and value limits in order to set the appropriate encoding.
     Assume unsigned integer for DICOM pixel data, as required by DICOM PS3.3 (C.8.17.2 / C.8.17.7).
-    Enforces UInt8 or UInt16 based on min/max values in case of integer input. 
+    Enforces UInt8 or UInt16 based on min/max values in case of integer input.
     If the input is a float array, it is scaled to the range of 0-65535 and stored as UInt16.
     Empty arrays are rejected.
     Arrays containing negative values are rejected as OP and OPT DICOM require unsigned integer values.
@@ -262,7 +262,7 @@ def _encode_pixel_array(arr: np.ndarray) -> tuple[np.ndarray, int]:
             stacklevel=2,
         )
         arr = np.where(nonfinite, 0, arr)
-    
+
     mx = arr.max()
     mn = arr.min()
 
@@ -277,16 +277,16 @@ def _encode_pixel_array(arr: np.ndarray) -> tuple[np.ndarray, int]:
         elif mx <= 65535:
             return np.ascontiguousarray(arr, dtype=np.uint16), 16
         else:
-            raise ValueError(
-                f"Pixel values exceed 16-bit range: min={mn}, max={mx}. "
-            )
+            raise ValueError(f"Pixel values exceed 16-bit range: min={mn}, max={mx}. ")
 
     elif np.issubdtype(arr.dtype, np.floating):
         if mx == mn:
             raise ValueError(
                 f"Cannot encode a constant float array as DICOM pixel data: value={mx}"
             )
-        warnings.warn("Float pixel array detected. Scaling to 16-bit unsigned integer range.")
+        warnings.warn(
+            "Float pixel array detected. Scaling to 16-bit unsigned integer range."
+        )
         out = ((arr - mn) / (mx - mn) * 65535.0).clip(0, 65535)
         return np.ascontiguousarray(np.rint(out).astype(np.uint16)), 16
 
