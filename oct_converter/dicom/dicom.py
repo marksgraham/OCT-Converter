@@ -246,6 +246,7 @@ def _encode_pixel_array(arr: np.ndarray) -> tuple[np.ndarray, int]:
     Checks for datatype and value limits in order to set the appropriate encoding.
     Assume unsigned integer for DICOM pixel data, as required by DICOM PS3.3 (C.8.17.2 / C.8.17.7).
     Enforces UInt8 or UInt16 based on min/max values in case of integer input.
+    Enforces UInt8 or UInt16 based on min/max values in case of integer input.
     If the input is a float array, it is scaled to the range of 0-65535 and stored as UInt16.
     Empty arrays are rejected.
     Arrays containing negative values are rejected as OP and OPT DICOM require unsigned integer values.
@@ -254,24 +255,15 @@ def _encode_pixel_array(arr: np.ndarray) -> tuple[np.ndarray, int]:
     if arr.size == 0:
         raise ValueError("Cannot encode an empty array as DICOM pixel data.")
 
-    nonfinite = ~np.isfinite(arr)
-    if nonfinite.any():
-        warnings.warn(
-            f"Replacing {np.count_nonzero(nonfinite)} non-finite pixel values with zero.",
-            RuntimeWarning,
-            stacklevel=2,
-        )
-        arr = np.where(nonfinite, 0, arr)
-
-    mx = arr.max()
-    mn = arr.min()
-
-    if mn < 0:
-        raise ValueError(
-            f"Negative pixel values are not supported for DICOM encoding: min={mn}, max={mx}"
-        )
-
     if np.issubdtype(arr.dtype, np.integer):
+
+        mx = arr.max()
+        mn = arr.min()
+
+        if mn < 0:
+            raise ValueError(
+                f"Negative pixel values are not supported for DICOM encoding: min={mn}, max={mx}"
+            )
         if mx <= 255:
             return np.ascontiguousarray(arr, dtype=np.uint8), 8
         elif mx <= 65535:
@@ -280,6 +272,23 @@ def _encode_pixel_array(arr: np.ndarray) -> tuple[np.ndarray, int]:
             raise ValueError(f"Pixel values exceed 16-bit range: min={mn}, max={mx}. ")
 
     elif np.issubdtype(arr.dtype, np.floating):
+        nonfinite = ~np.isfinite(arr)
+        if nonfinite.any():
+            warnings.warn(
+                f"Replacing {np.count_nonzero(nonfinite)} non-finite pixel values with zero.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            arr = np.where(nonfinite, 0, arr)
+
+        mx = arr.max()
+        mn = arr.min()
+
+        if mn < 0:
+            raise ValueError(
+                f"Negative pixel values are not supported for DICOM encoding: min={mn}, max={mx}"
+            )
+
         if mx == mn:
             raise ValueError(
                 f"Cannot encode a constant float array as DICOM pixel data: value={mx}"
