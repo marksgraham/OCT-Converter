@@ -12,12 +12,12 @@ from construct.core import StreamError
 
 from oct_converter.image_types import FundusImageWithMetaData, OCTVolumeWithMetaData
 from oct_converter.readers.binary_structs import e2e_binary
-from oct_converter.readers.scan_geometry import build_volume_scan_geometry
 from oct_converter.readers.registration import (
     apply_registration_to_contour_slice,
     apply_registration_to_volume_slice,
     registration_from_values,
 )
+from oct_converter.readers.scan_geometry import build_volume_scan_geometry
 
 
 def _compact_sparse_volume_slices(volume, contours=None, bscan_by_slice=None):
@@ -331,9 +331,9 @@ class E2E(object):
                                 UserWarning,
                             )
                         else:
-                            (
-                                contour_dict[volume_string][contour_name][slice_id]
-                            ) = contour
+                            contour_dict[volume_string][contour_name][
+                                slice_id
+                            ] = contour
 
                 elif chunk.type == 10019:  # legacy contour data (0x2713)
                     raw = f.read(16)
@@ -435,7 +435,7 @@ class E2E(object):
 
                 for contour_name, contour_values in contours.items():
                     for slice_id, contour in contour_values.items():
-                        (contour_data[volume_id][contour_name][slice_id]) = contour
+                        contour_data[volume_id][contour_name][slice_id] = contour
 
             # Optional Heidelberg registration: warp B-scans + contours into
             # Heyex display space.
@@ -451,16 +451,11 @@ class E2E(object):
                             continue
                         img = slices[slice_idx]
                         height, width = img.shape[:2]
-                        slices[slice_idx] = apply_registration_to_volume_slice(
-                            img, reg
-                        )
+                        slices[slice_idx] = apply_registration_to_volume_slice(img, reg)
                         if vol_key not in contour_data:
                             continue
                         for cname, clist in contour_data[vol_key].items():
-                            if (
-                                slice_idx < len(clist)
-                                and clist[slice_idx] is not None
-                            ):
+                            if slice_idx < len(clist) and clist[slice_idx] is not None:
                                 clist[slice_idx] = apply_registration_to_contour_slice(
                                     clist[slice_idx], reg, width, height
                                 )
@@ -624,9 +619,11 @@ class E2E(object):
                         image=image,
                         patient_id=self.patient_id,
                         image_id=key,
-                        laterality=laterality_dict[key]
-                        if key in laterality_dict.keys()
-                        else None,
+                        laterality=(
+                            laterality_dict[key]
+                            if key in laterality_dict.keys()
+                            else None
+                        ),
                         acquisition_date=self.acquisition_date,
                         metadata=metadata,
                         pixel_spacing=[scalex, scalex],
@@ -666,6 +663,16 @@ class E2E(object):
                 for name in container
                 if not name.startswith("_")
             }
+
+        def _set_utf16_text(dest: dict, key: str, parsed, index: int = 0) -> None:
+            """Store parsed UTF-16 chunk text if present.
+
+            Anonymized E2E files often have n_strings=0 (empty ``text``).
+            Skip those instead of indexing ``text[0]``.
+            """
+            text = getattr(parsed, "text", None) or []
+            if key not in dest and index < len(text):
+                dest[key] = text[index]
 
         metadata = dict()
         metadata["image_data"] = []
@@ -767,28 +774,32 @@ class E2E(object):
                 elif chunk.type == 9005:  # examined structure ("Retina")
                     raw = f.read(chunk.size)
                     structure_data = e2e_binary.examined_structure.parse(raw)
-                    if image_string not in metadata["examined_structure"]:
-                        metadata["examined_structure"][
-                            image_string
-                        ] = structure_data.text[0]
+                    _set_utf16_text(
+                        metadata["examined_structure"],
+                        image_string,
+                        structure_data,
+                    )
 
                 elif chunk.type == 9006:  # scan pattern
                     raw = f.read(chunk.size)
                     scan_pattern = e2e_binary.scan_pattern.parse(raw)
-                    if image_string not in metadata["scan_pattern"]:
-                        metadata["scan_pattern"][image_string] = scan_pattern.text[0]
+                    _set_utf16_text(
+                        metadata["scan_pattern"], image_string, scan_pattern
+                    )
 
                 elif chunk.type == 9007:  # enface_modality (i.e. IR, FA, ICGA)
                     raw = f.read(chunk.size)
                     enface = e2e_binary.enface_modality.parse(raw)
-                    if image_string not in metadata["enface_modality"]:
-                        metadata["enface_modality"][image_string] = enface.text[1]
+                    _set_utf16_text(
+                        metadata["enface_modality"], image_string, enface, index=1
+                    )
 
                 elif chunk.type == 9008:
                     raw = f.read(chunk.size)
                     oct_modality = e2e_binary.oct_modality.parse(raw)
-                    if image_string not in metadata["oct_modality"]:
-                        metadata["oct_modality"][image_string] = oct_modality.text[0]
+                    _set_utf16_text(
+                        metadata["oct_modality"], image_string, oct_modality
+                    )
 
                 elif chunk.type == 10025:
                     raw = f.read(chunk.size)

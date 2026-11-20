@@ -53,10 +53,7 @@ import numpy as np
 import pydicom
 
 from oct_converter.dicom import create_dicom_from_oct
-from oct_converter.dicom.heightmap import (
-    HEIGHTMAP_PADDING_VALUE,
-    TOPCON_LAYER_LABELS,
-)
+from oct_converter.dicom.heightmap import HEIGHTMAP_PADDING_VALUE, TOPCON_LAYER_LABELS
 from oct_converter.readers import FDA
 
 
